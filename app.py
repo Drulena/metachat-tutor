@@ -629,14 +629,20 @@ def get_current_message():
     state = st.session_state.scenario["states"][st.session_state.current_state]
     message = state["message"]
 
+    user_answer = st.session_state.chat_history[-1]["content"]
+    print(
+        user_answer,
+        st.session_state.user_data["user_name"],
+        st.session_state.user_data["level"],
+        st.session_state.user_data["current_role"],
+    )
+
     if (
-        "analysis_feedback_" in st.session_state.current_state
+        "analysis" in st.session_state.current_state
         and st.session_state.user_data["user_name"]
         and st.session_state.user_data["level"]
         and st.session_state.user_data["current_role"]
     ):
-        user_answer = st.session_state.chat_history[-1]["content"]
-        print(user_answer)
         message += get_llm_feedback(
             user_name=st.session_state.user_data["user_name"],
             level=st.session_state.user_data["level"],
