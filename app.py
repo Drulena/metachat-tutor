@@ -6,6 +6,9 @@ import re
 from datetime import datetime
 
 import streamlit as st
+from dotenv import load_dotenv
+
+load_dotenv()  # Loads .env into os.environ (looks in current/working dir by default)
 
 # ==================== CSS ДЛЯ ОФОРМЛЕНИЯ ====================
 st.markdown(
