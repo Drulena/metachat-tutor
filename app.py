@@ -20,7 +20,7 @@ st.markdown(
     """
 <style>
 .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .st-emotion-cache-1v0mbdj h1, .st-emotion-cache-1v0mbdj h2, .st-emotion-cache-1v0mbdj h3 {
-    background-color: #f0f2f6;
+    background-color: #008080;
     padding: 8px 12px;
     border-radius: 8px;
     display: inline-block;
