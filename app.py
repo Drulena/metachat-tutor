@@ -633,8 +633,8 @@ def get_current_message():
     print(
         f"DEBUG get_current_message: user_answer='{user_answer}', "
         f"user_name='{st.session_state.user_data['user_name']}', "
-        f"level='{st.session_state.user_data['level']}', "
-        f"current_role='{st.session_state.user_data['current_role']}'"
+        f"level='{st.session_state.user_data['level']}'"
+        # f"current_role='{st.session_state.user_data['current_role']}'"
     )
 
     if (
