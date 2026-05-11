@@ -10,6 +10,11 @@ from dotenv import load_dotenv
 
 load_dotenv()  # Loads .env into os.environ (looks in current/working dir by default)
 
+# ==================== НАСТРОЙКИ ====================
+st.set_page_config(
+    page_title="MetaChat Tutor - Research Edition", page_icon="🎓", layout="wide"
+)
+
 # ==================== CSS ДЛЯ ОФОРМЛЕНИЯ ====================
 st.markdown(
     """
@@ -27,11 +32,6 @@ st.markdown(
 </style>
 """,
     unsafe_allow_html=True,
-)
-
-# ==================== НАСТРОЙКИ ====================
-st.set_page_config(
-    page_title="MetaChat Tutor - Research Edition", page_icon="🎓", layout="wide"
 )
 
 # ==================== НАСТРОЙКИ ====================
