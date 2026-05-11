@@ -1,6 +1,6 @@
 # MetaChat Tutor
 
-Adaptive Streamlit chatbot for linguodidactics research — teaches metagraheme use (emojis, formatting, hashtags) and constructive communication roles in online polylogues.
+Adaptive Streamlit chatbot for linguodidactics research — teaches constructive communication roles, tactics and metagraheme use (emojis, formatting, hashtags) in online polylogues.
 
 ## Run
 
