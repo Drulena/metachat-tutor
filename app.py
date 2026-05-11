@@ -629,6 +629,21 @@ def get_current_message():
     state = st.session_state.scenario["states"][st.session_state.current_state]
     message = state["message"]
 
+    if (
+        "analysis_feedback_" in st.session_state.current_state
+        and st.session_state.user_data["user_name"]
+        and st.session_state.user_data["level"]
+        and st.session_state.user_data["current_role"]
+    ):
+        user_answer = st.session_state.chat_history[-1]["content"]
+        print(user_answer)
+        message += get_llm_feedback(
+            user_name=st.session_state.user_data["user_name"],
+            level=st.session_state.user_data["level"],
+            role_name=st.session_state.user_data["current_role"],
+            user_answer='st.session_state.user_data["user_answer"]',
+        )
+
     # Подстановка имени пользователя
     if st.session_state.user_data["user_name"]:
         message = message.replace(
@@ -1123,7 +1138,7 @@ def get_llm_feedback(user_answer, role_name, user_name, level):
             LLM_URL,
             headers={"Authorization": f"Bearer {LLM_API_KEY}"},
             json={
-                "prompt": f"{THEORETICAL_BASE}\n\nОцени ответ студента...",
+                "prompt": f"{THEORETICAL_BASE}\n\nОцени ответ студента... {user_name} {role_name} {level} {user_answer}",
                 "max_tokens": 500,
             },
         )
