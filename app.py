@@ -1,5 +1,6 @@
 # app.py - MetaChat Tutor for Streamlit (ФИНАЛЬНАЯ ВЕРСИЯ - ЧАСТЬ 1)
 import json
+import os
 import random
 import re
 from datetime import datetime
@@ -31,7 +32,8 @@ st.set_page_config(
 )
 
 # ==================== НАСТРОЙКИ ====================
-USE_LLM = False  # Set True if vedai.by API key is available
+LLM_API_KEY = os.getenv("LLM_API_KEY", None)
+LLM_URL = os.getenv("LLM_URL", "http://localhost:8080/v1/completions")
 
 # ==================== ТЕОРЕТИЧЕСКАЯ БАЗА ДЛЯ LLM ====================
 THEORETICAL_BASE = """
@@ -1105,21 +1107,24 @@ def process_input(user_input):
 
 # ==================== ФУНКЦИЯ ДЛЯ LLM (ОПЦИОНАЛЬНО) ====================
 def get_llm_feedback(user_answer, role_name, user_name, level):
-    """Получение фидбека от LLM через API vedai.by (если USE_LLM = True)"""
-    if not USE_LLM:
+    """Получение фидбека от LLM через API (если LLM_API_KEY != None)"""
+    if LLM_API_KEY is None:
         return None
 
-    # Здесь нужно подключить API vedai.by
+    # Здесь нужно подключить API
     # Пример заготовки:
     try:
-        # import requests
-        # response = requests.post(
-        #     "https://api.vedai.by/v1/completions",
-        #     headers={"Authorization": "Bearer YOUR_API_KEY"},
-        #     json={"prompt": f"{THEORETICAL_BASE}\n\nОцени ответ студента...", "max_tokens": 500}
-        # )
-        # return response.json()['choices'][0]['text']
-        pass
+        import requests
+
+        response = requests.post(
+            LLM_URL,
+            headers={"Authorization": f"Bearer {LLM_API_KEY}"},
+            json={
+                "prompt": f"{THEORETICAL_BASE}\n\nОцени ответ студента...",
+                "max_tokens": 500,
+            },
+        )
+        return response.json()["choices"][0]["text"]
     except:
         return None
 
