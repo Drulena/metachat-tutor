@@ -631,23 +631,26 @@ def get_current_message():
 
     user_answer = st.session_state.chat_history[-1]["content"]
     print(
-        user_answer,
-        st.session_state.user_data["user_name"],
-        st.session_state.user_data["level"],
-        st.session_state.user_data["current_role"],
+        f"DEBUG get_current_message: user_answer='{user_answer}', "
+        f"user_name='{st.session_state.user_data['user_name']}', "
+        f"level='{st.session_state.user_data['level']}', "
+        f"current_role='{st.session_state.user_data['current_role']}'"
     )
 
     if (
-        "analysis" in st.session_state.current_state
+        (
+            "analysis_feedback" in st.session_state.current_state
+            or "analysis_task" in st.session_state.current_state
+        )
         and st.session_state.user_data["user_name"]
         and st.session_state.user_data["level"]
-        and st.session_state.user_data["current_role"]
+        # and st.session_state.user_data["current_role"]
     ):
         message += get_llm_feedback(
             user_name=st.session_state.user_data["user_name"],
             level=st.session_state.user_data["level"],
             role_name=st.session_state.user_data["current_role"],
-            user_answer='st.session_state.user_data["user_answer"]',
+            user_answer=user_answer,
         )
 
     # Подстановка имени пользователя
