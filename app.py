@@ -1147,7 +1147,7 @@ def get_llm_feedback(user_answer, role_name, user_name, level):
             LLM_URL,
             headers={"Authorization": f"Bearer {LLM_API_KEY}"},
             json={
-                "prompt": f"{THEORETICAL_BASE}\n\nОцени ответ студента... {user_name} {role_name} {level} {user_answer}",
+                "prompt": f"{THEORETICAL_BASE}\n\nОцени ответ студента... {user_name} {level} {user_answer}",
                 "max_tokens": 500,
             },
         )
