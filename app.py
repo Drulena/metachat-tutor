@@ -1,4 +1,4 @@
-# app.py - MetaChat Tutor for Streamlit (ФИНАЛЬНАЯ ВЕРСИЯ - ЧАСТЬ 1)
+# app.py - MetaChat Tutor for Streamlit 
 import json
 import os
 import random
@@ -8,7 +8,7 @@ from datetime import datetime
 import streamlit as st
 from dotenv import load_dotenv
 
-load_dotenv()  # Loads .env into os.environ (looks in current/working dir by default)
+load_dotenv(override=True)  # Loads .env into os.environ, overrides existing vars on reload
 
 # ==================== НАСТРОЙКИ ====================
 st.set_page_config(
@@ -36,38 +36,40 @@ st.markdown(
 
 # ==================== НАСТРОЙКИ ====================
 LLM_API_KEY = os.getenv("LLM_API_KEY", None)
-LLM_URL = os.getenv("LLM_URL", "http://localhost:8080/v1/completions")
+LLM_URL = os.getenv("LLM_URL", "https://vedai.by/api/v1")
+LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
+print(f"DEBUG startup: LLM_URL='{LLM_URL}', LLM_MODEL='{LLM_MODEL}', HAVE_KEY={LLM_API_KEY is not None}")
 
 # ==================== ТЕОРЕТИЧЕСКАЯ БАЗА ДЛЯ LLM ====================
 THEORETICAL_BASE = """
-ТЕОРЕТИЧЕСКАЯ ОСНОВА ДЛЯ ОЦЕНКИ ОТВЕТОВ СТУДЕНТОВ:
+THEORETICAL FRAMEWORK FOR EVALUATING STUDENT RESPONSES:
 
-1. МЕТАГРАФЕМНЫЕ СРЕДСТВА СМЯГЧЕНИЯ КРИТИКИ:
-   - Эмодзи-амортизаторы в конце сообщения: 🙂, 😊, 🤔, 😅
-   - Скобки и многоточия для имитации понижения голоса/паузы: (just my impression though)...
-   - Избегание ЗАГЛАВНЫХ БУКВ и множественных !!!
+1. METAGRAPHEME MEANS OF CRITICISM MITIGATION:
+   - Emoji shock absorbers at the end of the message: 🙂, 😊, 🤔, 😅
+   - Parentheses and ellipsis to simulate voice lowering/pause: (just my impression though)...
+   - Avoiding ALL CAPS and multiple exclamation marks!!!
 
-2. МЕТАГРАФЕМНЫЕ СРЕДСТВА ИНТЕНСИФИКАЦИИ И САРКАЗМА:
-   - ALL CAPS = крик
-   - Alternating caps (tHaT's NoT) = насмешка
-   - Множественные знаки: !!!, ??! – гиперболизация эмоций
-   - Удвоение букв: Noooooo – эмфаза
-   - Эмодзи-сарказм: 👏, 🙄, 😒, 🤦
+2. METAGRAPHEME MEANS OF INTENSIFICATION AND SARCASM:
+   - ALL CAPS = shouting
+   - Alternating caps (tHaT's NoT) = mockery
+   - Multiple punctuation marks: !!!, ??! – emotional hyperbolization
+   - Letter duplication: Noooooo – emphasis
+   - Sarcasm emojis: 👏, 🙄, 😒, 🤦
 
-3. СРЕДСТВА СТРУКТУРНО-ЛОГИЧЕСКОГО ВЫДЕЛЕНИЯ:
-   - Жирный шрифт, курсив, подчёркивание – акцент на ключевом тезисе
-   - Цитирование (@Name) – точная адресация критики
-   - Хештеги (#offtopic, #strawman) – метки нарушения логики
+3. MEANS OF STRUCTURAL AND LOGICAL EMPHASIS:
+   - Bold font, italics, underlining – emphasis on key thesis
+   - Quoting (@Name) – precise addressing of criticism
+   - Hashtags (#offtopic, #strawman) – markers of logical violations
 
-4. КОММУНИКАТИВНЫЕ РОЛИ (конструктивные):
-   - Логик: аналитика, уточняющие вопросы
-   - Генератор идей: креативность, новые идеи
-   - Исследователь: уточнение культурного контекста
-   - Интерпретатор: перевод культурных кодов
-   - Адвокат: защита участника/идеи
-   - Судья: оценка аргументов, выводы
-   - Миротворец: компромиссы
-   - Эмпат: поддержка, снижение напряжения
+4. COMMUNICATIVE ROLES (constructive):
+   - Logician: analysis, clarifying questions
+   - Idea Generator: creativity, new ideas
+   - Researcher: clarifying cultural context
+   - Interpreter: translating cultural codes
+   - Advocate: defending a participant/idea
+   - Judge: evaluating arguments, drawing conclusions
+   - Peacemaker: proposing compromises
+    - Empath: providing support, reducing tension
 """
 
 # ==================== ДАННЫЕ ====================
@@ -118,13 +120,13 @@ TASK_VARIANTS = {
         "intermediate": [
             {
                 "message": "'tHaT's NoT hOw iT wOrKs!!!'",
-                "hint": "Alternating caps = mockery.",
+                "hint": "Metagraphemic means in online discussions are non-standard graphic, typographic, and punctuation techniques used to enhance, alter, or clarify the emotional tone, emphasis, or meaning of a text-based message.",
             }
         ],
         "advanced": [
             {
                 "message": "'Your idea is BRILLIANT... if you're living in 1995 🙄 #facepalm'",
-                "hint": "Multiple techniques: ALL CAPS, ellipsis, emoji, hashtag.",
+                "hint": "Metagraphemic means in online discussions are non-standard graphic, typographic, and punctuation techniques used to enhance, alter, or clarify the emotional tone, emphasis, or meaning of a text-based message.",
             }
         ],
     },
@@ -629,29 +631,47 @@ def get_current_message():
     state = st.session_state.scenario["states"][st.session_state.current_state]
     message = state["message"]
 
-    user_answer = st.session_state.chat_history[-1]["content"]
     print(
-        f"DEBUG get_current_message: user_answer='{user_answer}', "
-        f"user_name='{st.session_state.user_data['user_name']}', "
+        f"DEBUG get_current_message: user_name='{st.session_state.user_data['user_name']}', "
         f"level='{st.session_state.user_data['level']}'"
-        # f"current_role='{st.session_state.user_data['current_role']}'"
     )
 
-    if (
-        (
-            "analysis_feedback" in st.session_state.current_state
-            or "analysis_task" in st.session_state.current_state
-        )
-        and st.session_state.user_data["user_name"]
-        and st.session_state.user_data["level"]
-        # and st.session_state.user_data["current_role"]
-    ):
-        message += get_llm_feedback(
+    task_context = None
+    cs = st.session_state.current_state
+    if "analysis_feedback_1" in cs:
+        task_state = cs.replace("feedback_1", "task_1")
+        if task_state in st.session_state.scenario["states"]:
+            task_context = st.session_state.scenario["states"][task_state]["message"]
+    elif "analysis_feedback_2" in cs:
+        task_state = cs.replace("feedback_2", "task_2")
+        if task_state in st.session_state.scenario["states"]:
+            task_context = st.session_state.scenario["states"][task_state]["message"]
+    elif "roleplay_feedback" in cs:
+        role_slug = cs.replace("roleplay_feedback_", "")
+        task_state = f"role_{role_slug}"
+        if task_state in st.session_state.scenario["states"]:
+            task_context = st.session_state.scenario["states"][task_state]["message"]
+
+    user_answer = st.session_state.chat_history[-1]["content"]
+
+    if task_context and st.session_state.user_data["user_name"] and st.session_state.user_data["level"]:
+        llm_out = get_llm_feedback(
             user_name=st.session_state.user_data["user_name"],
             level=st.session_state.user_data["level"],
             role_name=st.session_state.user_data["current_role"],
             user_answer=user_answer,
+            task_question=task_context,
         )
+        if llm_out:
+            # Replace the static evaluation with LLM feedback, keep header + model answer + instruction
+            for marker in ["\n\n**📋 Model answer:**", "\n\n▶️"]:
+                parts = message.split(marker, 1)
+                if len(parts) == 2:
+                    header = parts[0].split("\n\n", 1)[0]
+                    message = header + "\n\n" + llm_out + marker + parts[1]
+                    break
+            else:
+                message = message.split("\n\n", 1)[0] + "\n\n" + llm_out
 
     # Подстановка имени пользователя
     if st.session_state.user_data["user_name"]:
@@ -1133,27 +1153,91 @@ def process_input(user_input):
 
 
 # ==================== ФУНКЦИЯ ДЛЯ LLM (ОПЦИОНАЛЬНО) ====================
-def get_llm_feedback(user_answer, role_name, user_name, level):
+def get_llm_feedback(user_answer, role_name, user_name, level, task_question=None):
     """Получение фидбека от LLM через API (если LLM_API_KEY != None)"""
+    if task_question is None:
+        task_question = "(task context unknown)"
+
+    def _demo_feedback():
+        safe = user_answer[:200]
+        if "TASK 1" in task_question:
+            return (
+                f"**🤖 LLM Feedback (Demo — no API key):** You responded with: \"{safe}\". "
+                f"The emojis you used may not match the intent of softening criticism. "
+                f"Adding a friendly emoji like 🙂 or 😊 can make criticism feel more supportive."
+            )
+        elif "TASK 2" in task_question:
+            return (
+                f"**🤖 LLM Feedback (Demo — no API key):** You identified: \"{safe}\". "
+                f"Good observation! Remember that combining "
+                f"multiple metagraheme techniques creates stronger effects."
+            )
+        else:
+            return (
+                f"**🤖 LLM Feedback (Demo — no API key):** You wrote: \"{safe}\". "
+                f"Review the criteria above and check if your response "
+                f"addresses all the requirements for this role."
+            )
+
     if LLM_API_KEY is None:
-        return None
+        print("DEBUG get_llm_feedback: LLM_API_KEY is None, using demo feedback")
+        return _demo_feedback()
 
-    # Здесь нужно подключить API
-    # Пример заготовки:
-    try:
-        import requests
+    import requests
 
-        response = requests.post(
-            LLM_URL,
-            headers={"Authorization": f"Bearer {LLM_API_KEY}"},
-            json={
-                "prompt": f"{THEORETICAL_BASE}\n\nОцени ответ студента... {user_name} {level} {user_answer}",
-                "max_tokens": 500,
-            },
-        )
-        return response.json()["choices"][0]["text"]
-    except:
-        return None
+    prompt = (
+        f"{THEORETICAL_BASE}\n\n"
+        "Always use English to respond.\n"
+        "When discussing emojis, use the actual Unicode emoji character (e.g., 🙂 not the word 'smiley').\n"
+        f"Student: {user_name}\nLevel: {level}\nSelected role: {role_name or 'none'}\n\n"
+        f"--- TASK QUESTION ---\n{task_question}\n\n"
+        f"--- STUDENT ANSWER ---\n{user_answer}\n\n"
+        f"--- INSTRUCTION ---\n"
+        f"Evaluate the student's answer based on the theoretical framework above. "
+        f"Check whether they identified/applied metagraheme tools correctly for their level. "
+        f"Give brief constructive feedback (max 500 characters). "
+        f"Be supportive and specific."
+    )
+
+    headers = {"Authorization": f"Bearer {LLM_API_KEY}", "Content-Type": "application/json"}
+
+    # Derive both endpoint URLs from any LLM_URL format
+    base = LLM_URL.rstrip("/")
+    for suffix in ["/chat/completions", "/completions"]:
+        if base.endswith(suffix):
+            base = base[: -len(suffix)]
+            break
+    chat_url = base + "/chat/completions"
+    legacy_url = base + "/completions"
+
+    attempts = [
+        ("chat", chat_url, {"model": LLM_MODEL, "messages": [{"role": "user", "content": prompt}], "max_tokens": 150}),
+        ("legacy", legacy_url, {"prompt": prompt, "max_tokens": 150}),
+    ]
+
+    for label, url, payload in attempts:
+        try:
+            print(f"DEBUG get_llm_feedback: trying {label} at {url}")
+            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            result = response.json()
+            print(f"DEBUG get_llm_feedback: {label} status={response.status_code}")
+
+            if result.get("choices") and len(result["choices"]) > 0:
+                choice = result["choices"][0]
+                text = choice.get("text") or choice.get("message", {}).get("content") or ""
+                if text.strip():
+                    print(f"DEBUG get_llm_feedback: got {len(text)} chars from {label}")
+                    return text.strip()
+            print(f"DEBUG get_llm_feedback: {label} no valid choices in response")
+        except requests.Timeout:
+            print(f"DEBUG get_llm_feedback: {label} timed out, skipping")
+            continue
+        except Exception as e:
+            print(f"DEBUG get_llm_feedback: {label} failed: {e}")
+            continue
+
+    print("DEBUG get_llm_feedback: all endpoints failed, using demo feedback")
+    return _demo_feedback()
 
 
 # ==================== ИНТЕРФЕЙС STREAMLIT ====================
