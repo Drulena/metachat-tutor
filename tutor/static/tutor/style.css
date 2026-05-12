@@ -160,6 +160,7 @@ html, body {
   padding: 16px 24px;
   border-top: 1px solid #e0e0e0;
   flex-shrink: 0;
+  position: relative;
 }
 
 .input-area form {
@@ -176,10 +177,37 @@ html, body {
   border-radius: 24px;
   font-size: 0.95rem;
   cursor: pointer;
+  position: relative;
 }
 
 .input-area button:hover {
   opacity: 0.9;
+}
+
+.loading-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.85);
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: #008080;
+  z-index: 10;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #008080;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .input-area input[type="text"] {
