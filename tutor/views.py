@@ -412,12 +412,12 @@ def _process_input(request, user_input):
 
     if "analysis_feedback_" in request.session["current_state"]:
         if user_input.lower() == "next":
-            if "task_1" in request.session["current_state"]:
+            if "feedback_1" in request.session["current_state"]:
                 new_state = request.session["current_state"].replace(
                     "feedback_1", "task_2"
                 )
                 request.session["current_state"] = new_state
-            elif "task_2" in request.session["current_state"]:
+            elif "feedback_2" in request.session["current_state"]:
                 request.session["current_state"] = "roleplay_intro"
             request.session["chat_history"].append(
                 {
