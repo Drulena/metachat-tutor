@@ -55,19 +55,16 @@
       {% endif %}
     </div>
     <div class="input-area" id="input-area">
-      {% if not is_end %}
-        <form method="post" autocomplete="off" id="main-form">
-          {% csrf_token %}
-          <input type="text" name="user_input" id="user-input" placeholder="Type your answer here..." autofocus>
-          <button type="submit" id="send-btn">Send</button>
-          <span class="spinner" id="spinner"></span>
-        </form>
-      {% else %}
-        <div class="session-complete">
-          🎉 Session completed!
-          <a href="{% url 'export' %}" target="_blank">Export your chat history</a>.
-        </div>
-      {% endif %}
+      <form method="post" autocomplete="off" id="main-form" class="{% if is_end %}hidden{% endif %}">
+        {% csrf_token %}
+        <input type="text" name="user_input" id="user-input" placeholder="Type your answer here..." autofocus>
+        <button type="submit" id="send-btn">Send</button>
+        <span class="spinner" id="spinner"></span>
+      </form>
+      <div class="session-complete {% if not is_end %}hidden{% endif %}">
+        🎉 Session completed!
+        <a href="{% url 'export' %}" target="_blank">Export your chat history</a>.
+      </div>
     </div>
   </main>
 </div>
@@ -79,42 +76,39 @@
   window.addEventListener('load', scrollToBottom);
   window.addEventListener('resize', scrollToBottom);
 
-  function bindForm() {
-    var form = document.getElementById('main-form');
-    if (!form) return;
-    form.addEventListener('submit', function(e) {
-      e.preventDefault();
-      var inp = document.getElementById('user-input');
-      var btn = document.getElementById('send-btn');
-      var spinner = document.getElementById('spinner');
-      if (spinner) spinner.style.display = 'inline-block';
-      if (btn) btn.disabled = true;
+  document.getElementById('main-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var form = this;
+    var inp = document.getElementById('user-input');
+    var btn = document.getElementById('send-btn');
+    var spinner = document.getElementById('spinner');
+    if (spinner) spinner.style.display = 'inline-block';
+    if (btn) btn.disabled = true;
 
-      fetch('.', { method: 'POST', body: new FormData(form) })
-        .then(function(r) { return r.text(); })
-        .then(function(html) {
-          var d = new DOMParser().parseFromString(html, 'text/html');
-          var newMsgs = d.querySelector('#chat-messages');
-          var oldMsgs = document.getElementById('chat-messages');
-          if (newMsgs && oldMsgs) oldMsgs.innerHTML = newMsgs.innerHTML;
+    fetch('.', { method: 'POST', body: new FormData(form) })
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var d = new DOMParser().parseFromString(html, 'text/html');
 
-          var newInputArea = d.querySelector('#input-area');
-          var oldInputArea = document.getElementById('input-area');
-          if (newInputArea && oldInputArea) oldInputArea.innerHTML = newInputArea.innerHTML;
+        var newMsgs = d.querySelector('#chat-messages');
+        var oldMsgs = document.getElementById('chat-messages');
+        if (newMsgs && oldMsgs) oldMsgs.innerHTML = newMsgs.innerHTML;
 
-          bindForm();
-          var newInp = document.getElementById('user-input');
-          if (newInp) newInp.focus();
-          scrollToBottom();
-        })
-        .catch(function() {
-          if (btn) btn.disabled = false;
-          if (spinner) spinner.style.display = 'none';
-          bindForm();
-        });
-    });
-  }
-  bindForm();
+        var isEnd = d.querySelector('#main-form').classList.contains('hidden');
+        document.getElementById('main-form').classList.toggle('hidden', isEnd);
+        document.querySelector('.session-complete').classList.toggle('hidden', !isEnd);
+
+        if (inp) inp.value = '';
+        if (inp) inp.focus();
+        if (spinner) spinner.style.display = 'none';
+        if (btn) btn.disabled = false;
+        scrollToBottom();
+      })
+      .catch(function() {
+        if (spinner) spinner.style.display = 'none';
+        if (btn) btn.disabled = false;
+      });
+  });
 </script>
 </body>
 </html>
