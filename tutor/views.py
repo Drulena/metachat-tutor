@@ -133,9 +133,11 @@ def get_llm_feedback(user_answer, role_name, user_name, level, task_question=Non
             print(f"LLM DEBUG: {label} at {url} → status={resp.status_code}")
             if result.get("choices") and len(result["choices"]) > 0:
                 choice = result["choices"][0]
+                msg = choice.get("message", {}) or {}
                 text = (
                     choice.get("text")
-                    or choice.get("message", {}).get("content")
+                    or msg.get("content")
+                    or msg.get("reasoning")
                     or ""
                 )
                 if text.strip():
