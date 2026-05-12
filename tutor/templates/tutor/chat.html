@@ -76,6 +76,13 @@
   window.addEventListener('load', scrollToBottom);
   window.addEventListener('resize', scrollToBottom);
 
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function() {
+      document.querySelector('.chat-area').style.height =
+        window.visualViewport.height + 'px';
+    });
+  }
+
   document.getElementById('main-form').addEventListener('submit', function(e) {
     e.preventDefault();
     var form = this;
@@ -99,10 +106,14 @@
         document.querySelector('.session-complete').classList.toggle('hidden', !isEnd);
 
         if (inp) inp.value = '';
-        if (inp) inp.focus();
         if (spinner) spinner.style.display = 'none';
         if (btn) btn.disabled = false;
-        scrollToBottom();
+
+        requestAnimationFrame(function() {
+          scrollToBottom();
+          if (inp) inp.scrollIntoView({ block: 'nearest' });
+          if (inp) inp.focus();
+        });
       })
       .catch(function() {
         if (spinner) spinner.style.display = 'none';
