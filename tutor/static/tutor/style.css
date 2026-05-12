@@ -162,10 +162,24 @@ html, body {
   flex-shrink: 0;
 }
 
-#input-form {
+.input-area form {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.input-area button {
+  padding: 10px 24px;
+  background: #008080;
+  color: #fff;
+  border: none;
+  border-radius: 24px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.input-area button:hover {
+  opacity: 0.9;
 }
 
 .input-area input[type="text"] {
