@@ -162,7 +162,7 @@ html, body {
   flex-shrink: 0;
 }
 
-.input-area form {
+#input-form {
   display: flex;
   gap: 8px;
   align-items: center;

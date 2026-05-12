@@ -83,47 +83,55 @@
     });
   }
 
+  var sending = false;
+
   function sendMessage() {
     var inp = document.getElementById('user-input');
     var btn = document.getElementById('send-btn');
     var spinner = document.getElementById('spinner');
-    if (!inp || !inp.value.trim() || (btn && btn.disabled)) return;
+    if (!inp || !inp.value.trim() || sending) return;
 
+    sending = true;
     if (spinner) spinner.style.display = 'inline-block';
     if (btn) btn.disabled = true;
+    var val = inp.value;
+    inp.value = '';
 
-    var csrf = document.querySelector('[name="csrfmiddlewaretoken"]');
-    var fd = new FormData();
-    fd.append('csrfmiddlewaretoken', csrf ? csrf.value : '');
-    fd.append('user_input', inp.value);
+    setTimeout(function() {
+      var csrf = document.querySelector('[name="csrfmiddlewaretoken"]');
+      var fd = new FormData();
+      fd.append('csrfmiddlewaretoken', csrf ? csrf.value : '');
+      fd.append('user_input', val);
 
-    fetch('.', { method: 'POST', body: fd })
-      .then(function(r) { return r.text(); })
-      .then(function(html) {
-        var d = new DOMParser().parseFromString(html, 'text/html');
+      fetch('.', { method: 'POST', body: fd })
+        .then(function(r) { return r.text(); })
+        .then(function(html) {
+          var d = new DOMParser().parseFromString(html, 'text/html');
 
-        var newMsgs = d.querySelector('#chat-messages');
-        var oldMsgs = document.getElementById('chat-messages');
-        if (newMsgs && oldMsgs) oldMsgs.innerHTML = newMsgs.innerHTML;
+          var newMsgs = d.querySelector('#chat-messages');
+          var oldMsgs = document.getElementById('chat-messages');
+          if (newMsgs && oldMsgs) oldMsgs.innerHTML = newMsgs.innerHTML;
 
-        var isEnd = d.querySelector('#input-form').classList.contains('hidden');
-        document.getElementById('input-form').classList.toggle('hidden', isEnd);
-        document.querySelector('.session-complete').classList.toggle('hidden', !isEnd);
+          var isEnd = d.querySelector('#input-form').classList.contains('hidden');
+          document.getElementById('input-form').classList.toggle('hidden', isEnd);
+          document.querySelector('.session-complete').classList.toggle('hidden', !isEnd);
 
-        if (inp) inp.value = '';
-        if (spinner) spinner.style.display = 'none';
-        if (btn) btn.disabled = false;
+          if (spinner) spinner.style.display = 'none';
+          if (btn) btn.disabled = false;
+          sending = false;
 
-        requestAnimationFrame(function() {
-          scrollToBottom();
-          if (inp) inp.scrollIntoView({ block: 'nearest' });
-          if (inp) inp.focus();
+          requestAnimationFrame(function() {
+            scrollToBottom();
+            if (inp) inp.scrollIntoView({ block: 'nearest' });
+            if (inp) inp.focus();
+          });
+        })
+        .catch(function() {
+          if (spinner) spinner.style.display = 'none';
+          if (btn) btn.disabled = false;
+          sending = false;
         });
-      })
-      .catch(function() {
-        if (spinner) spinner.style.display = 'none';
-        if (btn) btn.disabled = false;
-      });
+    }, 150);
   }
 
   document.getElementById('send-btn').addEventListener('click', sendMessage);
