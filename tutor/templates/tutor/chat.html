@@ -30,6 +30,9 @@
   <main class="chat-area">
     <header class="chat-header">
       <h1>🎓 MetaChat Tutor - Research Edition</h1>
+      {% if user_data.user_name %}
+        <a href="{% url 'export' %}" class="mobile-export">📥 Export</a>
+      {% endif %}
     </header>
     <div class="chat-messages" id="chat-messages">
       {% if not chat_history %}
@@ -68,8 +71,12 @@
   </main>
 </div>
 <script>
-  var el = document.getElementById('chat-messages');
-  if (el) el.scrollTop = el.scrollHeight;
+  function scrollToBottom() {
+    var el = document.getElementById('chat-messages');
+    if (el) el.scrollTop = el.scrollHeight;
+  }
+  window.addEventListener('load', scrollToBottom);
+  window.addEventListener('resize', scrollToBottom);
 </script>
 </body>
 </html>

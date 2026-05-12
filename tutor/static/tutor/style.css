@@ -80,6 +80,9 @@ html, body {
 }
 
 .chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 16px 24px;
   border-bottom: 1px solid #e0e0e0;
   flex-shrink: 0;
@@ -88,6 +91,10 @@ html, body {
 .chat-header h1 {
   font-size: 1.2rem;
   font-weight: 600;
+}
+
+.mobile-export {
+  display: none;
 }
 
 .chat-messages {
@@ -197,6 +204,16 @@ html, body {
 @media (max-width: 768px) {
   .sidebar {
     display: none;
+  }
+
+  .mobile-export {
+    display: inline-block;
+    padding: 6px 12px;
+    background: #008080;
+    color: #fff !important;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
   }
 
   .chat-header h1 {
