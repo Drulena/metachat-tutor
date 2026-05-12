@@ -63,7 +63,7 @@ TIME_ZONE = "UTC"
 USE_I18N = False
 USE_TZ = True
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 SESSION_SAVE_EVERY_REQUEST = True
