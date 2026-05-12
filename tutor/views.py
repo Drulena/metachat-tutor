@@ -141,7 +141,10 @@ def get_llm_feedback(user_answer, role_name, user_name, level, task_question=Non
                 if text.strip():
                     return text.strip()
             errors.append(f"{label}: {resp.status_code} no valid choices")
-            print(f"LLM DEBUG: {label} response: {result}")
+            print(f"LLM DEBUG: {label} response keys={list(result.keys())} text={str(result)[:300]}")
+            # Dump choices structure if present
+            if result.get("choices") is not None:
+                print(f"LLM DEBUG: choices={result['choices']}")
         except Exception as e:
             errors.append(f"{label}: {e}")
             print(f"LLM DEBUG: {label} error: {e}")
@@ -153,8 +156,10 @@ def get_llm_feedback(user_answer, role_name, user_name, level, task_question=Non
         hint = "Combining multiple metagraheme techniques creates stronger effects."
     else:
         hint = "Review the criteria and check if your response addresses all requirements."
+    detail = errors[0] if errors else "unknown"
+    print(f"LLM DEBUG: fell back to demo, errors={errors}")
     return (
-        f'**🤖 LLM Feedback (API failed — {errors[0] if errors else "unknown"}):** '
+        f'**🤖 LLM Feedback (API failed — {detail}):** '
         f'You wrote: "{safe}". {hint}'
     )
 
