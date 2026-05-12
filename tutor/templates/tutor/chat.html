@@ -6,8 +6,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MetaChat Tutor - Research Edition</title>
 <link rel="stylesheet" href="{% static 'tutor/style.css' %}">
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
 </head>
-<body>
+<body hx-boost="true">
 <div class="container">
   <aside class="sidebar">
     <h2>📊 Session Info</h2>
@@ -20,18 +21,18 @@
     {% endif %}
     <hr>
     {% if user_data.user_name %}
-      <a href="{% url 'export' %}" class="export-btn">📥 Export Chat History</a>
+      <a href="{% url 'export' %}" class="export-btn" target="_blank">📥 Export Chat History</a>
     {% endif %}
     {% if debug %}
       <hr>
-      <a href="{% url 'reset' %}" class="reset-btn" onclick="return confirm('Wipe this session?')">🔄 Reset Session</a>
+      <a href="{% url 'reset' %}" class="reset-btn" hx-boost="false" onclick="return confirm('Wipe this session?')">🔄 Reset Session</a>
     {% endif %}
   </aside>
   <main class="chat-area">
     <header class="chat-header">
       <h1>🎓 MetaChat Tutor - Research Edition</h1>
       {% if user_data.user_name %}
-        <a href="{% url 'export' %}" class="mobile-export">📥 Export</a>
+        <a href="{% url 'export' %}" class="mobile-export" target="_blank">📥 Export</a>
       {% endif %}
     </header>
     <div class="chat-messages" id="chat-messages">
@@ -64,7 +65,7 @@
       {% else %}
         <div class="session-complete">
           🎉 Session completed!
-          <a href="{% url 'export' %}">Export your chat history</a>.
+          <a href="{% url 'export' %}" target="_blank">Export your chat history</a>.
         </div>
       {% endif %}
     </div>
@@ -77,6 +78,7 @@
   }
   window.addEventListener('load', scrollToBottom);
   window.addEventListener('resize', scrollToBottom);
+  document.addEventListener('htmx:afterSwap', scrollToBottom);
 </script>
 </body>
 </html>
