@@ -76,8 +76,14 @@
     var el = document.getElementById('chat-messages');
     if (el) el.scrollTop = el.scrollHeight;
   }
+  function refocusInput() {
+    var inp = document.querySelector('input[name="user_input"]');
+    if (inp) inp.focus();
+  }
+  window.addEventListener('load', refocusInput);
   window.addEventListener('load', scrollToBottom);
   window.addEventListener('resize', scrollToBottom);
+  document.addEventListener('htmx:afterSwap', refocusInput);
   document.addEventListener('htmx:afterSwap', scrollToBottom);
 </script>
 </body>
