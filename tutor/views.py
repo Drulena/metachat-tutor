@@ -442,6 +442,12 @@ def _process_input(request, user_input):
             )
             request.session.modified = True
             return
+        else:
+            messages.warning(
+                request, "⚠️ Please type 'next' to continue or 'back' to return."
+            )
+            request.session.modified = True
+            return
 
     if "after_registration_" in request.session["current_state"]:
         if user_input in ["1", "2"]:
