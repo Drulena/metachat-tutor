@@ -73,30 +73,12 @@ def get_llm_feedback(user_answer, role_name, user_name, level, task_question=Non
     if task_question is None:
         task_question = "(task context unknown)"
 
-    def _demo_feedback():
-        safe = user_answer[:200]
-        if "TASK 1" in task_question:
-            return (
-                f'**🤖 LLM Feedback (Demo — no API key):** You responded with: "{safe}". '
-                f"The emojis you used may not match the intent of softening criticism. "
-                f"Adding a friendly emoji like 🙂 or 😊 can make criticism feel more supportive."
-            )
-        elif "TASK 2" in task_question:
-            return (
-                f'**🤖 LLM Feedback (Demo — no API key):** You identified: "{safe}". '
-                f"Good observation! Remember that combining "
-                f"multiple metagraheme techniques creates stronger effects."
-            )
-        else:
-            return (
-                f'**🤖 LLM Feedback (Demo — no API key):** You wrote: "{safe}". '
-                f"Review the criteria above and check if your response "
-                f"addresses all the requirements for this role."
-            )
-
     api_key = os.getenv("LLM_API_KEY")
     if api_key is None:
-        return _demo_feedback()
+        return (
+            f'**🤖 LLM Feedback (API not configured):** '
+            f'Set LLM_API_KEY in .env to enable AI feedback.'
+        )
 
     import requests
 
@@ -143,10 +125,12 @@ def get_llm_feedback(user_answer, role_name, user_name, level, task_question=Non
         ("legacy", legacy_url, {"prompt": prompt, "max_tokens": 150}),
     ]
 
+    errors = []
     for label, url, payload in attempts:
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=60)
-            result = response.json()
+            resp = requests.post(url, headers=headers, json=payload, timeout=60)
+            result = resp.json()
+            print(f"LLM DEBUG: {label} at {url} → status={resp.status_code}")
             if result.get("choices") and len(result["choices"]) > 0:
                 choice = result["choices"][0]
                 text = (
@@ -156,10 +140,23 @@ def get_llm_feedback(user_answer, role_name, user_name, level, task_question=Non
                 )
                 if text.strip():
                     return text.strip()
-        except Exception:
-            continue
+            errors.append(f"{label}: {resp.status_code} no valid choices")
+            print(f"LLM DEBUG: {label} response: {result}")
+        except Exception as e:
+            errors.append(f"{label}: {e}")
+            print(f"LLM DEBUG: {label} error: {e}")
 
-    return _demo_feedback()
+    safe = user_answer[:200]
+    if "TASK 1" in task_question:
+        hint = "Adding a friendly emoji like 🙂 or 😊 can make criticism feel more supportive."
+    elif "TASK 2" in task_question:
+        hint = "Combining multiple metagraheme techniques creates stronger effects."
+    else:
+        hint = "Review the criteria and check if your response addresses all requirements."
+    return (
+        f'**🤖 LLM Feedback (API failed — {errors[0] if errors else "unknown"}):** '
+        f'You wrote: "{safe}". {hint}'
+    )
 
 
 def _init_session(request):
