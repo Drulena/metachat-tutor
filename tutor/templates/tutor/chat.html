@@ -57,7 +57,7 @@
     <div class="input-area" id="input-area">
       <div id="input-form" class="{% if is_end %}hidden{% endif %}">
         {% csrf_token %}
-        <input type="text" name="user_input" id="user-input" placeholder="Type your answer here..." enterkeyhint="send" autofocus>
+        <input type="text" id="user-input" placeholder="Type your answer here..." enterkeyhint="send" autofocus>
         <button type="button" id="send-btn">Send</button>
         <span class="spinner" id="spinner"></span>
       </div>
@@ -68,6 +68,13 @@
     </div>
   </main>
 </div>
+
+<form method="post" action="." target="aframe" id="xf-form" class="hidden">
+  <input type="hidden" name="csrfmiddlewaretoken" id="xf-csrf">
+  <input type="hidden" name="user_input" id="xf-input">
+</form>
+<iframe name="aframe" id="aframe" style="display:none"></iframe>
+
 <script>
   function scrollToBottom() {
     var el = document.getElementById('chat-messages');
@@ -85,6 +92,36 @@
 
   var sending = false;
 
+  function processResponse() {
+    var frame = document.getElementById('aframe');
+    try {
+      var html = frame.contentDocument.documentElement.innerHTML;
+    } catch(e) { return; }
+
+    var d = new DOMParser().parseFromString(html, 'text/html');
+
+    var newMsgs = d.querySelector('#chat-messages');
+    var oldMsgs = document.getElementById('chat-messages');
+    if (newMsgs && oldMsgs) oldMsgs.innerHTML = newMsgs.innerHTML;
+
+    var isEnd = d.querySelector('#input-form').classList.contains('hidden');
+    document.getElementById('input-form').classList.toggle('hidden', isEnd);
+    document.querySelector('.session-complete').classList.toggle('hidden', !isEnd);
+
+    var spinner = document.getElementById('spinner');
+    var btn = document.getElementById('send-btn');
+    var inp = document.getElementById('user-input');
+    if (spinner) spinner.style.display = 'none';
+    if (btn) btn.disabled = false;
+    sending = false;
+
+    requestAnimationFrame(function() {
+      scrollToBottom();
+      if (inp) inp.scrollIntoView({ block: 'nearest' });
+      if (inp) inp.focus();
+    });
+  }
+
   function sendMessage() {
     var inp = document.getElementById('user-input');
     var btn = document.getElementById('send-btn');
@@ -94,44 +131,13 @@
     sending = true;
     if (spinner) spinner.style.display = 'inline-block';
     if (btn) btn.disabled = true;
-    var val = inp.value;
+
+    var csrf = document.querySelector('[name="csrfmiddlewaretoken"]');
+    document.getElementById('xf-csrf').value = csrf ? csrf.value : '';
+    document.getElementById('xf-input').value = inp.value;
     inp.value = '';
 
-    setTimeout(function() {
-      var csrf = document.querySelector('[name="csrfmiddlewaretoken"]');
-      var fd = new FormData();
-      fd.append('csrfmiddlewaretoken', csrf ? csrf.value : '');
-      fd.append('user_input', val);
-
-      fetch('.', { method: 'POST', body: fd })
-        .then(function(r) { return r.text(); })
-        .then(function(html) {
-          var d = new DOMParser().parseFromString(html, 'text/html');
-
-          var newMsgs = d.querySelector('#chat-messages');
-          var oldMsgs = document.getElementById('chat-messages');
-          if (newMsgs && oldMsgs) oldMsgs.innerHTML = newMsgs.innerHTML;
-
-          var isEnd = d.querySelector('#input-form').classList.contains('hidden');
-          document.getElementById('input-form').classList.toggle('hidden', isEnd);
-          document.querySelector('.session-complete').classList.toggle('hidden', !isEnd);
-
-          if (spinner) spinner.style.display = 'none';
-          if (btn) btn.disabled = false;
-          sending = false;
-
-          requestAnimationFrame(function() {
-            scrollToBottom();
-            if (inp) inp.scrollIntoView({ block: 'nearest' });
-            if (inp) inp.focus();
-          });
-        })
-        .catch(function() {
-          if (spinner) spinner.style.display = 'none';
-          if (btn) btn.disabled = false;
-          sending = false;
-        });
-    }, 150);
+    document.getElementById('xf-form').submit();
   }
 
   document.getElementById('send-btn').addEventListener('click', sendMessage);
@@ -140,6 +146,11 @@
       e.preventDefault();
       sendMessage();
     }
+  });
+
+  var frame = document.getElementById('aframe');
+  frame.addEventListener('load', function() {
+    if (sending) processResponse();
   });
 </script>
 </body>
