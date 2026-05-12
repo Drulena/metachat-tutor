@@ -1,4 +1,5 @@
 import copy
+import html
 import json
 import os
 import random
@@ -223,10 +224,10 @@ def _get_current_message(request):
                 parts = message.split(marker, 1)
                 if len(parts) == 2:
                     header = parts[0].split("\n\n", 1)[0]
-                    message = header + "\n\n" + llm_out + marker + parts[1]
+                    message = header + "\n\n" + html.escape(llm_out) + marker + parts[1]
                     break
             else:
-                message = message.split("\n\n", 1)[0] + "\n\n" + llm_out
+                message = message.split("\n\n", 1)[0] + "\n\n" + html.escape(llm_out)
 
     if user_data["user_name"]:
         message = message.replace("{user_name}", user_data["user_name"])
