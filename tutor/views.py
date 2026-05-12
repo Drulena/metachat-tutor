@@ -6,9 +6,10 @@ import re
 from datetime import datetime
 
 import markdown as md_lib
+from django.conf import settings
 from django.contrib import messages
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 from .data import LEVELS, SCENARIO, TASK_VARIANTS, THEORETICAL_BASE
 
@@ -660,7 +661,14 @@ def chat_view(request):
         "session_id": request.session.get("session_id", ""),
     }
 
+    context["debug"] = settings.DEBUG
+
     return render(request, "tutor/chat.html", context)
+
+
+def reset_view(request):
+    request.session.flush()
+    return redirect("chat")
 
 
 def export_view(request):

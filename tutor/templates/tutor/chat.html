@@ -22,6 +22,10 @@
     {% if user_data.user_name %}
       <a href="{% url 'export' %}" class="export-btn">📥 Export Chat History</a>
     {% endif %}
+    {% if debug %}
+      <hr>
+      <a href="{% url 'reset' %}" class="reset-btn" onclick="return confirm('Wipe this session?')">🔄 Reset Session</a>
+    {% endif %}
   </aside>
   <main class="chat-area">
     <header class="chat-header">

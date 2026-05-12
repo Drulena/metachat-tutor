@@ -58,6 +58,20 @@ html, body {
   opacity: 0.9;
 }
 
+.reset-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  background: #dc3545;
+  color: #fff !important;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.reset-btn:hover {
+  opacity: 0.9;
+}
+
 .chat-area {
   flex: 1;
   display: flex;
