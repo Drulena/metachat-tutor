@@ -55,12 +55,12 @@
       {% endif %}
     </div>
     <div class="input-area" id="input-area">
-      <form method="post" autocomplete="off" id="main-form" class="{% if is_end %}hidden{% endif %}">
+      <div id="input-form" class="{% if is_end %}hidden{% endif %}">
         {% csrf_token %}
-        <input type="text" name="user_input" id="user-input" placeholder="Type your answer here..." autofocus>
-        <button type="submit" id="send-btn">Send</button>
+        <input type="text" name="user_input" id="user-input" placeholder="Type your answer here..." enterkeyhint="send" autofocus>
+        <button type="button" id="send-btn">Send</button>
         <span class="spinner" id="spinner"></span>
-      </form>
+      </div>
       <div class="session-complete {% if not is_end %}hidden{% endif %}">
         🎉 Session completed!
         <a href="{% url 'export' %}" target="_blank">Export your chat history</a>.
@@ -83,16 +83,21 @@
     });
   }
 
-  document.getElementById('main-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    var form = this;
+  function sendMessage() {
     var inp = document.getElementById('user-input');
     var btn = document.getElementById('send-btn');
     var spinner = document.getElementById('spinner');
+    if (!inp || !inp.value.trim() || (btn && btn.disabled)) return;
+
     if (spinner) spinner.style.display = 'inline-block';
     if (btn) btn.disabled = true;
 
-    fetch('.', { method: 'POST', body: new FormData(form) })
+    var csrf = document.querySelector('[name="csrfmiddlewaretoken"]');
+    var fd = new FormData();
+    fd.append('csrfmiddlewaretoken', csrf ? csrf.value : '');
+    fd.append('user_input', inp.value);
+
+    fetch('.', { method: 'POST', body: fd })
       .then(function(r) { return r.text(); })
       .then(function(html) {
         var d = new DOMParser().parseFromString(html, 'text/html');
@@ -101,8 +106,8 @@
         var oldMsgs = document.getElementById('chat-messages');
         if (newMsgs && oldMsgs) oldMsgs.innerHTML = newMsgs.innerHTML;
 
-        var isEnd = d.querySelector('#main-form').classList.contains('hidden');
-        document.getElementById('main-form').classList.toggle('hidden', isEnd);
+        var isEnd = d.querySelector('#input-form').classList.contains('hidden');
+        document.getElementById('input-form').classList.toggle('hidden', isEnd);
         document.querySelector('.session-complete').classList.toggle('hidden', !isEnd);
 
         if (inp) inp.value = '';
@@ -119,6 +124,14 @@
         if (spinner) spinner.style.display = 'none';
         if (btn) btn.disabled = false;
       });
+  }
+
+  document.getElementById('send-btn').addEventListener('click', sendMessage);
+  document.getElementById('user-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendMessage();
+    }
   });
 </script>
 </body>
