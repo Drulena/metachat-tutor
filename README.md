@@ -34,3 +34,36 @@ Adaptive Streamlit chatbot for linguodidactics research — teaches constructive
 - `USE_LLM = False` by default; set `True` and implement `get_llm_feedback()` to add AI-powered feedback (theoretical base is in `THEORETICAL_BASE`)
 - Chat history + user data exported as JSON from sidebar at session end
 - Use `'back'` at any time to return to previous step
+
+## Run application in local
+
+```sh
+source venv/bin/activate
+# or .\venv\Scripts\Activate.ps1 on Windows
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver 0.0.0.0:8000
+```
+
+Open `http://127.0.0.1:8000` in a browser. Set `SECRET_KEY` and `ALLOWED_HOSTS` in `.env` or env vars if you get errors (the defaults in settings.py work for local dev as-is).
+
+## PythonAnywhere deploy steps
+
+```sh
+git pull  # on PA
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py collectstatic --noinput
+```
+
+Then in PA web config:
+- WSGI: `/home/youruser/metachat-tutor/tutor_project/wsgi.py`
+- Static: `/static/` → `/home/youruser/metachat-tutor/staticfiles/`
+- Env vars (or .env): `SECRET_KEY`, `ALLOWED_HOSTS=youruser.pythonanywhere.com`, `DEBUG=0`
+
+```html
+<div style="border-left: 3px solid #008080; padding-left: 12px; margin: 12px 0; background: #f0f8f8; border-radius: 4px;">
+⚠️ <strong>Post-migration note:</strong> <code>streamlit</code> was removed from requirements. The old <code>app.py</code> still exists but is inert — remove it when you're confident the Django version is working.
+</div>
+```

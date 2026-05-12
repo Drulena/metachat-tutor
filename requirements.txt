@@ -1,4 +1,4 @@
-streamlit==1.28.0
+Django==5.0.9
 python-dotenv==1.0.0
-numpy==1.26.0
-Pillow==10.1.0
+requests==2.31.0
+markdown==3.6
