@@ -1,0 +1,93 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reset Session - MetaChat Tutor</title>
+<link rel="stylesheet" href="{% static 'tutor/style.css' %}">
+<style>
+  body {
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .confirm-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    max-width: 420px;
+    width: 100%;
+    padding: 28px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  .confirm-card h1 {
+    font-size: 1.3rem;
+    margin-bottom: 12px;
+  }
+
+  .confirm-card p {
+    font-size: 0.95rem;
+    color: #555;
+    margin-bottom: 24px;
+    line-height: 1.6;
+  }
+
+  .confirm-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+
+  .confirm-actions form {
+    margin: 0;
+  }
+
+  .btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  .btn-danger {
+    background: #dc3545;
+    color: #fff;
+  }
+
+  .btn-danger:hover {
+    opacity: 0.9;
+  }
+
+  .btn-secondary {
+    background: #e0e0e0;
+    color: #31333f;
+  }
+
+  .btn-secondary:hover {
+    opacity: 0.9;
+  }
+</style>
+</head>
+<body>
+  <div class="confirm-card">
+    <h1>🔄 Reset Session?</h1>
+    <p>This will permanently erase the current chat history, participant data, and scenario progress. This action cannot be undone.</p>
+    <div class="confirm-actions">
+      <form method="post" action="{% url 'reset' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Yes, wipe my session</button>
+      </form>
+      <a href="{% url 'chat' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </div>
+</body>
+</html>

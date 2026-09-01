@@ -1,19 +1,29 @@
 # MetaChat Tutor
 
-Adaptive Streamlit chatbot for linguodidactics research — teaches constructive communication roles, tactics and metagraheme use (emojis, formatting, hashtags) in online polylogues.
+Django web app for linguodidactics research — teaches constructive communication roles, tactics and metagraheme use (emojis, formatting, hashtags) in online polylogues.
 
 ## Run
 
 ```powershell
-.\venv\Scripts\Activate.ps1; streamlit run app.py
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
 ```
+
+Open `http://127.0.0.1:8000` in a browser.
 
 ## Structure
 
-- `app.py` — single entry point; state machine in `SCENARIO['states']` drives all flows
-- `requirements.txt` — `streamlit`, `python-dotenv`
-- `.env` — contains `VEDAI_API_KEY` (never commit)
-- JSON export via sidebar — contains full session data for research
+Django project `tutor_project/` with a single app `tutor/`:
+
+- `tutor_project/settings.py` — project config; reads `DEBUG`, `SECRET_KEY`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` from env
+- `tutor/views.py` — session-driven chat view + `export/` (JSON download) and `reset/` routes
+- `tutor/state_machine.py` — conversation state machine (`init_session`, `process_input`)
+- `tutor/scenarios.py` — scenario content and variants
+- `tutor/llm.py` — optional LLM feedback via `get_llm_feedback()`
+- `tutor/templates/tutor/chat.html` — UI template (uses ChatML-style HTML)
+- `requirements.txt` — `Django`, `python-dotenv`, `requests`, `markdown`
 
 ## Session Flow
 
@@ -21,49 +31,26 @@ Adaptive Streamlit chatbot for linguodidactics research — teaches constructive
 2. **Pre-Test** — rate 3 messages (1–5 scale)
 3. **Self-Assessment** — choose level (Beginner / Intermediate / Advanced)
 4. **Step 1: Analysis** — 2 tasks per level (softening criticism + recognizing aggressive formatting)
-5. **Step 2: Role-Play** — choose from 9 constructive roles (Mediator, Logical Expert, Idea Generator, Researcher, Interpreter, Advocate, Judge, Peacemaker, Empath)
+5. **Step 2: Role-Play** — choose from constructive roles (e.g. Mediator, Logical Expert, Idea Generator, Empath)
 6. **Reflection** — brief written reflection
 7. **Post-Test** — rate the same 3 messages again
-8. **Export** — download JSON and submit via Google Form
+8. **Export** — download session JSON and submit via Google Form
+
+## Configuration
+
+Copy `.env.example` to `.env` and fill in values:
+
+- `LLM_API_KEY`, `LLM_URL`, `LLM_MODEL` — optional LLM integration. When `LLM_API_KEY` is unset, feedback falls back to a demo message.
+- `SECRET_KEY` — Django secret (required when `DEBUG=0`)
+- `DEBUG` — `1` for local development, `0` for production
+- `ALLOWED_HOSTS` — comma-separated hostnames
+- `CSRF_TRUSTED_ORIGINS` — comma-separated origins (e.g. `http://localhost:8000`)
+
+Never commit `.env`.
 
 ## Notes
 
 - `randomize_scenario()` randomizes task variants and role scenarios per session
-- `TASK_VARIANTS` holds all content variants; `SCENARIO['states']` holds UI strings
-- No tests, no linting, no type checking
-- `USE_LLM = False` by default; set `True` and implement `get_llm_feedback()` to add AI-powered feedback (theoretical base is in `THEORETICAL_BASE`)
-- Chat history + user data exported as JSON from sidebar at session end
-- Use `'back'` at any time to return to previous step
-
-## Run application in local
-
-```sh
-source venv/bin/activate
-# or .\venv\Scripts\Activate.ps1 on Windows
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver 0.0.0.0:8000
-```
-
-Open `http://127.0.0.1:8000` in a browser. Set `SECRET_KEY` and `ALLOWED_HOSTS` in `.env` or env vars if you get errors (the defaults in settings.py work for local dev as-is).
-
-## PythonAnywhere deploy steps
-
-```sh
-git pull  # on PA
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py collectstatic --noinput
-```
-
-Then in PA web config:
-- WSGI: `/home/youruser/metachat-tutor/tutor_project/wsgi.py`
-- Static: `/static/` → `/home/youruser/metachat-tutor/staticfiles/`
-- Env vars (or .env): `SECRET_KEY`, `ALLOWED_HOSTS=youruser.pythonanywhere.com`, `DEBUG=0`
-
-```html
-<div style="border-left: 3px solid #008080; padding-left: 12px; margin: 12px 0; background: #f0f8f8; border-radius: 4px;">
-⚠️ <strong>Post-migration note:</strong> <code>streamlit</code> was removed from requirements. The old <code>app.py</code> still exists but is inert — remove it when you're confident the Django version is working.
-</div>
-```
+- Session state lives in the Django session; chat history + user data export as JSON via the `export/` route
+- Use `'back'` at any text input to return to the previous step
+- `staticfiles/` is used only for `collectstatic`; local dev serves static via `django.contrib.staticfiles`

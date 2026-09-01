@@ -1,14 +1,20 @@
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / '.env', override=True)
-
-SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dev-only")
+load_dotenv(BASE_DIR / ".env", override=True)
 
 DEBUG = os.getenv("DEBUG", "1") == "1"
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-dev-only"
+    else:
+        raise ImproperlyConfigured("SECRET_KEY must be set when DEBUG is disabled.")
 
 ALLOWED_HOSTS = [
     h.strip()
@@ -17,9 +23,7 @@ ALLOWED_HOSTS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    h.strip()
-    for h in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
-    if h.strip()
+    h.strip() for h in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if h.strip()
 ]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -77,6 +81,8 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_AGE = 86400
