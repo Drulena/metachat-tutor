@@ -341,7 +341,7 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "role_mediator": {
-            "message": "**🎭 ROLE: Mediator**\n\n**Scenario:** {scenario}\n\n**Aggressor:** {aggressor} says: {quote}\n\n**Tag:** {tag}\n\n**Task:** Write a mediator response that de-escalates the conflict.\n\n*You MUST:*\n🔺Use @mention to address the aggressor (space after @)\n 🔺Acknowledge their concern before redirecting\n 🔺Propose a constructive way forward\n 🔺Use a calm/peaceful emoji (🕊️, 🤝, 🌿)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Mediator**\n\n**Scenario:** {scenario}\n\n**Aggressor:** {aggressor} says: {quote}\n\n**Tag:** {tag}\n\n**Task:** Write a mediator response that de-escalates the conflict.\n\n*You MUST:*\n🔺Use @mention to address the aggressor\n 🔺Acknowledge their concern before redirecting\n 🔺Propose a constructive way forward\n 🔺Use a calm/peaceful emoji (🕊️, 🤝, 🌿)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_mediator",
@@ -377,13 +377,13 @@ SCENARIO: dict[str, Any] = {
             "next_state": "role_menu",
         },
         "role_researcher": {
-            "message": "**🎭 ROLE: Researcher**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Cultural claim:** *{cultural_claim}*\n\n**Quote:** {quote}\n\n**Task:** {task}\n\n*You MUST:*\n 🔺Use @mention to address the person (space after @)\n 🔺Ask at least TWO specific questions about cultural practices\n 🔺Use a thoughtful emoji (🤔, 🧐, 📚)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Researcher**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Cultural claim:** *{cultural_claim}*\n\n**Quote:** {quote}\n\n**Task:** {task}\n\n*You MUST:*\n 🔺Use @mention to address the person\n 🔺Ask at least TWO specific questions about cultural practices\n 🔺Use a thoughtful emoji (🤔, 🧐, 📚)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_researcher",
         },
         "roleplay_feedback_researcher": {
-            "message": "📖 **Read the feedback for you, {user_name} (Researcher), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention correctly?\n✅ Asked TWO specific cultural questions?\n✅ Used thoughtful emoji (🤔, 🧐, 📚)?\n\n**📋 Model answer:** *'@ speaker, you mentioned directness is respectful in your culture. 📚 Could you tell me how criticism is typically framed in professional settings there? And are there situations where indirectness might be preferred?'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Researcher), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention correctly?\n✅ Asked TWO specific cultural questions?\n✅ Used thoughtful emoji (🤔, 🧐, 📚)?\n\n**📋 Model answer:** *'@speaker, you mentioned directness is respectful in your culture. 📚 Could you tell me how criticism is typically framed in professional settings there? And are there situations where indirectness might be preferred?'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "role_menu",
@@ -401,7 +401,7 @@ SCENARIO: dict[str, Any] = {
             "next_state": "role_menu",
         },
         "role_advocate": {
-            "message": "**🎭 ROLE: Advocate**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Person under criticism:** {person_under_criticism}\n\n**Task:** {task}\n\n*You MUST:*\n 🔺Use @mention to acknowledge the critic first (space after @)\n 🔺Provide at least TWO reasons for fair consideration\n 🔺Use a protective emoji (🛡️, 💪, 🤲)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Advocate**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Person under criticism:** {person_under_criticism}\n\n**Task:** {task}\n\n*You MUST:*\n 🔺Use @mention to acknowledge the critic first\n 🔺Provide at least TWO reasons for fair consideration\n 🔺Use a protective emoji (🛡️, 💪, 🤲)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_advocate",
@@ -425,7 +425,7 @@ SCENARIO: dict[str, Any] = {
             "next_state": "role_menu",
         },
         "role_peacemaker": {
-            "message": "**🎭 ROLE: Peacemaker**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Conflict:** {conflict}\n\n**Task:** {task}\n\n*You MUST:*\n 🔺Use @mention to address both parties (space after @)\n 🔺Identify the VALID concern behind each position\n 🔺Propose a specific compromise\n 🔺Use a peace emoji (🕊️, ☮️, 🤝)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Peacemaker**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Conflict:** {conflict}\n\n**Task:** {task}\n\n*You MUST:*\n 🔺Use @mention to address both parties\n 🔺Identify the VALID concern behind each position\n 🔺Propose a specific compromise\n 🔺Use a peace emoji (🕊️, ☮️, 🤝)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_peacemaker",
@@ -437,7 +437,7 @@ SCENARIO: dict[str, Any] = {
             "next_state": "role_menu",
         },
         "role_empath": {
-            "message": "**🎭 ROLE: Empath**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Emotional state:** {emotional_state}\n\n**Task:** {task}\n\n*You MUST:*\n 🔺Use @mention to address the person (space after @)\n 🔺Explicitly VALIDATE their feelings\n 🔺Offer support WITHOUT giving advice\n 🔺Use a warm emoji (❤️, 🤗, 💗)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Empath**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Emotional state:** {emotional_state}\n\n**Task:** {task}\n\n*You MUST:*\n 🔺Use @mention to address the person\n 🔺Explicitly VALIDATE their feelings\n 🔺Offer support WITHOUT giving advice\n 🔺Use a warm emoji (❤️, 🤗, 💗)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_empath",
