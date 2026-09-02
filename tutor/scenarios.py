@@ -350,6 +350,11 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Mediator), carefully and make notes:**\n\n**Criteria check:**\n✅ @mention used correctly?\n✅ Acknowledged concern before redirecting?\n✅ Proposed constructive next step?\n✅ Used calm emoji (🕊️, 🤝)?\n\n**📋 Model answer:** *'@ {aggressor}, I see your concern about productivity. 🤝 Let's look at the research together and find a balanced approach that works for everyone.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
+            "options": {
+                "revise": "✏️ Revise",
+                "next": "➡️ Next Role",
+                "back": "⬅️ Back to Menu",
+            },
             "next_state": "role_menu",
         },
         "role_logical": {
@@ -362,6 +367,11 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Logical Expert), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** to highlight flaws?\n✅ Asked clarifying question?\n✅ Used thinking emoji (🤔, 🧐)?\n\n**📋 Model answer:** *'**'Grammar is useless'** is an overgeneralization. 🤔 Could you clarify what you mean? Research shows grammar instruction helps accuracy, while immersion builds fluency. Both have value.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
+            "options": {
+                "revise": "✏️ Revise",
+                "next": "➡️ Next Role",
+                "back": "⬅️ Back to Menu",
+            },
             "next_state": "role_menu",
         },
         "role_idea_generator": {
@@ -374,6 +384,11 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Idea Generator), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** or *italics* for key ideas?\n✅ Used creativity emoji (💡, 🚀, ✨)?\n✅ Proposed at least TWO distinct ideas?\n\n**📋 Model answer:** *'What if we tried **a gamified approach** with points and levels? 🚀 Or we could create **cross-cultural conversation pairs** where partners teach each other phrases in their languages? ✨ Both could increase engagement significantly.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
+            "options": {
+                "revise": "✏️ Revise",
+                "next": "➡️ Next Role",
+                "back": "⬅️ Back to Menu",
+            },
             "next_state": "role_menu",
         },
         "role_researcher": {
@@ -386,6 +401,11 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Researcher), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention correctly?\n✅ Asked TWO specific cultural questions?\n✅ Used thoughtful emoji (🤔, 🧐, 📚)?\n\n**📋 Model answer:** *'@speaker, you mentioned directness is respectful in your culture. 📚 Could you tell me how criticism is typically framed in professional settings there? And are there situations where indirectness might be preferred?'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
+            "options": {
+                "revise": "✏️ Revise",
+                "next": "➡️ Next Role",
+                "back": "⬅️ Back to Menu",
+            },
             "next_state": "role_menu",
         },
         "role_interpreter": {
@@ -398,6 +418,11 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Interpreter), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** for cultural difference?\n✅ Explained intended AND misinterpreted meaning?\n✅ Used bridging emoji (🤝, 🌉)?\n\n**📋 Model answer:** *'I think there's a cultural nuance here. **'Requires more careful consideration'** in Japanese often means polite disagreement. 🌉 The German preference for directness isn't wrong — it's just a different cultural expectation.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
+            "options": {
+                "revise": "✏️ Revise",
+                "next": "➡️ Next Role",
+                "back": "⬅️ Back to Menu",
+            },
             "next_state": "role_menu",
         },
         "role_advocate": {
@@ -410,6 +435,11 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Advocate), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention to acknowledge critic?\n✅ Provided TWO reasons for defense?\n✅ Used protective emoji (🛡️, 💪)?\n\n**📋 Model answer:** *'@ Sarah, I understand your concern about missed deadlines. 🛡️ However, Alex has been dealing with a family emergency. Also, when Alex has contributed, the quality has been excellent. Let's check in privately before judging.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
+            "options": {
+                "revise": "✏️ Revise",
+                "next": "➡️ Next Role",
+                "back": "⬅️ Back to Menu",
+            },
             "next_state": "role_menu",
         },
         "role_judge": {
@@ -422,6 +452,11 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Judge), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** for strongest points?\n✅ Found merit in BOTH sides?\n✅ Used balanced emoji (⚖️, 📊)?\n\n**📋 Model answer:** *'Let me assess both sides. ⚖️ Team A's **30% productivity increase** is supported by Stanford. Team B's **collaboration suffers** is backed by MIT. A hybrid model likely addresses both valid concerns.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
+            "options": {
+                "revise": "✏️ Revise",
+                "next": "➡️ Next Role",
+                "back": "⬅️ Back to Menu",
+            },
             "next_state": "role_menu",
         },
         "role_peacemaker": {
@@ -434,6 +469,11 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Peacemaker), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention for both parties?\n✅ Identified valid concerns?\n✅ Proposed specific compromise?\n✅ Used peace emoji (🕊️, 🤝)?\n\n**📋 Model answer:** *'@ Student A and @ Student B, I hear both of you. 🤝 Student A, your concern about fair contribution is valid. Student B, your feeling of being controlled is also valid. Let's create a shared task list where responsibilities are visible to all.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
+            "options": {
+                "revise": "✏️ Revise",
+                "next": "➡️ Next Role",
+                "back": "⬅️ Back to Menu",
+            },
             "next_state": "role_menu",
         },
         "role_empath": {
@@ -446,6 +486,11 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Empath), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention to address them?\n✅ Explicitly validated feelings?\n✅ Offered support without advice?\n✅ Used warm emoji (❤️, 🤗)?\n\n**📋 Model answer:** *'@ student, that sounds incredibly hard. ❤️ It's completely understandable to feel hurt after such direct criticism. Your feelings are valid, and it's okay to take time to process this. I'm here to listen.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
+            "options": {
+                "revise": "✏️ Revise",
+                "next": "➡️ Next Role",
+                "back": "⬅️ Back to Menu",
+            },
             "next_state": "role_menu",
         },
         "reflection": {
