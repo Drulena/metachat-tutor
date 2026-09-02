@@ -46,6 +46,7 @@ def _append_assistant_message(request: Any) -> None:
             "content": content,
             "state": request.session["current_state"],
             "timestamp": datetime.now().isoformat(),
+            "options": state_data.get("options") if state_data else None,
         }
     )
     request.session.modified = True

@@ -114,8 +114,13 @@ def chat_view(request: HttpRequest):
 
         # Raw messages are rendered through the `markdown` template filter,
         # which escapes first and thus neutralizes any embedded HTML/JS.
-        display_history: List[Dict[str, str]] = [
-            {"role": msg["role"], "content": msg["content"]} for msg in history
+        display_history: List[Dict[str, Any]] = [
+            {
+                "role": msg["role"],
+                "content": msg["content"],
+                "options": msg.get("options"),
+            }
+            for msg in history
         ]
 
         context = {

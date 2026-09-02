@@ -43,6 +43,13 @@
           <div class="message {{ msg.role }}">
             {% if msg.role == 'assistant' %}
               {{ msg.content|markdown }}
+              {% if msg.options %}
+                <div class="message-options">
+                  {% for key, label in msg.options.items %}
+                    <button class="option-btn" type="button" data-value="{{ key }}">{{ label }}</button>
+                  {% endfor %}
+                </div>
+              {% endif %}
             {% else %}
               {{ msg.content|linebreaksbr }}
             {% endif %}
@@ -92,6 +99,18 @@
 
   document.getElementById('main-form').addEventListener('submit', function() {
     document.getElementById('loading-overlay').style.display = 'flex';
+  });
+
+  // Inline option buttons — fill input and submit form
+  document.querySelectorAll('.option-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var value = this.getAttribute('data-value');
+      var input = document.querySelector('#main-form input[name="user_input"]');
+      if (input) {
+        input.value = value;
+        document.getElementById('main-form').submit();
+      }
+    });
   });
 </script>
 </body>
