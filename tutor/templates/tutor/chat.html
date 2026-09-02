@@ -44,15 +44,6 @@
             {% if msg.role == 'assistant' %}
               {{ msg.content|markdown }}
               {% if msg.options %}
-                {% with primary="" secondary="" %}
-                  {% for key, label in msg.options.items %}
-                    {% if key in system_option_keys %}
-                      {% if forloop.first or secondary == "" %}
-                        {% cycle "" as start_secondary %}
-                      {% endif %}
-                    {% endif %}
-                  {% endfor %}
-                {% endwith %}
                 <div class="message-options">
                   {% for key, label in msg.options.items %}
                     {% if key not in system_option_keys %}

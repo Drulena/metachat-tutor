@@ -161,15 +161,33 @@ html, body {
   border-top: 1px solid #e0e0e0;
   flex-shrink: 0;
   position: relative;
+  min-height: 64px;
 }
 
 .input-area form {
   display: flex;
   gap: 8px;
   align-items: center;
+  height: 44px;
 }
 
-.input-area button {
+.input-area input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid #d0d0d0;
+  border-radius: 24px;
+  font-size: 0.95rem;
+  outline: none;
+  height: 44px;
+}
+
+.input-area input[type="text"]:focus {
+  border-color: #008080;
+}
+
+.input-area button[type="submit"] {
+  flex-shrink: 0;
   padding: 10px 24px;
   background: #008080;
   color: #fff;
@@ -177,11 +195,17 @@ html, body {
   border-radius: 24px;
   font-size: 0.95rem;
   cursor: pointer;
-  position: relative;
+  height: 44px;
+  white-space: nowrap;
 }
 
-.input-area button:hover {
+.input-area button[type="submit"]:hover {
   opacity: 0.9;
+}
+
+.input-area button[type="submit"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .loading-overlay {
@@ -195,51 +219,6 @@ html, body {
   font-size: 0.9rem;
   color: #008080;
   z-index: 10;
-}
-
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 3px solid #e0e0e0;
-  border-top-color: #008080;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.input-area input[type="text"] {
-  flex: 1;
-  padding: 10px 14px;
-  border: 1px solid #d0d0d0;
-  border-radius: 24px;
-  font-size: 0.95rem;
-  outline: none;
-}
-
-.input-area input[type="text"]:focus {
-  border-color: #008080;
-}
-
-.input-area button {
-  padding: 10px 24px;
-  background: #008080;
-  color: #fff;
-  border: none;
-  border-radius: 24px;
-  font-size: 0.95rem;
-  cursor: pointer;
-}
-
-.input-area button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.input-area button:hover:not(:disabled) {
-  opacity: 0.9;
 }
 
 .spinner {
@@ -281,6 +260,10 @@ html, body {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  white-space: nowrap;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .option-btn::before {
@@ -339,6 +322,9 @@ html, body {
   font-size: 0.82rem;
   padding: 6px 14px;
   opacity: 0.8;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .system-btn:hover {
