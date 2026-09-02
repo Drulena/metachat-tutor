@@ -51,20 +51,15 @@
                     {% endif %}
                   {% endfor %}
                 </div>
-                {% with has_system=False %}
-                  {% for key, label in msg.options.items %}
-                    {% if key in system_option_keys %}
-                      {% if has_system == False %}
-                        <div class="message-options system-options">
+                {% if msg.options.back or msg.options.finish or msg.options.exit %}
+                  <div class="message-options system-options">
+                    {% for key, label in msg.options.items %}
+                      {% if key in system_option_keys %}
+                        <button class="option-btn system-btn{% if key in completed_option_values %} used{% endif %}" type="button" data-value="{{ key }}"{% if key in completed_option_values %} data-used="true"{% endif %}>{{ label }}</button>
                       {% endif %}
-                      {% cycle True as has_system %}
-                      <button class="option-btn system-btn{% if key in completed_option_values %} used{% endif %}" type="button" data-value="{{ key }}"{% if key in completed_option_values %} data-used="true"{% endif %}>{{ label }}</button>
-                    {% endif %}
-                  {% endfor %}
-                  {% if has_system %}
-                    </div>
-                  {% endif %}
-                {% endwith %}
+                    {% endfor %}
+                  </div>
+                {% endif %}
               {% endif %}
             {% else %}
               {{ msg.content|linebreaksbr }}
@@ -114,7 +109,7 @@
   }
 
   document.getElementById('main-form').addEventListener('submit', function() {
-    document.getElementById('loading-overlay').style.display = 'flex';
+    document.getElementById('loading-overlay').classList.add('active');
   });
 
   // Inline option buttons — fill input and submit form
@@ -124,6 +119,7 @@
       var input = document.querySelector('#main-form input[name="user_input"]');
       if (input) {
         input.value = value;
+        document.getElementById('loading-overlay').classList.add('active');
         document.getElementById('main-form').submit();
       }
     });
