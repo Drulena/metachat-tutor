@@ -158,7 +158,7 @@ TASK_VARIANTS: dict[str, Any] = {
 
 SCENARIO: dict[str, Any] = {
     "bot_name": "MetaChat Tutor",
-    "welcome_message": "🔬 **WELCOME TO METACHAT TUTOR - RESEARCH EDITION**\n\n📝 **Type down your name and group (e.g., Aida V. 101 bsufl):**",
+    "welcome_message": "🔬 **WELCOME TO METACHAT TUTOR - RESEARCH EDITION**\n\n📝 **Type down your name and group (e.g., Stacy V. 101 bsufl):**",
     "states": {
         "start": {
             "message": "Nice to meet you, {user_name}!\n\n▶️ **Type your name and group again to confirm:**",
@@ -173,7 +173,7 @@ SCENARIO: dict[str, Any] = {
             "next_state": "level_assessment",
         },
         "level_assessment": {
-            "message": "**📊 Self-Assessment: Your Experience Level**\n\nPlease evaluate your experience with online discussions in English:\n\n▫️1▫️ Beginner (I rarely participate in online discussions)\n\n▫️2▫️ Intermediate (I read regularly, sometimes post)\n\n▫️3▫️ Advanced (I actively participate in professional discussions)\n\n▶️ **Type the number (1, 2, or 3) and press Enter:**",
+            "message": "**📊 Self-Assessment: Your Experience Level**\n\nPlease evaluate your experience with online discussions in English:\n\n▫️1▫️ Beginner = I rarely participate in online discussions\n\n▫️2▫️ Intermediate = I read regularly, sometimes post\n\n▫️3▫️ Advanced = I actively participate in professional discussions\n\n▶️ **Press the button below👇**",
             "options": {"1": "Beginner", "2": "Intermediate", "3": "Advanced"},
             "next_state": {
                 "1": "after_registration_beginner",
@@ -182,22 +182,22 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "after_registration_beginner": {
-            "message": "Thank you, {user_name}! (Level: Beginner)\n\n**📌 IMPORTANT INSTRUCTIONS:**\n• Type **'back'** at any time to return to previous menu\n\nWe will practice in steps:\n🔹 **Step1️⃣** - ANALYSIS\n🔹 **Step2️⃣** - ROLE-PLAY\n\n▶️ **Type the number (1 or 2) and press Enter to choose:**",
+            "message": "Thank you, {user_name}! (Level: Beginner)\n\n**📌 IMPORTANT INSTRUCTIONS:**\n• You can return any time to previous menu by typing 'back', or pressing the gray button below.\n\nChoose where to start your practice👇\n\n",
             "options": {"1": "Step1️⃣: ANALYSIS", "2": "Step2️⃣: ROLE-PLAY"},
             "next_state": {"1": "analysis_intro_beginner", "2": "roleplay_intro"},
         },
         "after_registration_intermediate": {
-            "message": "Thank you, {user_name}! (Level: Intermediate)\n\n**📌 IMPORTANT INSTRUCTIONS:**\n• Type **'back'** at any time\n\nWe will practice in steps:\n🔹 **Step1️⃣** - ANALYSIS\n🔹 **Step2️⃣** - ROLE-PLAY\n\n▶️ **Type the number (1 or 2) and press Enter to choose:**",
+            "message": "Thank you, {user_name}! (Level: Intermediate)\n\n**📌 IMPORTANT INSTRUCTIONS:**\n• You can return any time to previous menu by pressing the gray button below\n\nChoose where to start your practice👇\n\n",
             "options": {"1": "Step1️⃣: ANALYSIS", "2": "Step2️⃣: ROLE-PLAY"},
             "next_state": {"1": "analysis_intro_intermediate", "2": "roleplay_intro"},
         },
         "after_registration_advanced": {
-            "message": "Thank you, {user_name}! (Level: Advanced)\n\n**📌 IMPORTANT INSTRUCTIONS:**\n• Type **'back'** at any time\n\nWe will practice in steps:\n🔹 **Step1️⃣** - ANALYSIS\n🔹 **Step2️⃣** - ROLE-PLAY\n\n▶️ **Type the number (1 or 2) and press Enter to choose:**",
+            "message": "Thank you, {user_name}! (Level: Advanced)\n\n**📌 IMPORTANT INSTRUCTIONS:**\n• You can return any time to previous menu by pressing the gray button below\n\nChoose where to start your practice👇\n\n",
             "options": {"1": "Step1️⃣: ANALYSIS", "2": "Step2️⃣: ROLE-PLAY"},
             "next_state": {"1": "analysis_intro_advanced", "2": "roleplay_intro"},
         },
         "analysis_intro_beginner": {
-            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll learn to identify basic metagrapheme functions and practice softening simple criticism using examples of online comments.\n\n▶️ **Type 'yes' to start or 'back' to return to menu:**",
+            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll learn to identify basic metagrapheme functions and practice softening simple criticism using examples of online comments.\n\n▶️ **Press 'yes' to start or 'back' to return to menu👇**",
             "options": {"yes": "Yes, proceed", "back": "Back to menu"},
             "next_state": {
                 "yes": "analysis_task_1_beginner",
@@ -205,7 +205,7 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "analysis_intro_intermediate": {
-            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll analyze more complex examples of online comments and practice nuanced use of metagraphemes.\n\n▶️ **Type 'yes' to start or 'back' to return to menu:**",
+            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll analyze more complex examples of online comments and practice nuanced use of metagraphemes.\n\n▶️ **Press 'yes' to start or 'back' to return to menu👇**",
             "options": {"yes": "Yes, proceed", "back": "Back to menu"},
             "next_state": {
                 "yes": "analysis_task_1_intermediate",
@@ -213,7 +213,7 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "analysis_intro_advanced": {
-            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll work with complex, multi-layered examples of online comments and cultural comparisons.\n\n▶️ **Type 'yes' to start or 'back' to return to menu:**",
+            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll work with complex, multi-layered examples of online comments and cultural comparisons.\n\n▶️ **Press 'yes' to start or 'back' to return to menu👇**",
             "options": {"yes": "Yes, proceed", "back": "Back to menu"},
             "next_state": {
                 "yes": "analysis_task_1_advanced",
@@ -299,7 +299,7 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "roleplay_intro": {
-            "message": "**Step2️⃣: ROLE-PLAY**\n\nIn this stage, you'll practice different communication roles in simulated online discussions.\n\n▶️ **Type 'continue' to see available roles or 'back' to return to menu:**",
+            "message": "**Step2️⃣: ROLE-PLAY**\n\nIn this stage, you'll practice constructive communication roles in simulated online discussions.\n\n",
             "options": {
                 "continue": "View Available Roles",
                 "back": "Back to Main Menu",
@@ -310,16 +310,16 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "role_menu": {
-            "message": "**❇️ CONSTRUCTIVE COMMUNICATIVE ROLES**\n\nChoose a role to practice:\n\n**CONFLICT REGULATORS:**\n🔹1 - Mediator (de-escalates conflicts)\n🔹2 - Logical Expert (highlights contradictions)\n🔹6 - Advocate (defends a person/idea)\n🔹7 - Judge (evaluates arguments)\n🔹8 - Peacemaker (offers compromise)\n\n**SUPPORTING ROLES:**\n🔹3 - Idea Generator (creative thinking)\n🔹4 - Researcher (cultural inquiry)\n🔹5 - Interpreter (cultural bridging)\n\n**EMOTIONAL ROLES:**\n🔹9 - Empath (emotional support)\n\n📌 **Type the number (1-9) to choose a role, or type 'finish' to proceed to reflection:**",
+            "message": "**❇️ CONSTRUCTIVE COMMUNICATIVE ROLES**\n\nChoose a role to practice:\n\n**CONFLICT REGULATORS:**\n🔹1 - Mediator (de-escalates conflicts)\n🔹2 - Logical Expert (highlights contradictions)\n🔹3 - Advocate (defends a person/idea)\n🔹4 - Judge (evaluates arguments)\n🔹5 - Peacemaker (offers compromise)\n\n**SUPPORTING ROLES:**\n🔹6 - Idea Generator (creative thinking)\n🔹7 - Researcher (cultural inquiry)\n🔹8 - Interpreter (cultural bridging)\n\n**EMOTIONAL ROLES:**\n🔹9 - Empath (emotional support)\n\n📌 **Type the number (1-9) or press the button below to choose a role👇 When you complete all the roles, press 'Finish roles' to proceed to reflection🏁**",
             "options": {
                 "1": "Mediator",
                 "2": "Logical Expert",
-                "3": "Idea Generator",
-                "4": "Researcher",
-                "5": "Interpreter",
-                "6": "Advocate",
-                "7": "Judge",
-                "8": "Peacemaker",
+                "3": "Advocate",
+                "4": "Judge",
+                "5": "Peacemaker",
+                "6": "Idea Generator",
+                "7": "Researcher",
+                "8": "Interpeter",
                 "9": "Empath",
                 "finish": "Finish roles",
                 "back": "Back to Role-Play Intro",
@@ -327,12 +327,12 @@ SCENARIO: dict[str, Any] = {
             "next_state": {
                 "1": "role_mediator",
                 "2": "role_logical",
-                "3": "role_idea_generator",
-                "4": "role_researcher",
-                "5": "role_interpreter",
-                "6": "role_advocate",
-                "7": "role_judge",
-                "8": "role_peacemaker",
+                "3": "role_advocate",
+                "4": "role_judge",
+                "5": "role_peacemaker",
+                "6": "role_idea_generator",
+                "7": "role_researcher",
+                "8": "role_interpreterer",
                 "9": "role_empath",
                 "finish": "reflection",
                 "back": "roleplay_intro",
@@ -351,7 +351,7 @@ SCENARIO: dict[str, Any] = {
             "next_state": "role_menu",
         },
         "role_logical": {
-            "message": "**🎭 ROLE: Logical Expert**\n\n**Scenario:** {scenario} \n\n**Context:** {context} \n\n**Debate:** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** (*-symbol at the beginning and the end of the word, e.g. * hello *) to identify each logical flaw\n 🔺ask at least ONE clarifying question\n 🔺add a thinking emoji (🤔, 🧐, 📊)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Logical Expert**\n\n**Scenario:** {scenario} \n\n**Context:** {context} \n\n**Debate:** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** (\*-symbol at the beginning and the end of the word, e.g. \*\*hello\*\*) to identify each logical flaw\n 🔺ask at least ONE clarifying question\n 🔺add a thinking emoji (🤔, 🧐, 📊)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_logical",
@@ -363,7 +363,7 @@ SCENARIO: dict[str, Any] = {
             "next_state": "role_menu",
         },
         "role_idea_generator": {
-            "message": "**🎭 ROLE: Idea Generator**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Current discussion:** *{quote}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** or *italics* (*-symbol at the beginning and the end of the word, e.g. * hello *) to emphasize your key innovative idea\n 🔺add at least ONE creativity emoji (💡, 🚀, ✨)\n 🔺propose at least TWO distinct new ideas\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Idea Generator**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Current discussion:** *{quote}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** or *italics* (\*-symbol at the beginning and the end of the word, e.g. \*\*bold\*\* or \*italics\*) to emphasize your key innovative idea\n 🔺add at least ONE creativity emoji (💡, 🚀, ✨)\n 🔺propose at least TWO distinct new ideas\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_idea",
@@ -387,7 +387,7 @@ SCENARIO: dict[str, Any] = {
             "next_state": "role_menu",
         },
         "role_interpreter": {
-            "message": "**🎭 ROLE: Interpreter**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Discussion:** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** (*-symbol at the beginning and the end of the word, e.g. * hello *) to highlight the key cultural difference\n 🔺explain both intended meaning AND how it was misinterpreted\n 🔺add a bridging emoji (🤝, 🌉, 💬)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Interpreter**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Discussion:** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** (\*-symbol at the beginning and the end of the word, e.g. \*\*hello\*\*) to highlight the key cultural difference\n 🔺explain both intended meaning AND how it was misinterpreted\n 🔺add a bridging emoji (🤝, 🌉, 💬)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_interpreter",
@@ -411,7 +411,7 @@ SCENARIO: dict[str, Any] = {
             "next_state": "role_menu",
         },
         "role_judge": {
-            "message": "**🎭 ROLE: Judge**\n\n**Scenario:** {scenario}\n\n*Context:* {context}\n\n**Discussion:** {discussion}\n\n**POVs:** *{points}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** (*-symbol at the beginning and the end of the word, e.g. * hello *) for the strongest point from each side\n 🔺identify what's valid in BOTH perspectives\n 🔺add a balanced emoji (⚖️, 📊, ✅)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Judge**\n\n**Scenario:** {scenario}\n\n*Context:* {context}\n\n**Discussion:** {discussion}\n\n**POVs:** *{points}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** (\*-symbol at the beginning and the end of the word, e.g. \*\*hello\*\*) for the strongest point from each side\n 🔺identify what's valid in BOTH perspectives\n 🔺add a balanced emoji (⚖️, 📊, ✅)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_judge",
