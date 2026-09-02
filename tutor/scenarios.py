@@ -167,13 +167,13 @@ SCENARIO: dict[str, Any] = {
             "next_state": "pretest",
         },
         "pretest": {
-            "message": "**📋 PRE-TEST: Diagnostic Assessment**\n\nBefore we begin the training, please rate these three messages on a scale from 1 (destructive) to 5 (constructive):\n\n1▪️'Your idea is wrong. Fix it.'\n\n2▪️'I see your point, but have you considered... 🤔'\n\n3▪️'THIS IS TERRIBLE!!!'\n\n▶️ **Type three numbers separated by spaces (e.g., '1 5 2') and press Enter:**",
+            "message": "**📋 PRE-TEST: Diagnostic Assessment**\n\nBefore we begin the training, please rate these three messages on a scale from 1 (destructive) to 5 (constructive):\n\nA▪️*'Your suggestion is wrong. Fix it.'*\n\nB▪️*'I see your point, but have you considered... 🤔'*\n\nC▪️*'THIS IS AWFUL!!!'*\n\n▶️ **Type three numbers separated by spaces (e.g., '1 5 2') and tap Enter:**",
             "input_type": "text",
             "validation": "^[1-5] [1-5] [1-5]$",
             "next_state": "level_assessment",
         },
         "level_assessment": {
-            "message": "**📊 Self-Assessment: Your Experience Level**\n\nPlease evaluate your experience with online discussions in English:\n\n▫️1▫️ Beginner = I rarely participate in online discussions\n\n▫️2▫️ Intermediate = I read regularly, sometimes post\n\n▫️3▫️ Advanced = I actively participate in professional discussions\n\n▶️ **Press the button below👇**",
+            "message": "**📊 Self-Assessment: Your Experience Level**\n\nPlease evaluate your experience with online discussions in English:\n\n▫️1▫️ Beginner = I rarely participate in online discussions\n\n▫️2▫️ Intermediate = I read regularly, sometimes post\n\n▫️3▫️ Advanced = I actively participate in professional discussions\n\n👇 **Tap the button below**",
             "options": {"1": "Beginner", "2": "Intermediate", "3": "Advanced"},
             "next_state": {
                 "1": "after_registration_beginner",
@@ -182,22 +182,22 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "after_registration_beginner": {
-            "message": "Thank you, {user_name}! (Level: Beginner)\n\n**📌 IMPORTANT INSTRUCTIONS:**\n• You can return any time to previous menu by typing 'back', or pressing the gray button below.\n\nChoose where to start your practice👇\n\n",
+            "message": "Thank you, {user_name}! (Level: Beginner)\n\n**📌 IMPORTANT INSTRUCTIONS:**\n• You can return any time to previous menu by typing 'back', or clicking the gray button 'Back' below.\n• You can finish the session any time by tapping the gray button 'Finish' below.\n\n▶️Choose how to start your practice👇\n\n",
             "options": {"1": "Step1️⃣: ANALYSIS", "2": "Step2️⃣: ROLE-PLAY"},
             "next_state": {"1": "analysis_intro_beginner", "2": "roleplay_intro"},
         },
         "after_registration_intermediate": {
-            "message": "Thank you, {user_name}! (Level: Intermediate)\n\n**📌 IMPORTANT INSTRUCTIONS:**\n• You can return any time to previous menu by pressing the gray button below\n\nChoose where to start your practice👇\n\n",
+            "message": "Thank you, {user_name}! (Level: Intermediate)\n\n**📌 IMPORTANT INSTRUCTIONS:**\n• You can return any time to previous menu by pressing the *gray button* below.\n• You can finish the session any time by pressing the *gray button* below.\n\n▶️Choose how to start your practice👇\n\n",
             "options": {"1": "Step1️⃣: ANALYSIS", "2": "Step2️⃣: ROLE-PLAY"},
             "next_state": {"1": "analysis_intro_intermediate", "2": "roleplay_intro"},
         },
         "after_registration_advanced": {
-            "message": "Thank you, {user_name}! (Level: Advanced)\n\n**📌 IMPORTANT INSTRUCTIONS:**\n• You can return any time to previous menu by pressing the gray button below\n\nChoose where to start your practice👇\n\n",
+            "message": "Thank you, {user_name}! (Level: Advanced)\n\n**📌 IMPORTANT INSTRUCTIONS:**\n• You can return any time to previous menu by pressing the *gray button* below.\n• You can finish the session any time by pressing the *gray button* below.\n\n👇Choose how to start your practice\n\n",
             "options": {"1": "Step1️⃣: ANALYSIS", "2": "Step2️⃣: ROLE-PLAY"},
             "next_state": {"1": "analysis_intro_advanced", "2": "roleplay_intro"},
         },
         "analysis_intro_beginner": {
-            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll learn to identify basic metagrapheme functions and practice softening simple criticism using examples of online comments.\n\n▶️ **Press 'yes' to start or 'back' to return to menu👇**",
+            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll learn to identify basic metagrapheme functions and practice softening simple criticism using examples of online comments.\n\n▶️ **Click 'yes' to start or 'back' to return to menu👇**",
             "options": {"yes": "Yes, proceed", "back": "Back to menu"},
             "next_state": {
                 "yes": "analysis_task_1_beginner",
@@ -205,7 +205,7 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "analysis_intro_intermediate": {
-            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll analyze more complex examples of online comments and practice nuanced use of metagraphemes.\n\n▶️ **Press 'yes' to start or 'back' to return to menu👇**",
+            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll analyze more complex examples of online comments and practice nuanced use of metagraphemes.\n\n▶️ **Click 'yes' to start or 'back' to return to menu👇**",
             "options": {"yes": "Yes, proceed", "back": "Back to menu"},
             "next_state": {
                 "yes": "analysis_task_1_intermediate",
@@ -213,7 +213,7 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "analysis_intro_advanced": {
-            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll work with complex, multi-layered examples of online comments and cultural comparisons.\n\n▶️ **Press 'yes' to start or 'back' to return to menu👇**",
+            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll work with complex, multi-layered examples of online comments and cultural comparisons.\n\n▶️ **Click 'yes' to start or 'back' to return to menu👇**",
             "options": {"yes": "Yes, proceed", "back": "Back to menu"},
             "next_state": {
                 "yes": "analysis_task_1_advanced",
@@ -221,13 +221,13 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "analysis_task_1_beginner": {
-            "message": "**📝 TASK 1: Softening Criticism (Beginner)**\n\nContext: {context}\n\nOriginal message: {message}\n\n❓ **Question:** Which emoji(s) would you add to the END of this message to make it sound kinder? Explain your choice.\n\n*Hint: {hint}*\n\n▶️ **Type your answer and press Enter:**",
+            "message": "**📝 TASK 1: Softening Criticism (Beginner)**\n\nContext: {context}\n\nOriginal message: {message}\n\n❓ **Question:** Which emoji(s) would you add to the END of this message to make it sound kinder? Explain your choice.\n\n*Hint: {hint}*\n\n▶️ **Type your answer and tap Enter:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "analysis_feedback_1_beginner",
         },
         "analysis_task_2_beginner": {
-            "message": "**📝 TASK 2: Recognizing Aggressive Formatting (Beginner)**\n\nMessage: {message}\n\n❓ **Question:** What makes this message feel aggressive? Identify ONE technique.\n\n*Hint: {hint}*\n\n▶️ **Type your answer and press Enter:**",
+            "message": "**📝 TASK 2: Recognizing Aggressive Formatting (Beginner)**\n\nMessage: {message}\n\n❓ **Question:** What makes this message feel aggressive? Identify ONE technique.\n\n*Hint: {hint}*\n\n▶️ **Type your answer and tap Enter:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "analysis_feedback_2_beginner",
@@ -251,7 +251,7 @@ SCENARIO: dict[str, Any] = {
             "next_state": "analysis_feedback_1_advanced",
         },
         "analysis_feedback_1_advanced": {
-            "message": "📖 **Read the feedback for you, {user_name} (Advanced), carefully and make notes:**\n\nFor complex feedback, emoji after the main critique softens tone.\n\n▶️ **Type 'next' to continue:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Advanced), carefully and make notes:**\n\nFor complex feedback, emoji after the main critique softens tone.\n\n▶️ **Tap 'next' to continue:**",
             "options": {"next": "Next Task", "back": "Back to menu"},
             "next_state": {
                 "next": "analysis_task_2_advanced",
@@ -265,12 +265,12 @@ SCENARIO: dict[str, Any] = {
             "next_state": "analysis_feedback_2_advanced",
         },
         "analysis_feedback_2_advanced": {
-            "message": "📖 **Read the feedback for you, {user_name} (Advanced), carefully and make notes:**\n\nTechniques: ALL CAPS (irony), ellipsis (dramatic pause), 🙄 emoji (sarcasm), #facepalm (meta-commentary).\n\n▶️ **Type 'next' to proceed:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Advanced), carefully and make notes:**\n\nTechniques: ALL CAPS (irony), ellipsis (dramatic pause), 🙄 emoji (sarcasm), #facepalm (meta-commentary).\n\n▶️ **Tap 'next' to proceed:**",
             "options": {"next": "Proceed to Step2️⃣", "back": "Back to menu"},
             "next_state": {"next": "roleplay_intro", "back": "analysis_intro_advanced"},
         },
         "analysis_feedback_1_beginner": {
-            "message": "📖 **Read the feedback for you, {user_name} (Beginner), carefully and make notes:**\n\nGreat start! Adding a friendly emoji like 🙂 or 😊 can make criticism feel more supportive.\n\n**📋 Model answer:** 'This essay has some areas to work on 🙂. Let's look at them together.'\n\n▶️ **Type 'next' to continue to Task 2:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Beginner), carefully and make notes:**\n\nGreat start! Adding a friendly emoji like 🙂 or 😊 can make criticism feel more supportive.\n\n**📋 Model answer:** 'This essay has some areas to work on 🙂. Let's look at them together.'\n\n▶️ **Tap 'next' to proceed to Task 2:**",
             "options": {"next": "Next Task", "back": "Back to menu"},
             "next_state": {
                 "next": "analysis_task_2_beginner",
@@ -278,12 +278,12 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "analysis_feedback_2_beginner": {
-            "message": "📖 **Read the feedback for you, {user_name} (Beginner), carefully and make notes:**\n\nYou're right! **ALL CAPS** feels like shouting online.\n\n**📋 Model answer:** 'The message uses ALL CAPS, which is like shouting online.'\n\n▶️ **Type 'next' to proceed to Step 2:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Beginner), carefully and make notes:**\n\nYou're right! **ALL CAPS** feels like shouting online.\n\n**📋 Model answer:** 'The message uses ALL CAPS, which is like shouting online.'\n\n▶️ **Click the button below to proceed to Role-play👇**",
             "options": {"next": "Proceed to Step2️⃣", "back": "Back to menu"},
             "next_state": {"next": "roleplay_intro", "back": "analysis_intro_beginner"},
         },
         "analysis_feedback_1_intermediate": {
-            "message": "📖 **Read the feedback for you, {user_name} (Intermediate), carefully and make notes:**\n\nGood approach! A friendly emoji like 🙂 or 🤔 acts as an 'emotional cushion'.\n\n**📋 Model answer:** 'I think the data in this part might need a second look 🤔.'\n\n▶️ **Type 'next' to continue:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Intermediate), carefully and make notes:**\n\nGood approach! A friendly emoji like 🙂 or 🤔 acts as an 'emotional cushion'.\n\n**📋 Model answer:** 'I think the data in this part might need a second look 🤔.'\n\n▶️ **Tap 'next' to continue:**",
             "options": {"next": "Next Task", "back": "Back to menu"},
             "next_state": {
                 "next": "analysis_task_2_intermediate",
@@ -291,7 +291,7 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "analysis_feedback_2_intermediate": {
-            "message": "📖 **Read the feedback for you, {user_name} (Intermediate), carefully and make notes:**\n\nKey techniques: Alternating caps (mockery) and multiple exclamation marks (shouting).\n\n**📋 Model answer:** 'The message uses **tHaT's NoT** with alternating caps to mock, and **!!!** to shout.'\n\n▶️ **Type 'next' to proceed:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Intermediate), carefully and make notes:**\n\nKey techniques: Alternating caps (mockery) and multiple exclamation marks (shouting).\n\n**📋 Model answer:** 'The message uses **tHaT's NoT** with alternating caps to mock, and **!!!** to shout.'\n\n▶️ **Tap 'next' to proceed:**",
             "options": {"next": "Proceed to Step2️⃣", "back": "Back to menu"},
             "next_state": {
                 "next": "roleplay_intro",
@@ -310,7 +310,7 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "role_menu": {
-            "message": "**❇️ CONSTRUCTIVE COMMUNICATIVE ROLES**\n\nChoose a role to practice:\n\n**CONFLICT REGULATORS:**\n🔹1 - Mediator (de-escalates conflicts)\n🔹2 - Logical Expert (highlights contradictions)\n🔹3 - Advocate (defends a person/idea)\n🔹4 - Judge (evaluates arguments)\n🔹5 - Peacemaker (offers compromise)\n\n**SUPPORTING ROLES:**\n🔹6 - Idea Generator (creative thinking)\n🔹7 - Researcher (cultural inquiry)\n🔹8 - Interpreter (cultural bridging)\n\n**EMOTIONAL ROLES:**\n🔹9 - Empath (emotional support)\n\n📌 **Type the number (1-9) or press the button below to choose a role👇 When you complete all the roles, press 'Finish roles' to proceed to reflection🏁**",
+            "message": "**❇️ CONSTRUCTIVE COMMUNICATIVE ROLES**\n\nChoose a role to practice:\n\n**CONFLICT REGULATORS:**\n🔹1 - Mediator (de-escalates conflicts)\n🔹2 - Logical Expert (highlights contradictions)\n🔹3 - Advocate (defends a person/idea)\n🔹4 - Judge (evaluates arguments)\n🔹5 - Peacemaker (offers compromise)\n\n**SUPPORTING ROLES:**\n🔹6 - Idea Generator (creative thinking)\n🔹7 - Researcher (cultural inquiry)\n🔹8 - Interpreter (cultural bridging)\n\n**EMOTIONAL ROLES:**\n🔹9 - Empath (emotional support)\n\n📌 **Type the number (1-9) or *tap the button* below to choose a role**👇 \n\n*Once completed all the roles, tap 'Finish roles' to proceed to Reflection*🏁",
             "options": {
                 "1": "Mediator",
                 "2": "Logical Expert",
@@ -339,109 +339,109 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "role_mediator": {
-            "message": "**🎭 ROLE: Mediator**\n\n**Scenario:** {scenario}\n\n**Context** {context}\n\n**Aggressor** {aggressor} says: *{quote}*\n\n**Task:** {task}\n\n*You MUST:*\n🔺use @mention to address the aggressor\n 🔺acknowledge their concern before redirecting\n 🔺propose a constructive way forward\n 🔺insert a calm/peaceful emoji (🕊️, 🤝, 🌿)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Mediator**\n\n**Scenario:** {scenario}\n\n**Context** {context}\n\n**Aggressor** {aggressor} says: *{quote}*\n\n**Task:** {task}\n\n*You MUST:*\n🔺use @mention to address the aggressor\n 🔺acknowledge their concern before redirecting\n 🔺propose a constructive way forward\n 🔺insert a calm/peaceful emoji (🕊️, 🤝, 🌿)\n\n⌨️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_mediator",
         },
         "roleplay_feedback_mediator": {
-            "message": "📖 **Read the feedback for you, {user_name} (Mediator), carefully and make notes:**\n\n**Criteria check:**\n✅ @mention used correctly?\n✅ Acknowledged concern before redirecting?\n✅ Proposed constructive next step?\n✅ Used calm emoji (🕊️, 🤝)?\n\n**📋 Model answer:** *'@ {aggressor}, I see your concern about productivity. 🤝 Let's look at the research together and find a balanced approach that works for everyone.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Mediator), carefully and make notes:**\n\n**Criteria check:**\n✅ @mention used correctly?\n✅ Acknowledged concern before redirecting?\n✅ Proposed constructive next step?\n✅ Used calm emoji (🕊️, 🤝)?\n\n**📋 Model answer:** *'@ {aggressor}, I see your concern about productivity. 🤝 Let's look at the research together and find a balanced approach that works for everyone.'*\n\n▶️ **Click 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "role_menu",
         },
         "role_logical": {
-            "message": "**🎭 ROLE: Logical Expert**\n\n**Scenario:** {scenario} \n\n**Context:** {context} \n\n**Debate:** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** (\*-symbol at the beginning and the end of the word, e.g. \*\*hello\*\*) to identify each logical flaw\n 🔺ask at least ONE clarifying question\n 🔺add a thinking emoji (🤔, 🧐, 📊)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Logical Expert**\n\n**Scenario:** {scenario} \n\n**Context:** {context} \n\n**Debate➡️** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** (\*-symbol at the beginning and the end of the word, e.g. \*\*hello\*\*) to identify each logical flaw\n 🔺ask at least ONE clarifying question\n 🔺add a thinking emoji (🤔, 🧐, 📊)\n\n⌨️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_logical",
         },
         "roleplay_feedback_logical": {
-            "message": "📖 **Read the feedback for you, {user_name} (Logical Expert), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** to highlight flaws?\n✅ Asked clarifying question?\n✅ Used thinking emoji (🤔, 🧐)?\n\n**📋 Model answer:** *'**'Grammar is useless'** is an overgeneralization. 🤔 Could you clarify what you mean? Research shows grammar instruction helps accuracy, while immersion builds fluency. Both have value.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Logical Expert), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** to highlight flaws?\n✅ Asked clarifying question?\n✅ Used thinking emoji (🤔, 🧐)?\n\n**📋 Model answer:** *'**'Grammar is useless'** is an overgeneralization. 🤔 Could you clarify what you mean? Research shows grammar instruction helps accuracy, while immersion builds fluency. Both have value.'*\n\n▶️ **Click 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "role_menu",
         },
         "role_idea_generator": {
-            "message": "**🎭 ROLE: Idea Generator**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Current discussion:** *{quote}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** or *italics* (\*-symbol at the beginning and the end of the word, e.g. \*\*bold\*\* or \*italics\*) to emphasize your key innovative idea\n 🔺add at least ONE creativity emoji (💡, 🚀, ✨)\n 🔺propose at least TWO distinct new ideas\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Idea Generator**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Current discussion➡️** *{quote}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** or *italics* (\*-symbol at the beginning and the end of the word, e.g. \*\*bold\*\* or \*italics\*) to emphasize your key innovative idea\n 🔺add at least ONE creativity emoji (💡, 🚀, ✨)\n 🔺propose at least TWO distinct new ideas\n\n⌨️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_idea",
         },
         "roleplay_feedback_idea": {
-            "message": "📖 **Read the feedback for you, {user_name} (Idea Generator), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** or *italics* for key ideas?\n✅ Used creativity emoji (💡, 🚀, ✨)?\n✅ Proposed at least TWO distinct ideas?\n\n**📋 Model answer:** *'What if we tried **a gamified approach** with points and levels? 🚀 Or we could create **cross-cultural conversation pairs** where partners teach each other phrases in their languages? ✨ Both could increase engagement significantly.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Idea Generator), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** or *italics* for key ideas?\n✅ Used creativity emoji (💡, 🚀, ✨)?\n✅ Proposed at least TWO distinct ideas?\n\n**📋 Model answer:** *'What if we tried **a gamified approach** with points and levels? 🚀 Or we could create **cross-cultural conversation pairs** where partners teach each other phrases in their languages? ✨ Both could increase engagement significantly.'*\n\n▶️ **Click 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "role_menu",
         },
         "role_researcher": {
-            "message": "**🎭 ROLE: Researcher**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Discussion:** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use @mention to address the person\n 🔺ask at least TWO specific questions about cultural practices\n 🔺add a thoughtful emoji (🤔, 🧐, 📚)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Researcher**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Discussion➡️** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use @mention to address the person\n 🔺ask at least TWO specific questions about cultural practices\n 🔺add a thoughtful emoji (🤔, 🧐, 📚)\n\n⌨️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_researcher",
         },
         "roleplay_feedback_researcher": {
-            "message": "📖 **Read the feedback for you, {user_name} (Researcher), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention correctly?\n✅ Asked TWO specific cultural questions?\n✅ Used thoughtful emoji (🤔, 🧐, 📚)?\n\n**📋 Model answer:** *'@speaker, you mentioned directness is respectful in your culture. 📚 Could you tell me how criticism is typically framed in professional settings there? And are there situations where indirectness might be preferred?'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Researcher), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention correctly?\n✅ Asked TWO specific cultural questions?\n✅ Used thoughtful emoji (🤔, 🧐, 📚)?\n\n**📋 Model answer:** *'@speaker, you mentioned directness is respectful in your culture. 📚 Could you tell me how criticism is typically framed in professional settings there? And are there situations where indirectness might be preferred?'*\n\n▶️ **Click 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "role_menu",
         },
         "role_interpreter": {
-            "message": "**🎭 ROLE: Interpreter**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Discussion:** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** (\*-symbol at the beginning and the end of the word, e.g. \*\*hello\*\*) to highlight the key cultural difference\n 🔺explain both intended meaning AND how it was misinterpreted\n 🔺add a bridging emoji (🤝, 🌉, 💬)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Interpreter**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Discussion➡️** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** (\*-symbol at the beginning and the end of the word, e.g. \*\*hello\*\*) to highlight the key cultural difference\n 🔺explain both intended meaning AND how it was misinterpreted\n 🔺add a bridging emoji (🤝, 🌉, 💬)\n\n⌨️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_interpreter",
         },
         "roleplay_feedback_interpreter": {
-            "message": "📖 **Read the feedback for you, {user_name} (Interpreter), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** for cultural difference?\n✅ Explained intended AND misinterpreted meaning?\n✅ Used bridging emoji (🤝, 🌉)?\n\n**📋 Model answer:** *'I think there's a cultural nuance here. **'Requires more careful consideration'** in Japanese often means polite disagreement. 🌉 The German preference for directness isn't wrong — it's just a different cultural expectation.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Interpreter), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** for cultural difference?\n✅ Explained intended AND misinterpreted meaning?\n✅ Used bridging emoji (🤝, 🌉)?\n\n**📋 Model answer:** *'I think there's a cultural nuance here. **'Requires more careful consideration'** in Japanese often means polite disagreement. 🌉 The German preference for directness isn't wrong — it's just a different cultural expectation.'*\n\n▶️ **Click 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "role_menu",
         },
         "role_advocate": {
-            "message": "**🎭 ROLE: Advocate**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Person under criticism:** {user1}\n\n**Quote:** *{critic}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use @mention to acknowledge the critic first\n 🔺provide at least TWO reasons for fair consideration\n 🔺add a protective emoji (🛡️, 💪, 🤲)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Advocate**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Person under criticism:** {user1}\n\n**Quote➡️** *{critic}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use @mention to acknowledge the critic first\n 🔺provide at least TWO reasons for fair consideration\n 🔺add a protective emoji (🛡️, 💪, 🤲)\n\n⌨️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_advocate",
         },
         "roleplay_feedback_advocate": {
-            "message": "📖 **Read the feedback for you, {user_name} (Advocate), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention to acknowledge critic?\n✅ Provided TWO reasons for defense?\n✅ Used protective emoji (🛡️, 💪)?\n\n**📋 Model answer:** *'@ Sarah, I understand your concern about missed deadlines. 🛡️ However, Alex has been dealing with a family emergency. Also, when Alex has contributed, the quality has been excellent. Let's check in privately before judging.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Advocate), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention to acknowledge critic?\n✅ Provided TWO reasons for defense?\n✅ Used protective emoji (🛡️, 💪)?\n\n**📋 Model answer:** *'@ Sarah, I understand your concern about missed deadlines. 🛡️ However, Alex has been dealing with a family emergency. Also, when Alex has contributed, the quality has been excellent. Let's check in privately before judging.'*\n\n▶️ **Click 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "role_menu",
         },
         "role_judge": {
-            "message": "**🎭 ROLE: Judge**\n\n**Scenario:** {scenario}\n\n*Context:* {context}\n\n**Discussion:** {discussion}\n\n**POVs:** *{points}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** (\*-symbol at the beginning and the end of the word, e.g. \*\*hello\*\*) for the strongest point from each side\n 🔺identify what's valid in BOTH perspectives\n 🔺add a balanced emoji (⚖️, 📊, ✅)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Judge**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Discussion➡️** {discussion}\n\n**POVs:** *{points}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** (\*-symbol at the beginning and the end of the word, e.g. \*\*hello\*\*) for the strongest point from each side\n 🔺identify what's valid in BOTH perspectives\n 🔺add a balanced emoji (⚖️, 📊, ✅)\n\n⌨️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_judge",
         },
         "roleplay_feedback_judge": {
-            "message": "📖 **Read the feedback for you, {user_name} (Judge), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** for strongest points?\n✅ Found merit in BOTH sides?\n✅ Used balanced emoji (⚖️, 📊)?\n\n**📋 Model answer:** *'Let me assess both sides. ⚖️ Team A's **30% productivity increase** is supported by Stanford. Team B's **collaboration suffers** is backed by MIT. A hybrid model likely addresses both valid concerns.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Judge), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** for strongest points?\n✅ Found merit in BOTH sides?\n✅ Used balanced emoji (⚖️, 📊)?\n\n**📋 Model answer:** *'Let me assess both sides. ⚖️ Team A's **30% productivity increase** is supported by Stanford. Team B's **collaboration suffers** is backed by MIT. A hybrid model likely addresses both valid concerns.'*\n\n▶️ **Click 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "role_menu",
         },
         "role_peacemaker": {
-            "message": "**🎭 ROLE: Peacemaker**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Conflict:** {conflict}\n\n**Discussion:** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use @mention to address both parties\n 🔺identify the VALID concern behind each position\n 🔺propose a specific compromise\n 🔺add a peace emoji (🕊️, ☮️, 🤝)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Peacemaker**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Conflict:** {conflict}\n\n**Discussion➡️** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use @mention to address both parties\n 🔺identify the VALID concern behind each position\n 🔺propose a specific compromise\n 🔺add a peace emoji (🕊️, ☮️, 🤝)\n\n⌨️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_peacemaker",
         },
         "roleplay_feedback_peacemaker": {
-            "message": "📖 **Read the feedback for you, {user_name} (Peacemaker), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention for both parties?\n✅ Identified valid concerns?\n✅ Proposed specific compromise?\n✅ Used peace emoji (🕊️, 🤝)?\n\n**📋 Model answer:** *'@ Student A and @ Student B, I hear both of you. 🤝 Student A, your concern about fair contribution is valid. Student B, your feeling of being controlled is also valid. Let's create a shared task list where responsibilities are visible to all.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Peacemaker), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention for both parties?\n✅ Identified valid concerns?\n✅ Proposed specific compromise?\n✅ Used peace emoji (🕊️, 🤝)?\n\n**📋 Model answer:** *'@ Student A and @ Student B, I hear both of you. 🤝 Student A, your concern about fair contribution is valid. Student B, your feeling of being controlled is also valid. Let's create a shared task list where responsibilities are visible to all.'*\n\n▶️ **Click 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "role_menu",
         },
         "role_empath": {
-            "message": "**🎭 ROLE: Empath**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Emotional state:** {emotional_state}\n\n*Comment section:** *{user1}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use @mention to address the person\n 🔺explicitly VALIDATE their feelings\n 🔺offer support WITHOUT giving advice\n 🔺add a warm emoji (❤️, 🤗, 💗)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Empath**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Emotional state:** {emotional_state}\n\n*Comment section➡️** *{user1}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use @mention to address the person\n 🔺explicitly VALIDATE their feelings\n 🔺offer support WITHOUT giving advice\n 🔺add a warm emoji (❤️, 🤗, 💗)\n\n⌨️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_empath",
         },
         "roleplay_feedback_empath": {
-            "message": "📖 **Read the feedback for you, {user_name} (Empath), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention to address them?\n✅ Explicitly validated feelings?\n✅ Offered support without advice?\n✅ Used warm emoji (❤️, 🤗)?\n\n**📋 Model answer:** *'@ student, that sounds incredibly hard. ❤️ It's completely understandable to feel hurt after such direct criticism. Your feelings are valid, and it's okay to take time to process this. I'm here to listen.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
+            "message": "📖 **Read the feedback for you, {user_name} (Empath), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention to address them?\n✅ Explicitly validated feelings?\n✅ Offered support without advice?\n✅ Used warm emoji (❤️, 🤗)?\n\n**📋 Model answer:** *'@ student, that sounds incredibly hard. ❤️ It's completely understandable to feel hurt after such direct criticism. Your feelings are valid, and it's okay to take time to process this. I'm here to listen.'*\n\n▶️ **Click 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
             "options": {
@@ -452,19 +452,19 @@ SCENARIO: dict[str, Any] = {
             "next_state": "role_menu",
         },
         "reflection": {
-            "message": "**💭 REFLECTION**\n\nPlease answer briefly:\n\n🅰️Which role was most challenging? Why?\n\n🅱️What new insight about metagraphemes did you gain?\n\n▶️ **Type your reflection:**",
+            "message": "**💭 REFLECTION**\n\nPlease answer briefly:\n\n1️⃣ What new insight about metagraphemes did you gain?\n\n2️⃣ Which role was the most challenging for you? Why?\n\n⌨️ **Type your reflection:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "posttest",
         },
         "posttest": {
-            "message": "**📋 POST-TEST**\n\nRate the same three messages again:\n\n1▪️'Your idea is wrong. Fix it.'\n\n2▪️'I see your point, but have you considered... 🤔'\n\n3▪️'THIS IS TERRIBLE!!!'\n\n▶️ **Type three numbers (e.g., '1 5 2'):**",
+            "message": "**📋 POST-TEST**\n\nRate the same three messages again:\n\nA▪️*'Your idea is wrong. Fix it.'*\n\nB▪️*'I see your point, but have you considered... 🤔'*\n\nC▪️*'THIS IS TERRIBLE!!!'*\n\n▶️ **Type three numbers (e.g., '1 5 2'):**",
             "input_type": "text",
             "validation": "^[1-5] [1-5] [1-5]$",
             "next_state": "data_collection",
         },
         "data_collection": {
-            "message": "🎓 **🎉 RESEARCH SESSION COMPLETE, {user_name}!**\n\nThank you for participating!\n\n---\n\n**📤 TO SUBMIT YOUR WORK:**\n\n1️⃣Click the **Export Chat History** button in the left sidebar\n2️⃣Save the downloaded JSON file\n3️⃣Upload the file to this Google Form:\n🔗 **https://forms.gle/V2eyTz1kJRXJxv266**\n\nYour chat history contains:\n✅ Your name\n✅ Pre-test and post-test scores\n✅ All your answers with timestamps\n✅ Your reflection\n\n---\n\n🏁 **That's it! You can exit this chat now and return to your study course. Good luck!**\n\n▶️ **Type 'exit' to finish the interaction:**",
+            "message": "🎓 **🎉 RESEARCH SESSION COMPLETE, {user_name}!**\n\nThank you for participating!\n\n---\n\n**📤 TO SUBMIT YOUR WORK:**\n\n1️⃣Click the **Export Chat History** button in the left sidebar\n2️⃣Save the downloaded JSON file\n3️⃣Upload the file to this Google Form:\n🔗 **https://forms.gle/V2eyTz1kJRXJxv266**\n\nYour chat history contains:\n✅ Your name\n✅ Pre-test and post-test scores\n✅ All your answers with timestamps\n✅ Your reflection\n\n---\n\n🏁 **That's it! You can exit this chat now and return to your study course. Good luck!**\n\n👇 **Tap 'exit' to finish the interaction**",
             "options": {"exit": "Exit"},
             "next_state": {"exit": "end"},
         },
