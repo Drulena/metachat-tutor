@@ -1,0 +1,15 @@
+{% load static %}
+{# Reusable navigation buttons for Back and Main Menu #}
+{# Place this include between chat-messages and input-area in chat.html, #}
+{# or at the bottom of other pages #}
+<div class="nav-bar">
+  {% if nav_use_form_submit %}
+    {# For chat.html: use form-submit JS pattern #}
+    <button type="button" class="system-btn nav-btn" data-value="back">⬅️ Back</button>
+    <a href="{% url 'main_menu' %}" class="system-btn nav-btn nav-link">🏠 Main Menu</a>
+  {% else %}
+    {# For other pages: use regular links #}
+    <a href="{% url 'chat' %}" class="system-btn nav-btn nav-link">⬅️ Back</a>
+    <a href="{% url 'main_menu' %}" class="system-btn nav-btn nav-link">🏠 Main Menu</a>
+  {% endif %}
+</div>

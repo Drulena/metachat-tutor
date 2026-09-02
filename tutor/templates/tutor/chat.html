@@ -36,15 +36,11 @@
                     {% endif %}
                   {% endfor %}
                 </div>
-                {% if msg.options.back or msg.options.finish or msg.options.exit %}
-                  <div class="message-options system-options">
-                    {% for key, label in msg.options.items %}
-                      {% if key in system_option_keys %}
-                        <button class="option-btn system-btn{% if key in completed_option_values %} used{% endif %}" type="button" data-value="{{ key }}"{% if key in completed_option_values %} data-used="true"{% endif %}>{{ label }}</button>
-                      {% endif %}
-                    {% endfor %}
-                  </div>
-                {% endif %}
+                <div class="message-options system-options">
+                  {% if show_back %}<button class="option-btn system-btn" type="button" data-value="back">⬅️ Back</button>{% endif %}
+                  {% if show_advance %}<button class="option-btn system-btn" type="button" data-value="{{ advance_command }}">➡️ {{ advance_label }}</button>{% endif %}
+                  {% if show_finish %}<button class="option-btn system-btn" type="button" data-value="finish">✅ Finish</button>{% endif %}
+                </div>
               {% endif %}
             {% else %}
               {{ msg.content|linebreaksbr }}

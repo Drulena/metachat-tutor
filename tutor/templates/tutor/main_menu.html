@@ -196,6 +196,7 @@
   </div>
 
   <a href="{% url 'chat' %}" class="back-link">💬 Back to Chat</a>
+  {% include "tutor/nav_buttons.html" with nav_use_form_submit=False %}
 </div>
 </body>
 </html>

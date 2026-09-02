@@ -1,4 +1,4 @@
-"""Regression tests for tutor/llm.py — HTML entity unescaping.
+﻿"""Regression tests for tutor/llm.py — HTML entity unescaping.
 
 The LLM API may return text containing HTML entities (e.g. ``&quot;`` for
 a plain double-quote).  These entities should be unescaped to their Unicode
@@ -10,7 +10,8 @@ the fix is applied in ``llm.py``.
 
 from unittest.mock import MagicMock, patch
 
-from django.test import SimpleTestCase
+from django.test import Client, SimpleTestCase, TestCase
+from django.urls import reverse
 
 from .llm import get_llm_feedback
 
@@ -359,3 +360,211 @@ class ModelAnswerRemovalTest(SimpleTestCase):
 
         # Analysis feedback must still contain the Model answer section.
         self.assertIn("Model answer", result)
+
+
+class NavigationButtonsTestCase(TestCase):
+    """Test navigation buttons visibility and behavior across states."""
+
+    def setUp(self):
+        self.client = Client()
+        self.chat_url = reverse("chat")
+
+    def _set_session_state(self, state, user_data=None):
+        """Helper to set session state for testing."""
+        session = self.client.session
+        session["current_state"] = state
+        if user_data:
+            session["user_data"] = user_data
+        session.modified = True
+        session.save()
+
+    def _last_message_system_options(self, response):
+        """Extract the system-options div of the last assistant message.
+
+        Nav buttons render on every message with options in the chat history,
+        so we must inspect only the current (last) message's system-options.
+        Returns the HTML of that div, or empty string if none.
+        """
+        import re
+
+        content = response.content.decode("utf-8")
+        messages = re.findall(
+            r'<div class="message assistant">(.*?)</div>\s*(?=<div class="message|</div>\s*</div>\s*<div class="input-area")',
+            content,
+            re.DOTALL,
+        )
+        if not messages:
+            return ""
+        last = messages[-1]
+        m = re.search(
+            r'<div class="message-options system-options">(.*?)</div>', last, re.DOTALL
+        )
+        return m.group(1) if m else ""
+
+    def test_initial_state_no_nav_buttons(self):
+        """Start state has no options, so no nav buttons should render."""
+        response = self.client.get(self.chat_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'data-value="back"')
+        self.assertNotContains(response, 'data-value="next"')
+        self.assertNotContains(response, 'data-value="finish"')
+
+    def test_level_assessment_has_back_button(self):
+        """Level assessment state should have back button."""
+        self.client.post(self.chat_url, {"user_input": "Test User"})
+        self.client.post(self.chat_url, {"user_input": "1 2 3"})
+
+        response = self.client.get(self.chat_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-value="back"')
+
+    def test_after_registration_has_back_and_no_advance(self):
+        """After registration state should have back but no advance button."""
+        self.client.post(self.chat_url, {"user_input": "Test User"})
+        self.client.post(self.chat_url, {"user_input": "1 2 3"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+
+        response = self.client.get(self.chat_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-value="back"')
+        self.assertNotContains(response, 'data-value="next"')
+        self.assertNotContains(response, 'data-value="yes"')
+        self.assertNotContains(response, 'data-value="continue"')
+
+    def test_analysis_intro_has_back_and_yes(self):
+        """Analysis intro should have back and yes buttons."""
+        self.client.post(self.chat_url, {"user_input": "Test User"})
+        self.client.post(self.chat_url, {"user_input": "1 2 3"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+
+        response = self.client.get(self.chat_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-value="back"')
+        self.assertContains(response, 'data-value="yes"')
+
+    def test_analysis_feedback_has_back_and_next(self):
+        """Analysis feedback should have back and next buttons."""
+        self.client.post(self.chat_url, {"user_input": "Test User"})
+        self.client.post(self.chat_url, {"user_input": "1 2 3"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+        self.client.post(self.chat_url, {"user_input": "yes"})
+        self.client.post(self.chat_url, {"user_input": "My answer"})
+
+        response = self.client.get(self.chat_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-value="back"')
+        self.assertContains(response, 'data-value="next"')
+
+    def test_roleplay_intro_has_back_and_continue(self):
+        """Roleplay intro should have back and continue buttons."""
+        self.client.post(self.chat_url, {"user_input": "Test User"})
+        self.client.post(self.chat_url, {"user_input": "1 2 3"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+        self.client.post(self.chat_url, {"user_input": "2"})
+
+        response = self.client.get(self.chat_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-value="back"')
+        self.assertContains(response, 'data-value="continue"')
+
+    def test_role_menu_has_back_and_finish(self):
+        """Role menu should have back and finish buttons."""
+        self.client.post(self.chat_url, {"user_input": "Test User"})
+        self.client.post(self.chat_url, {"user_input": "1 2 3"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+        self.client.post(self.chat_url, {"user_input": "2"})
+        self.client.post(self.chat_url, {"user_input": "continue"})
+
+        response = self.client.get(self.chat_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-value="back"')
+        self.assertContains(response, 'data-value="finish"')
+
+    def test_data_collection_has_back_and_exit(self):
+        """Data collection should have back and exit buttons."""
+        self.client.post(self.chat_url, {"user_input": "Test User"})
+        self.client.post(self.chat_url, {"user_input": "1 2 3"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+        self.client.post(self.chat_url, {"user_input": "2"})
+        self.client.post(self.chat_url, {"user_input": "continue"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+        for i in range(1, 10):
+            self.client.post(self.chat_url, {"user_input": str(i)})
+            self.client.post(self.chat_url, {"user_input": "next"})
+        self.client.post(self.chat_url, {"user_input": "finish"})
+        self.client.post(self.chat_url, {"user_input": "My reflection"})
+        self.client.post(self.chat_url, {"user_input": "1 2 3"})
+
+        response = self.client.get(self.chat_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-value="back"')
+        self.assertContains(response, 'data-value="exit"')
+
+    def test_end_state_no_nav_buttons(self):
+        """End state should have no nav buttons."""
+        self._set_session_state(
+            "end", user_data={"user_name": "Test", "level": "beginner"}
+        )
+
+        response = self.client.get(self.chat_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'data-value="back"')
+        self.assertNotContains(response, 'data-value="next"')
+        self.assertNotContains(response, 'data-value="finish"')
+
+    def test_analysis_task_no_nav_buttons(self):
+        """Analysis task states have no options, so no nav buttons on current message."""
+        self.client.post(self.chat_url, {"user_input": "Test User"})
+        self.client.post(self.chat_url, {"user_input": "1 2 3"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+        self.client.post(self.chat_url, {"user_input": "yes"})
+
+        response = self.client.get(self.chat_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._last_message_system_options(response), "")
+
+    def test_role_state_no_nav_buttons(self):
+        """Role states have no options, so no nav buttons on current message."""
+        self.client.post(self.chat_url, {"user_input": "Test User"})
+        self.client.post(self.chat_url, {"user_input": "1 2 3"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+        self.client.post(self.chat_url, {"user_input": "2"})
+        self.client.post(self.chat_url, {"user_input": "continue"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+
+        response = self.client.get(self.chat_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._last_message_system_options(response), "")
+
+    def test_roleplay_feedback_empath_has_options(self):
+        """Roleplay feedback empath state should have options."""
+        self.client.post(self.chat_url, {"user_input": "Test User"})
+        self.client.post(self.chat_url, {"user_input": "1 2 3"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+        self.client.post(self.chat_url, {"user_input": "2"})
+        self.client.post(self.chat_url, {"user_input": "continue"})
+        self.client.post(self.chat_url, {"user_input": "9"})
+        self.client.post(self.chat_url, {"user_input": "My response"})
+
+        response = self.client.get(self.chat_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-value="back"')
+        self.assertContains(response, 'data-value="next"')
+        self.assertContains(response, 'data-value="revise"')
+
+    def test_roleplay_feedback_other_states_no_options(self):
+        """Other roleplay feedback states have no options defined."""
+        self.client.post(self.chat_url, {"user_input": "Test User"})
+        self.client.post(self.chat_url, {"user_input": "1 2 3"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+        self.client.post(self.chat_url, {"user_input": "2"})
+        self.client.post(self.chat_url, {"user_input": "continue"})
+        self.client.post(self.chat_url, {"user_input": "1"})
+        self.client.post(self.chat_url, {"user_input": "My response"})
+
+        response = self.client.get(self.chat_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._last_message_system_options(response), "")

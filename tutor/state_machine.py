@@ -325,6 +325,8 @@ def handle_back(request: Any) -> None:
 
     if "analysis_task_" in current_state:
         request.session["current_state"] = f"analysis_intro_{level}"
+    elif "analysis_feedback_" in current_state:
+        request.session["current_state"] = f"analysis_intro_{level}"
     elif "analysis_intro_" in current_state:
         request.session["current_state"] = f"after_registration_{level}"
     elif current_state == "role_menu":

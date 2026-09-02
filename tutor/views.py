@@ -176,12 +176,48 @@ def chat_view(request: HttpRequest):
         analysis_tasks = [(k, _ANALYSIS_LABELS[k]) for k in ANALYSIS_STEP_KEYS]
         role_tasks = [(k, _ROLE_LABELS[k]) for k in ROLE_STEP_KEYS]
 
+        # Динамическая кнопка «advance» в зависимости от текущего состояния
+        advance_command = "next"
+        advance_label = "Next"
+        show_advance = False
+        if current_state.startswith("analysis_feedback_"):
+            advance_command = "next"
+            advance_label = "Next"
+            show_advance = True
+        elif current_state.startswith("roleplay_feedback_"):
+            advance_command = "next"
+            advance_label = "Next"
+            show_advance = True
+        elif current_state.startswith("roleplay_intro"):
+            advance_command = "continue"
+            advance_label = "Continue"
+            show_advance = True
+        elif current_state.startswith("analysis_intro_"):
+            advance_command = "yes"
+            advance_label = "Yes"
+            show_advance = True
+        elif current_state == "data_collection":
+            advance_command = "exit"
+            advance_label = "Exit"
+            show_advance = True
+
+        # Видимость навигационных кнопок
+        # back — универсален (обрабатывается глобально в process_input)
+        show_back = True
+        # finish — только в role_menu
+        show_finish = current_state == "role_menu"
+
         context = {
             "chat_history": display_history,
             "welcome_message": SCENARIO["welcome_message"],
             "is_end": current_state == "end",
             "completed_option_values": completed_option_values,
-            "system_option_keys": {"back", "finish", "exit"},
+            "system_option_keys": {"back", "next", "finish", "exit", "continue", "yes"},
+            "advance_command": advance_command,
+            "advance_label": advance_label,
+            "show_back": show_back,
+            "show_advance": show_advance,
+            "show_finish": show_finish,
             "user_data": user_data,
             "session_id": request.session.get("session_id", ""),
             "debug": settings.DEBUG,
