@@ -46,7 +46,7 @@
               {% if msg.options %}
                 <div class="message-options">
                   {% for key, label in msg.options.items %}
-                    <button class="option-btn" type="button" data-value="{{ key }}">{{ label }}</button>
+                    <button class="option-btn{% if key in completed_option_values %} used{% endif %}" type="button" data-value="{{ key }}"{% if key in completed_option_values %} data-used="true"{% endif %}>{{ label }}</button>
                   {% endfor %}
                 </div>
               {% endif %}

@@ -123,10 +123,41 @@ def chat_view(request: HttpRequest):
             for msg in history
         ]
 
+        # Маппинг значений кнопок → ключей завершённых элементов
+        _ROLE_VAL_TO_KEY = {
+            "1": "role_mediator",
+            "2": "role_logical",
+            "3": "role_idea_generator",
+            "4": "role_researcher",
+            "5": "role_interpreter",
+            "6": "role_advocate",
+            "7": "role_judge",
+            "8": "role_peacemaker",
+            "9": "role_empath",
+        }
+        completed_option_values: set = set()
+        completed_roles = user_data.get("completed_roles", [])
+        completed_modes = user_data.get("completed_modes", [])
+        level = user_data.get("level")
+        if current_state == "role_menu":
+            for val, key in _ROLE_VAL_TO_KEY.items():
+                if key in completed_roles:
+                    completed_option_values.add(val)
+        elif current_state.startswith("after_registration_"):
+            if "analysis" in completed_modes:
+                completed_option_values.add("1")
+            if "roleplay" in completed_modes:
+                completed_option_values.add("2")
+        elif current_state == "level_assessment" and level:
+            _LEVEL_MAP = {"beginner": "1", "intermediate": "2", "advanced": "3"}
+            if level in _LEVEL_MAP:
+                completed_option_values.add(_LEVEL_MAP[level])
+
         context = {
             "chat_history": display_history,
             "welcome_message": SCENARIO["welcome_message"],
             "is_end": current_state == "end",
+            "completed_option_values": completed_option_values,
             "user_data": user_data,
             "session_id": request.session.get("session_id", ""),
             "debug": settings.DEBUG,
