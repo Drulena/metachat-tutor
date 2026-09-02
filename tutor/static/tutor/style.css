@@ -328,6 +328,28 @@ html, body {
   font-size: 0.8em;
 }
 
+.system-options {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.12);
+}
+
+.system-btn {
+  background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+  font-size: 0.82rem;
+  padding: 6px 14px;
+  opacity: 0.8;
+}
+
+.system-btn:hover {
+  background: linear-gradient(135deg, #7a838d 0%, #6c757d 100%);
+  opacity: 1;
+}
+
+.system-btn.used {
+  background: linear-gradient(135deg, #c8c8c8 0%, #b0b0b0 100%);
+}
+
 .session-complete {
   text-align: center;
   padding: 20px;

@@ -158,6 +158,7 @@ def chat_view(request: HttpRequest):
             "welcome_message": SCENARIO["welcome_message"],
             "is_end": current_state == "end",
             "completed_option_values": completed_option_values,
+            "system_option_keys": {"back", "finish", "exit"},
             "user_data": user_data,
             "session_id": request.session.get("session_id", ""),
             "debug": settings.DEBUG,

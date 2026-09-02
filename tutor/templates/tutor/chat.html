@@ -44,11 +44,36 @@
             {% if msg.role == 'assistant' %}
               {{ msg.content|markdown }}
               {% if msg.options %}
+                {% with primary="" secondary="" %}
+                  {% for key, label in msg.options.items %}
+                    {% if key in system_option_keys %}
+                      {% if forloop.first or secondary == "" %}
+                        {% cycle "" as start_secondary %}
+                      {% endif %}
+                    {% endif %}
+                  {% endfor %}
+                {% endwith %}
                 <div class="message-options">
                   {% for key, label in msg.options.items %}
-                    <button class="option-btn{% if key in completed_option_values %} used{% endif %}" type="button" data-value="{{ key }}"{% if key in completed_option_values %} data-used="true"{% endif %}>{{ label }}</button>
+                    {% if key not in system_option_keys %}
+                      <button class="option-btn{% if key in completed_option_values %} used{% endif %}" type="button" data-value="{{ key }}"{% if key in completed_option_values %} data-used="true"{% endif %}>{{ label }}</button>
+                    {% endif %}
                   {% endfor %}
                 </div>
+                {% with has_system=False %}
+                  {% for key, label in msg.options.items %}
+                    {% if key in system_option_keys %}
+                      {% if has_system == False %}
+                        <div class="message-options system-options">
+                      {% endif %}
+                      {% cycle True as has_system %}
+                      <button class="option-btn system-btn{% if key in completed_option_values %} used{% endif %}" type="button" data-value="{{ key }}"{% if key in completed_option_values %} data-used="true"{% endif %}>{{ label }}</button>
+                    {% endif %}
+                  {% endfor %}
+                  {% if has_system %}
+                    </div>
+                  {% endif %}
+                {% endwith %}
               {% endif %}
             {% else %}
               {{ msg.content|linebreaksbr }}
