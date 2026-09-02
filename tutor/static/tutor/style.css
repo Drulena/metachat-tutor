@@ -190,6 +190,27 @@ html, body {
   display: none;
 }
 
+/* Burger button – hidden on desktop, visible on mobile */
+.burger-btn {
+  display: none;
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+.burger-line {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #31333f;
+  margin: 4px 0;
+  border-radius: 1px;
+  transition: transform 0.3s, opacity 0.3s;
+}
+
 .chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -451,9 +472,45 @@ html, body {
   text-decoration: underline;
 }
 
+/* Mobile menu overlay */
+.mobile-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 260px;
+  height: 100%;
+  background: #fff;
+  z-index: 1000;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  overflow-y: auto;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+  padding: 24px 16px;
+}
+
+.mobile-menu.active {
+  transform: translateX(0);
+}
+
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 999;
+  display: none;
+}
+
+.menu-backdrop.active {
+  display: block;
+}
+
 @media (max-width: 768px) {
   .sidebar {
     display: none;
+  }
+
+  .burger-btn {
+    display: block;
   }
 
   .mobile-export {

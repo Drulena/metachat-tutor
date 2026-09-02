@@ -15,10 +15,12 @@
   </aside>
   <main class="chat-area">
     <header class="chat-header">
+      <button id="burger-btn" class="burger-btn" aria-label="Open menu" aria-expanded="false">
+        <span class="burger-line"></span>
+        <span class="burger-line"></span>
+        <span class="burger-line"></span>
+      </button>
       <h1>🎓 MetaChat Tutor - Research Edition</h1>
-      {% if user_data.user_name %}
-        <a href="{% url 'export' %}" class="mobile-export" target="_blank">📥 Export</a>
-      {% endif %}
     </header>
     <div class="chat-messages" id="chat-messages">
       {% if not chat_history %}
@@ -74,6 +76,10 @@
     </div>
   </main>
 </div>
+<div id="menu-backdrop" class="menu-backdrop"></div>
+<div id="mobile-menu" class="mobile-menu">
+  {% include "tutor/menu.html" %}
+</div>
 <script>
   function scrollToBottom() {
     var el = document.getElementById('chat-messages');
@@ -104,6 +110,54 @@
         document.getElementById('main-form').submit();
       }
     });
+  });
+
+  // Burger menu toggle
+  var burgerBtn = document.getElementById('burger-btn');
+  var mobileMenu = document.getElementById('mobile-menu');
+  var menuBackdrop = document.getElementById('menu-backdrop');
+
+  function openMenu() {
+    mobileMenu.classList.add('active');
+    menuBackdrop.classList.add('active');
+    burgerBtn.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeMenu() {
+    mobileMenu.classList.remove('active');
+    menuBackdrop.classList.remove('active');
+    burgerBtn.setAttribute('aria-expanded', 'false');
+  }
+
+  if (burgerBtn) {
+    burgerBtn.setAttribute('aria-expanded', 'false');
+    burgerBtn.addEventListener('click', function() {
+      if (mobileMenu.classList.contains('active')) {
+        closeMenu();
+      } else {
+        openMenu();
+      }
+    });
+  }
+
+  if (menuBackdrop) {
+    menuBackdrop.addEventListener('click', closeMenu);
+  }
+
+  // Close menu when a link inside mobile menu is clicked
+  if (mobileMenu) {
+    mobileMenu.addEventListener('click', function(e) {
+      if (e.target.tagName === 'A') {
+        closeMenu();
+      }
+    });
+  }
+
+  // Close menu on Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && mobileMenu && mobileMenu.classList.contains('active')) {
+      closeMenu();
+    }
   });
 </script>
 </body>
