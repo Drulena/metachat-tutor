@@ -4,7 +4,6 @@ Handles all state transitions, input validation, LLM feedback injection,
 and chat history management for the Django session-based tutor.
 """
 
-import html
 import logging
 import re
 import uuid
@@ -132,15 +131,20 @@ def get_current_message(request: Any) -> str:
             task_question=task_context,
         )
         if llm_out:
-            escaped = html.escape(llm_out)
-            for marker in ("\n\n**\U0001f4cb Model answer:**", "\n\n\u25b6\ufe0f"):
+            skip_model_answer = "roleplay_feedback" in current_state
+            markers = (
+                ["\n\n\u25b6\ufe0f"]
+                if skip_model_answer
+                else ["\n\n**\U0001f4cb Model answer:**", "\n\n\u25b6\ufe0f"]
+            )
+            for marker in markers:
                 parts = message.split(marker, 1)
                 if len(parts) == 2:
                     header = parts[0].split("\n\n", 1)[0]
-                    message = header + "\n\n" + escaped + marker + parts[1]
+                    message = header + "\n\n" + llm_out + marker + parts[1]
                     break
             else:
-                message = message.split("\n\n", 1)[0] + "\n\n" + escaped
+                message = message.split("\n\n", 1)[0] + "\n\n" + llm_out
 
     # --- Variable substitution ---
     if user_data.get("user_name"):
