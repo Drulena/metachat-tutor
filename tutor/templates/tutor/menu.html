@@ -1,0 +1,77 @@
+{% load static %}
+{% load chat_tags %}
+
+{# Reusable menu fragment showing task list with status badges #}
+{# Required context: progress (from calculate_progress), user_data, session_id, debug #}
+
+<div class="menu-section">
+  <h2>📊 Session Info</h2>
+  <p><strong>Session ID:</strong> {{ session_id }}</p>
+  {% if user_data.user_name %}
+    <p><strong>Participant:</strong> {{ user_data.user_name }}</p>
+  {% endif %}
+  {% if user_data.level %}
+    <p><strong>Level:</strong> {{ user_data.level|title }}</p>
+  {% endif %}
+
+  {# Overall Progress #}
+  {% if user_data.user_name %}
+    <div class="progress-display">
+      <p><strong>Overall Progress:</strong> <span class="progress-text">{{ progress.percentage }}%</span></p>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: {{ progress.percentage }}%"></div>
+      </div>
+      <p class="progress-detail">{{ progress.completed_steps_count }} / {{ progress.total_steps }} steps completed</p>
+    </div>
+
+    {# Analysis Progress #}
+    <div class="task-status-section">
+      <h3>📝 Analysis Tasks</h3>
+      <ul class="task-list">
+        {% for key, label in analysis_tasks %}
+          <li class="task-item">
+            <span class="task-label">{{ label }}</span>
+            {% if key in completed_option_values %}
+              <span class="badge badge-completed">✅ Completed</span>
+            {% elif progress.analysis_progress.completed > 0 and forloop.counter <= progress.analysis_progress.completed %}
+              <span class="badge badge-completed">✅ Completed</span>
+            {% else %}
+              <span class="badge badge-not-started">⬜ Not Started</span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    {# Role-Play Progress #}
+    <div class="task-status-section">
+      <h3>🎭 Roles</h3>
+      <ul class="task-list">
+        {% for key, label in role_tasks %}
+          <li class="task-item">
+            <span class="task-label">{{ label }}</span>
+            {% if key in completed_roles %}
+              <span class="badge badge-completed">✅ Completed</span>
+            {% elif key == user_data.current_role %}
+              <span class="badge badge-in-progress">🔄 In Progress</span>
+            {% elif key in opened_tasks %}
+              <span class="badge badge-in-progress">🔄 In Progress</span>
+            {% else %}
+              <span class="badge badge-not-started">⬜ Not Started</span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <hr>
+
+  {% if user_data.user_name %}
+    <a href="{% url 'export' %}" class="export-btn" target="_blank">📥 Export Chat History</a>
+  {% endif %}
+  {% if debug %}
+    <hr>
+    <a href="{% url 'reset_confirm' %}" class="reset-btn">🔄 Reset Session</a>
+  {% endif %}
+</div>

@@ -1,0 +1,201 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MetaChat Tutor - Progress Overview</title>
+<link rel="stylesheet" href="{% static 'tutor/style.css' %}">
+<style>
+  .main-menu-container {
+    max-width: 700px;
+    margin: 40px auto;
+    padding: 32px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #31333f;
+  }
+  .main-menu-container h1 {
+    font-size: 1.5rem;
+    color: #008080;
+    margin-bottom: 8px;
+  }
+  .main-menu-container .subtitle {
+    font-size: 0.95rem;
+    color: #666;
+    margin-bottom: 24px;
+  }
+  .participant-info {
+    background: #f7f7f8;
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+  }
+  .participant-info p {
+    margin-bottom: 6px;
+    font-size: 0.95rem;
+  }
+  .overall-progress {
+    margin-bottom: 28px;
+  }
+  .overall-progress .percentage-big {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #008080;
+  }
+  .overall-progress .progress-bar-large {
+    width: 100%;
+    height: 14px;
+    background: #e0e0e0;
+    border-radius: 7px;
+    overflow: hidden;
+    margin: 12px 0;
+  }
+  .overall-progress .progress-fill-large {
+    height: 100%;
+    background: linear-gradient(90deg, #008080 0%, #00a0a0 100%);
+    border-radius: 7px;
+    transition: width 0.4s ease;
+  }
+  .overall-progress .steps-info {
+    font-size: 0.85rem;
+    color: #666;
+  }
+  .task-group {
+    margin-bottom: 24px;
+  }
+  .task-group h2 {
+    font-size: 1.1rem;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e0e0e0;
+  }
+  .task-list {
+    list-style: none;
+    padding: 0;
+  }
+  .task-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    transition: background 0.2s;
+  }
+  .task-item:hover {
+    background: #f0f2f6;
+  }
+  .task-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-completed {
+    background: #d4edda;
+    color: #155724;
+  }
+  .badge-in-progress {
+    background: #fff3cd;
+    color: #856404;
+  }
+  .badge-not-started {
+    background: #e9ecef;
+    color: #6c757d;
+  }
+  .back-link {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: #008080;
+    color: #fff !important;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+  }
+  .back-link:hover {
+    opacity: 0.9;
+  }
+  @media (max-width: 768px) {
+    .main-menu-container {
+      margin: 16px;
+      padding: 20px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="main-menu-container">
+  <h1>📋 Progress Overview</h1>
+  <p class="subtitle">MetaChat Tutor - Research Edition</p>
+
+  {% if user_data.user_name %}
+    <div class="participant-info">
+      <p><strong>Participant:</strong> {{ user_data.user_name }}</p>
+      {% if user_data.level %}
+        <p><strong>Level:</strong> {{ user_data.level|title }}</p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="overall-progress">
+    <span class="percentage-big">{{ progress.percentage }}%</span>
+    <div class="progress-bar-large">
+      <div class="progress-fill-large" style="width: {{ progress.percentage }}%"></div>
+    </div>
+    <p class="steps-info">{{ progress.completed_steps_count }} / {{ progress.total_steps }} steps completed</p>
+  </div>
+
+  {# Analysis Tasks #}
+  <div class="task-group">
+    <h2>📝 Analysis Tasks</h2>
+    <ul class="task-list">
+      {% for key, label in analysis_tasks %}
+        <li class="task-item">
+          <span class="task-label">{{ label }}</span>
+          {% if key in completed_option_values %}
+            <span class="badge badge-completed">✅ Completed</span>
+          {% else %}
+            <span class="badge badge-not-started">⬜ Not Started</span>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  {# Role-Play Tasks #}
+  <div class="task-group">
+    <h2>🎭 Communication Roles</h2>
+    <ul class="task-list">
+      {% for key, label in role_tasks %}
+        <li class="task-item">
+          <span class="task-label">{{ label }}</span>
+          {% if key in completed_roles %}
+            <span class="badge badge-completed">✅ Completed</span>
+          {% elif key == user_data.current_role %}
+            <span class="badge badge-in-progress">🔄 In Progress</span>
+          {% elif key in opened_tasks %}
+            <span class="badge badge-in-progress">🔄 In Progress</span>
+          {% else %}
+            <span class="badge badge-not-started">⬜ Not Started</span>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <a href="{% url 'chat' %}" class="back-link">💬 Back to Chat</a>
+</div>
+</body>
+</html>

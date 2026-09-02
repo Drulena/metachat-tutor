@@ -11,22 +11,7 @@
 <body>
 <div class="container">
   <aside class="sidebar">
-    <h2>📊 Session Info</h2>
-    <p><strong>Session ID:</strong> {{ session_id }}</p>
-    {% if user_data.user_name %}
-      <p><strong>Participant:</strong> {{ user_data.user_name }}</p>
-    {% endif %}
-    {% if user_data.level %}
-      <p><strong>Level:</strong> {{ user_data.level }}</p>
-    {% endif %}
-    <hr>
-    {% if user_data.user_name %}
-      <a href="{% url 'export' %}" class="export-btn" target="_blank">📥 Export Chat History</a>
-    {% endif %}
-    {% if debug %}
-      <hr>
-      <a href="{% url 'reset_confirm' %}" class="reset-btn">🔄 Reset Session</a>
-    {% endif %}
+    {% include "tutor/menu.html" %}
   </aside>
   <main class="chat-area">
     <header class="chat-header">

@@ -17,6 +17,157 @@ logger = logging.getLogger(__name__)
 _MAX_INPUT_LENGTH = 5000
 _MAX_NAME_LENGTH = 50
 
+# Шаги tutorials (steps of the tutorial)
+TOTAL_STEPS = 15
+STEP_KEYS = [
+    "pretest",
+    "level_assessment",
+    "analysis_task_1",
+    "analysis_task_2",
+    "role_mediator",
+    "role_logical",
+    "role_idea_generator",
+    "role_researcher",
+    "role_interpreter",
+    "role_advocate",
+    "role_judge",
+    "role_peacemaker",
+    "role_empath",
+    "reflection",
+    "posttest",
+]
+
+
+def _mark_step_completed(request: Any, step_key: str) -> None:
+    """Отметить шаг как завершённый."""
+    user_data = request.session["user_data"]
+    completed_steps = user_data.setdefault("completed_steps", [])
+    if step_key not in completed_steps:
+        completed_steps.append(step_key)
+        request.session.modified = True
+
+
+def calculate_progress(request: Any) -> dict:
+    """Рассчитать прогресс выполнения.
+
+    Возвращает словарь с данными прогресса для шаблона:
+    - status_badge: 'completed', 'in_progress' или 'not_started'
+    - percentage: 0-100
+    - current_step: номер текущего шага (1-based) или 0
+    - total_steps: общее количество шагов
+    - completed_steps_count: количество завершённых шагов
+    - analysis_progress: прогресс по заданиям анализа
+    - roleplay_progress: прогресс по ролям
+    """
+    user_data = request.session["user_data"]
+    completed_steps = user_data.get("completed_steps", [])
+    completed_count = len(completed_steps)
+    percentage = int((completed_count / TOTAL_STEPS) * 100) if TOTAL_STEPS > 0 else 0
+
+    # Определить текущий шаг (находится в процессе)
+    current_state = request.session.get("current_state", "start")
+
+    # Расширенный маппинг состояний к шагам (включает промежуточные состояния)
+    state_to_step = {
+        "start": None,
+        "pretest": "pretest",
+        "level_assessment": "level_assessment",
+        "after_registration_beginner": None,
+        "after_registration_intermediate": None,
+        "after_registration_advanced": None,
+        "analysis_intro_beginner": "analysis_task_1",
+        "analysis_intro_intermediate": "analysis_task_1",
+        "analysis_intro_advanced": "analysis_task_1",
+        "analysis_task_1_beginner": "analysis_task_1",
+        "analysis_task_1_intermediate": "analysis_task_1",
+        "analysis_task_1_advanced": "analysis_task_1",
+        "analysis_feedback_1_beginner": "analysis_task_1",
+        "analysis_feedback_1_intermediate": "analysis_task_1",
+        "analysis_feedback_1_advanced": "analysis_task_1",
+        "analysis_task_2_beginner": "analysis_task_2",
+        "analysis_task_2_intermediate": "analysis_task_2",
+        "analysis_task_2_advanced": "analysis_task_2",
+        "analysis_feedback_2_beginner": "analysis_task_2",
+        "analysis_feedback_2_intermediate": "analysis_task_2",
+        "analysis_feedback_2_advanced": "analysis_task_2",
+        "roleplay_intro": None,
+        "role_menu": None,
+        "role_mediator": "role_mediator",
+        "role_logical": "role_logical",
+        "role_idea_generator": "role_idea_generator",
+        "role_researcher": "role_researcher",
+        "role_interpreter": "role_interpreter",
+        "role_advocate": "role_advocate",
+        "role_judge": "role_judge",
+        "role_peacemaker": "role_peacemaker",
+        "role_empath": "role_empath",
+        "roleplay_feedback_mediator": "role_mediator",
+        "roleplay_feedback_logical": "role_logical",
+        "roleplay_feedback_idea_generator": "role_idea_generator",
+        "roleplay_feedback_researcher": "role_researcher",
+        "roleplay_feedback_interpreter": "role_interpreter",
+        "roleplay_feedback_advocate": "role_advocate",
+        "roleplay_feedback_judge": "role_judge",
+        "roleplay_feedback_peacemaker": "role_peacemaker",
+        "roleplay_feedback_empath": "role_empath",
+        "reflection": "reflection",
+        "posttest": "posttest",
+        "data_collection": None,
+        "end": None,
+    }
+
+    current_step_key = state_to_step.get(current_state)
+
+    # Найти номер текущего шага (1-based индекс в STEP_KEYS)
+    current_step_number = 0
+    if current_step_key and current_step_key in STEP_KEYS:
+        current_step_number = STEP_KEYS.index(current_step_key) + 1
+
+    # Статус-значок
+    if percentage == 0:
+        status_badge = "not_started"
+    elif percentage == 100:
+        status_badge = "completed"
+    else:
+        status_badge = "in_progress"
+
+    # Прогресс по заданиям анализа (2 задания)
+    analysis_total = 2
+    analysis_completed = 0
+    if "analysis_task_1" in completed_steps:
+        analysis_completed += 1
+    if "analysis_task_2" in completed_steps:
+        analysis_completed += 1
+    analysis_progress = {
+        "completed": analysis_completed,
+        "total": analysis_total,
+        "percentage": int((analysis_completed / analysis_total) * 100)
+        if analysis_total > 0
+        else 0,
+    }
+
+    # Прогресс по ролям (9 ролей)
+    roleplay_total = 9
+    completed_roles = user_data.get("completed_roles", [])
+    roleplay_completed = len([r for r in completed_roles if r.startswith("role_")])
+    roleplay_progress = {
+        "completed": roleplay_completed,
+        "total": roleplay_total,
+        "percentage": int((roleplay_completed / roleplay_total) * 100)
+        if roleplay_total > 0
+        else 0,
+    }
+
+    return {
+        "status_badge": status_badge,
+        "percentage": percentage,
+        "current_step": current_step_number,
+        "total_steps": TOTAL_STEPS,
+        "completed_steps_count": completed_count,
+        "analysis_progress": analysis_progress,
+        "roleplay_progress": roleplay_progress,
+    }
+
 
 def _sanitize_name(raw: str) -> str:
     """Strip HTML tags and limit length for user_name."""
@@ -85,6 +236,9 @@ def init_session(request: Any) -> None:
             "current_role_variant": None,
             "completed_roles": [],
             "completed_modes": [],
+            "completed_steps": [],
+            "opened_tasks": [],  # Задания, которые были открыты (начаты)
+            "completed_tasks": [],  # Задания, которые были завершены (обработан фидбек)
         }
         request.session["scenario"] = randomize_scenario(_SCENARIO)
         request.session["session_id"] = uuid.uuid4().hex
@@ -206,6 +360,10 @@ def handle_numeric_test(request: Any, user_input: str, key: str) -> bool:
                 "level_assessment" if key == "pretest_scores" else "data_collection"
             )
             request.session["current_state"] = next_state
+            if key == "pretest_scores":
+                _mark_step_completed(request, "pretest")
+            elif key == "posttest_scores":
+                _mark_step_completed(request, "posttest")
             _append_assistant_message(request)
             return True
         else:
@@ -232,17 +390,42 @@ def handle_analysis_feedback(request: Any, user_input: str) -> None:
     current_state = request.session["current_state"]
     user_data = request.session["user_data"]
 
+    # Определяем текущее задание анализа для пометки как завершённого
+    task_slug = None
+    if "feedback_1" in current_state:
+        # Аналогичный уровень из текущего состояния
+        level = current_state.replace("analysis_feedback_1_", "")
+        task_slug = f"analysis_task_1_{level}"
+    elif "feedback_2" in current_state:
+        level = current_state.replace("analysis_feedback_2_", "")
+        task_slug = f"analysis_task_2_{level}"
+
     if cmd == "next":
         if "feedback_1" in current_state:
-            request.session["current_state"] = current_state.replace(
-                "feedback_1", "task_2"
-            )
+            new_state = current_state.replace("feedback_1", "task_2")
+            request.session["current_state"] = new_state
+            # Отмечаем новое задание как открытое
+            opened_tasks = user_data.setdefault("opened_tasks", [])
+            if new_state not in opened_tasks:
+                opened_tasks.append(new_state)
         elif "feedback_2" in current_state:
             request.session["current_state"] = "roleplay_intro"
+        # Отмечаем задание как завершённое
+        if task_slug:
+            completed_tasks = user_data.setdefault("completed_tasks", [])
+            if task_slug not in completed_tasks:
+                completed_tasks.append(task_slug)
+                request.session.modified = True
         _append_assistant_message(request)
     elif cmd == "back":
         level = user_data.get("level", "beginner")
         request.session["current_state"] = f"analysis_intro_{level}"
+        # Отмечаем задание как завершённое
+        if task_slug:
+            completed_tasks = user_data.setdefault("completed_tasks", [])
+            if task_slug not in completed_tasks:
+                completed_tasks.append(task_slug)
+                request.session.modified = True
         _append_assistant_message(request)
     else:
         dj_messages.warning(
@@ -266,6 +449,11 @@ def handle_roleplay_feedback(request: Any, user_input: str) -> None:
         completed_roles = request.session["user_data"].setdefault("completed_roles", [])
         if current_role not in completed_roles:
             completed_roles.append(current_role)
+        _mark_step_completed(request, current_role)
+        # Добавляем роль в список завершённых заданий
+        completed_tasks = user_data.setdefault("completed_tasks", [])
+        if current_role not in completed_tasks:
+            completed_tasks.append(current_role)
         request.session.modified = True
         request.session["current_state"] = "role_menu"
     else:
@@ -337,6 +525,10 @@ def handle_role_menu(request: Any, user_input: str) -> None:
         role = _ROLE_MAP[user_input]
         user_data["current_role"] = role
         request.session["current_state"] = role
+        # Отмечаем роль как открытую (начатую)
+        opened_tasks = user_data.setdefault("opened_tasks", [])
+        if role not in opened_tasks:
+            opened_tasks.append(role)
     else:
         dj_messages.warning(
             request, "\u26a0\ufe0f Please type a number from 1 to 9, or 'finish'."
@@ -374,13 +566,29 @@ def handle_analysis_intro(request: Any, user_input: str) -> None:
     """Handle input at analysis_intro states ('yes' to start)."""
     if user_input.lower() == "yes":
         current = request.session["current_state"]
-        request.session["current_state"] = current.replace("intro", "task_1")
+        new_state = current.replace("intro", "task_1")
+        request.session["current_state"] = new_state
+        # Отмечаем задание анализа как открытое (начатое)
+        user_data = request.session["user_data"]
+        opened_tasks = user_data.setdefault("opened_tasks", [])
+        if new_state not in opened_tasks:
+            opened_tasks.append(new_state)
+            request.session.modified = True
         _append_assistant_message(request)
 
 
 def handle_analysis_task(request: Any) -> None:
     """Handle analysis_task states — accept any text, transition to feedback."""
     current_state = request.session["current_state"]
+    # Определяем номер задачи
+    if "analysis_task_1" in current_state:
+        step_key = "analysis_task_1"
+    elif "analysis_task_2" in current_state:
+        step_key = "analysis_task_2"
+    else:
+        step_key = None
+    if step_key:
+        _mark_step_completed(request, step_key)
     request.session["current_state"] = current_state.replace("task", "feedback")
     _append_assistant_message(request)
 
@@ -391,6 +599,7 @@ def handle_data_collection(request: Any, user_input: str) -> None:
 
     if user_input.lower() == "exit":
         request.session["current_state"] = "end"
+        _mark_step_completed(request, "data_collection")
         _append_assistant_message(request)
     else:
         dj_messages.warning(
@@ -450,6 +659,7 @@ def process_input(request: Any, user_input: str) -> None:
             request.session["current_state"] = (
                 f"after_registration_{level_map[user_input]}"
             )
+            _mark_step_completed(request, "level_assessment")
             _append_assistant_message(request)
         else:
             dj_messages.warning(request, "\u26a0\ufe0f Please enter 1, 2, or 3.")
@@ -506,6 +716,10 @@ def process_input(request: Any, user_input: str) -> None:
             request.session["current_state"] = next_state
     elif "options" in current_state_obj and user_input in current_state_obj["options"]:
         request.session["current_state"] = current_state_obj["next_state"][user_input]
+
+    # Отметить reflection как завершённый, если перешли к posttest
+    if request.session["current_state"] == "posttest":
+        _mark_step_completed(request, "reflection")
 
     if request.session["current_state"] != "end":
         _append_assistant_message(request)
