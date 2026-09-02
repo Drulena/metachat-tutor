@@ -75,26 +75,25 @@ TASK_VARIANTS: dict[str, Any] = {
     "role_mediator": [
         {
             "scenario": "Remote Work vs. Office Work",
-            "aggressor": "Alex",
-            "quote": "'Working from home is just an excuse for being lazy!'",
-            "tag": "#offtopic",
             "context": "A professional online forum.",
+            "aggressor": "Alex",
+            "quote": "'Working from home is just an excuse for being lazy! #offtopic'",
+            "task": "Write a mediator response that de-escalates the conflict.",
         }
     ],
     "role_logical": [
         {
             "scenario": "Language learning methods",
-            "user1": "Sam",
-            "quote1": "'Grammar is useless.'",
-            "user2": "Taylor",
-            "quote2": "'But without grammar, you'll sound incomprehensible.'",
-            "context": "A debate in linguistics forum.",
+            "context": "A debate in a linguistics forum.",
+            "user1": "Sam: 'Grammar is useless.'",
+            "user2": "Taylor: 'But without grammar, you'll sound incomprehensible.'",
+            "task": "Highlight logical gaps in the arguments.",
         }
     ],
     "role_idea_generator": [
         {
             "scenario": "University language exchange program",
-            "context": "Students discussing how to improve the exchange.",
+            "context": "Students discussing in a group chat how to improve the exchange.",
             "quote": "Maybe we could just meet once a week and talk?",
             "task": "Generate innovative ideas to make the exchange more engaging.",
         }
@@ -102,57 +101,56 @@ TASK_VARIANTS: dict[str, Any] = {
     "role_researcher": [
         {
             "scenario": "Politeness in different cultures",
-            "context": "Debate about direct criticism.",
+            "context": "Debate about direct criticism in a personal blog.",
             "cultural_claim": "In my culture, being direct is always respectful.",
-            "quote": "We should just say what we think.",
+            "comment": "We should just say what we think.",
             "task": "Ask questions to understand the cultural context.",
         }
     ],
     "role_interpreter": [
         {
-            "scenario": "International student forum",
-            "context": "Japanese student: 'This requires more careful consideration.' German student: 'Why? Be specific.'",
-            "cultural_note": "Japanese indirectness may seem evasive.",
-            "task": "Explain Japanese communication style.",
+            "scenario": "Japanese indirectness may seem evasive",
+            "context": "International student forum.",
+            "user1": "Japanese student: 'This requires more careful consideration.'",
+            "user2": "German student: 'Why? Be specific.'",
+            "task": "Explain Japanese communication style to other commentators to avoid miscomprehension.",
         }
     ],
     "role_advocate": [
         {
             "scenario": "Team project evaluation",
-            "context": "Alex is being criticized for not contributing.",
-            "person_under_criticism": "Alex",
-            "critic": "Sarah",
-            "quote": "Alex is clearly not committed to this project.",
+            "context": "Criticism in a group chat",
+            "user1": "Alex is being criticized for not contributing",
+            "critic": "Sarah: 'Alex is clearly not committed to this project.'",
             "task": "Defend Alex by considering possible circumstances.",
         }
     ],
     "role_judge": [
         {
             "scenario": "Debate about remote work",
+            "context": "Discussion on a social media platform",
             "discussion": "Team A: full remote. Team B: office-only.",
             "points": "Both sides present conflicting studies.",
             "quote": "The evidence is completely contradictory. Who's right?",
-            "task": "Objectively evaluate both sides.",
+            "task": "Imagine potential arguments of both sides. Objectively evaluate them.",
         }
     ],
     "role_peacemaker": [
         {
             "scenario": "Argument about grading",
-            "context": "Students fighting about group project grade.",
+            "context": "Students fighting about group project grade in a chat.",
             "conflict": "Personal accusations escalating.",
-            "quote": "This is your fault. You never listen!",
-            "user1": "Student A",
-            "user2": "Student B",
-            "task": "Help the students find a constructive way forward.",
+            "user1": "Anna: 'This is your fault. You never listen!'",
+            "user2": "Peter: 'Maybe it's because you command TOO much?!'",
+            "task": "Help the students to find a constructive way forward.",
         }
     ],
     "role_empath": [
         {
-            "scenario": "Student with imposter syndrome",
-            "context": "First-year grad student feels they don't belong.",
+            "scenario": "A student with imposter syndrome",
+            "context": "First-year student posts on a social media platform about his feelings.",
             "emotional_state": "Vulnerability and anxiety",
-            "quote": "You just need to study more. Stop complaining.",
-            "student": "the graduate student",
+            "user1": "Graduate student: You just need to study more. Stop complaining.",
             "task": "Provide genuine emotional support without immediately offering advice.",
         }
     ],
@@ -341,7 +339,7 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "role_mediator": {
-            "message": "**🎭 ROLE: Mediator**\n\n**Scenario:** {scenario}\n\n**Aggressor:** {aggressor} says: {quote}\n\n**Tag:** {tag}\n\n**Task:** Write a mediator response that de-escalates the conflict.\n\n*You MUST:*\n🔺Use @mention to address the aggressor\n 🔺Acknowledge their concern before redirecting\n 🔺Propose a constructive way forward\n 🔺Use a calm/peaceful emoji (🕊️, 🤝, 🌿)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Mediator**\n\n**Scenario:** {scenario}\n\n**Context** {context}\n\n**Aggressor** {aggressor} says: *{quote}*\n\n**Task:** {task}\n\n*You MUST:*\n🔺use @mention to address the aggressor\n 🔺acknowledge their concern before redirecting\n 🔺propose a constructive way forward\n 🔺insert a calm/peaceful emoji (🕊️, 🤝, 🌿)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_mediator",
@@ -350,15 +348,10 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Mediator), carefully and make notes:**\n\n**Criteria check:**\n✅ @mention used correctly?\n✅ Acknowledged concern before redirecting?\n✅ Proposed constructive next step?\n✅ Used calm emoji (🕊️, 🤝)?\n\n**📋 Model answer:** *'@ {aggressor}, I see your concern about productivity. 🤝 Let's look at the research together and find a balanced approach that works for everyone.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
-            "options": {
-                "revise": "✏️ Revise",
-                "next": "➡️ Next Role",
-                "back": "⬅️ Back to Menu",
-            },
             "next_state": "role_menu",
         },
         "role_logical": {
-            "message": "**🎭 ROLE: Logical Expert**\n\n**Scenario:** {scenario}\n\n**Debate:** {user1}: {quote1}\n{user2}: {quote2}\n\n**Task:** Highlight logical gaps in the arguments.\n\n*You MUST:*\n 🔺Use **bold** to identify each logical flaw\n 🔺Ask at least ONE clarifying question\n 🔺Use a thinking emoji (🤔, 🧐, 📊)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Logical Expert**\n\n**Scenario:** {scenario} \n\n**Context:** {context} \n\n**Debate:** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** (*-symbol at the beginning and the end of the word, e.g. * hello *) to identify each logical flaw\n 🔺ask at least ONE clarifying question\n 🔺add a thinking emoji (🤔, 🧐, 📊)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_logical",
@@ -367,15 +360,10 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Logical Expert), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** to highlight flaws?\n✅ Asked clarifying question?\n✅ Used thinking emoji (🤔, 🧐)?\n\n**📋 Model answer:** *'**'Grammar is useless'** is an overgeneralization. 🤔 Could you clarify what you mean? Research shows grammar instruction helps accuracy, while immersion builds fluency. Both have value.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
-            "options": {
-                "revise": "✏️ Revise",
-                "next": "➡️ Next Role",
-                "back": "⬅️ Back to Menu",
-            },
             "next_state": "role_menu",
         },
         "role_idea_generator": {
-            "message": "**🎭 ROLE: Idea Generator**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Current discussion:** *{quote}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺Use **bold** or *italics* to emphasize your key innovative idea\n 🔺Use at least ONE creativity emoji (💡, 🚀, ✨)\n 🔺Propose at least TWO distinct new ideas\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Idea Generator**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Current discussion:** *{quote}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** or *italics* (*-symbol at the beginning and the end of the word, e.g. * hello *) to emphasize your key innovative idea\n 🔺add at least ONE creativity emoji (💡, 🚀, ✨)\n 🔺propose at least TWO distinct new ideas\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_idea",
@@ -384,15 +372,10 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Idea Generator), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** or *italics* for key ideas?\n✅ Used creativity emoji (💡, 🚀, ✨)?\n✅ Proposed at least TWO distinct ideas?\n\n**📋 Model answer:** *'What if we tried **a gamified approach** with points and levels? 🚀 Or we could create **cross-cultural conversation pairs** where partners teach each other phrases in their languages? ✨ Both could increase engagement significantly.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
-            "options": {
-                "revise": "✏️ Revise",
-                "next": "➡️ Next Role",
-                "back": "⬅️ Back to Menu",
-            },
             "next_state": "role_menu",
         },
         "role_researcher": {
-            "message": "**🎭 ROLE: Researcher**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Cultural claim:** *{cultural_claim}*\n\n**Quote:** {quote}\n\n**Task:** {task}\n\n*You MUST:*\n 🔺Use @mention to address the person\n 🔺Ask at least TWO specific questions about cultural practices\n 🔺Use a thoughtful emoji (🤔, 🧐, 📚)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Researcher**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Discussion:** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use @mention to address the person\n 🔺ask at least TWO specific questions about cultural practices\n 🔺add a thoughtful emoji (🤔, 🧐, 📚)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_researcher",
@@ -401,15 +384,10 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Researcher), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention correctly?\n✅ Asked TWO specific cultural questions?\n✅ Used thoughtful emoji (🤔, 🧐, 📚)?\n\n**📋 Model answer:** *'@speaker, you mentioned directness is respectful in your culture. 📚 Could you tell me how criticism is typically framed in professional settings there? And are there situations where indirectness might be preferred?'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
-            "options": {
-                "revise": "✏️ Revise",
-                "next": "➡️ Next Role",
-                "back": "⬅️ Back to Menu",
-            },
             "next_state": "role_menu",
         },
         "role_interpreter": {
-            "message": "**🎭 ROLE: Interpreter**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Cultural note:** {cultural_note}\n\n**Task:** {task}\n\n*You MUST:*\n 🔺Use **bold** to highlight the key cultural difference\n 🔺Explain both intended meaning AND how it was misinterpreted\n 🔺Use a bridging emoji (🤝, 🌉, 💬)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Interpreter**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Discussion:** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** (*-symbol at the beginning and the end of the word, e.g. * hello *) to highlight the key cultural difference\n 🔺explain both intended meaning AND how it was misinterpreted\n 🔺add a bridging emoji (🤝, 🌉, 💬)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_interpreter",
@@ -418,15 +396,10 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Interpreter), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** for cultural difference?\n✅ Explained intended AND misinterpreted meaning?\n✅ Used bridging emoji (🤝, 🌉)?\n\n**📋 Model answer:** *'I think there's a cultural nuance here. **'Requires more careful consideration'** in Japanese often means polite disagreement. 🌉 The German preference for directness isn't wrong — it's just a different cultural expectation.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
-            "options": {
-                "revise": "✏️ Revise",
-                "next": "➡️ Next Role",
-                "back": "⬅️ Back to Menu",
-            },
             "next_state": "role_menu",
         },
         "role_advocate": {
-            "message": "**🎭 ROLE: Advocate**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Person under criticism:** {person_under_criticism}\n\n**Task:** {task}\n\n*You MUST:*\n 🔺Use @mention to acknowledge the critic first\n 🔺Provide at least TWO reasons for fair consideration\n 🔺Use a protective emoji (🛡️, 💪, 🤲)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Advocate**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Person under criticism:** {user1}\n\n**Quote:** *{critic}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use @mention to acknowledge the critic first\n 🔺provide at least TWO reasons for fair consideration\n 🔺add a protective emoji (🛡️, 💪, 🤲)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_advocate",
@@ -435,15 +408,10 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Advocate), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention to acknowledge critic?\n✅ Provided TWO reasons for defense?\n✅ Used protective emoji (🛡️, 💪)?\n\n**📋 Model answer:** *'@ Sarah, I understand your concern about missed deadlines. 🛡️ However, Alex has been dealing with a family emergency. Also, when Alex has contributed, the quality has been excellent. Let's check in privately before judging.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
-            "options": {
-                "revise": "✏️ Revise",
-                "next": "➡️ Next Role",
-                "back": "⬅️ Back to Menu",
-            },
             "next_state": "role_menu",
         },
         "role_judge": {
-            "message": "**🎭 ROLE: Judge**\n\n**Scenario:** {scenario}\n\n**Discussion:** {discussion}\n\n**Points:** {points}\n\n**Task:** {task}\n\n*You MUST:*\n 🔺Use **bold** for the strongest point from each side\n 🔺Identify what's valid in BOTH perspectives\n 🔺Use a balanced emoji (⚖️, 📊, ✅)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Judge**\n\n**Scenario:** {scenario}\n\n*Context:* {context}\n\n**Discussion:** {discussion}\n\n**POVs:** *{points}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use **bold** (*-symbol at the beginning and the end of the word, e.g. * hello *) for the strongest point from each side\n 🔺identify what's valid in BOTH perspectives\n 🔺add a balanced emoji (⚖️, 📊, ✅)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_judge",
@@ -452,15 +420,10 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Judge), carefully and make notes:**\n\n**Criteria check:**\n✅ Used **bold** for strongest points?\n✅ Found merit in BOTH sides?\n✅ Used balanced emoji (⚖️, 📊)?\n\n**📋 Model answer:** *'Let me assess both sides. ⚖️ Team A's **30% productivity increase** is supported by Stanford. Team B's **collaboration suffers** is backed by MIT. A hybrid model likely addresses both valid concerns.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
-            "options": {
-                "revise": "✏️ Revise",
-                "next": "➡️ Next Role",
-                "back": "⬅️ Back to Menu",
-            },
             "next_state": "role_menu",
         },
         "role_peacemaker": {
-            "message": "**🎭 ROLE: Peacemaker**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Conflict:** {conflict}\n\n**Task:** {task}\n\n*You MUST:*\n 🔺Use @mention to address both parties\n 🔺Identify the VALID concern behind each position\n 🔺Propose a specific compromise\n 🔺Use a peace emoji (🕊️, ☮️, 🤝)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Peacemaker**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Conflict:** {conflict}\n\n**Discussion:** *{user1}*\n*{user2}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use @mention to address both parties\n 🔺identify the VALID concern behind each position\n 🔺propose a specific compromise\n 🔺add a peace emoji (🕊️, ☮️, 🤝)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_peacemaker",
@@ -469,15 +432,10 @@ SCENARIO: dict[str, Any] = {
             "message": "📖 **Read the feedback for you, {user_name} (Peacemaker), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention for both parties?\n✅ Identified valid concerns?\n✅ Proposed specific compromise?\n✅ Used peace emoji (🕊️, 🤝)?\n\n**📋 Model answer:** *'@ Student A and @ Student B, I hear both of you. 🤝 Student A, your concern about fair contribution is valid. Student B, your feeling of being controlled is also valid. Let's create a shared task list where responsibilities are visible to all.'*\n\n▶️ **Type 'revise' to improve your answer, 'next' to choose the next Role, or 'back' to return to menu:**",
             "input_type": "text",
             "validation": ".+",
-            "options": {
-                "revise": "✏️ Revise",
-                "next": "➡️ Next Role",
-                "back": "⬅️ Back to Menu",
-            },
             "next_state": "role_menu",
         },
         "role_empath": {
-            "message": "**🎭 ROLE: Empath**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Emotional state:** {emotional_state}\n\n**Task:** {task}\n\n*You MUST:*\n 🔺Use @mention to address the person\n 🔺Explicitly VALIDATE their feelings\n 🔺Offer support WITHOUT giving advice\n 🔺Use a warm emoji (❤️, 🤗, 💗)\n\n▶️ **Type your response:**",
+            "message": "**🎭 ROLE: Empath**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Emotional state:** {emotional_state}\n\n*Comment section:** *{user1}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use @mention to address the person\n 🔺explicitly VALIDATE their feelings\n 🔺offer support WITHOUT giving advice\n 🔺add a warm emoji (❤️, 🤗, 💗)\n\n▶️ **Type your response:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "roleplay_feedback_empath",
