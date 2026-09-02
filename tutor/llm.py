@@ -1,5 +1,6 @@
 """LLM integration service for tutor feedback."""
 
+import html as html_mod
 import logging
 import os
 from typing import Optional
@@ -119,7 +120,7 @@ def get_llm_feedback(
                     or ""
                 )
                 if text.strip():
-                    return text.strip()
+                    return html_mod.unescape(text.strip())
 
             errors.append(f"{label}: no valid choices in response")
             logger.debug(
@@ -147,7 +148,8 @@ def get_llm_feedback(
 
     detail = errors[0] if errors else "unknown"
     logger.debug("LLM fell back to demo, errors=%s", errors)
-    return (
+    fallback_text = (
         f"**\U0001f916 LLM Feedback (API failed \u2014 {detail}):** "
         f'You wrote: "{safe}". {hint}'
     )
+    return html_mod.unescape(fallback_text)
