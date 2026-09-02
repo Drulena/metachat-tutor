@@ -57,7 +57,7 @@ def get_llm_feedback(
         f"--- STUDENT ANSWER ---\n{truncated_answer}\n\n"
         "--- INSTRUCTION ---\n"
         "Evaluate the student's answer based on the theoretical framework above. "
-        "Check whether they identified/applied metagraheme tools correctly for their level. "
+        "Check whether they identified/applied metagrapheme tools correctly for their level. "
         "Give brief constructive feedback (max 500 characters). "
         "Be supportive and specific."
     )
@@ -139,7 +139,7 @@ def get_llm_feedback(
     if "TASK 1" in task_question:
         hint = "Adding a friendly emoji like \U0001f642 or \U0001f60a can make criticism feel more supportive."
     elif "TASK 2" in task_question:
-        hint = "Combining multiple metagraheme techniques creates stronger effects."
+        hint = "Combining multiple metagrapheme techniques creates stronger effects."
     else:
         hint = (
             "Review the criteria and check if your response addresses all requirements."

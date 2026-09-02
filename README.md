@@ -1,6 +1,6 @@
 # MetaChat Tutor
 
-Django web app for linguodidactics research — teaches constructive communication roles, tactics and metagraheme use (emojis, formatting, hashtags) in online polylogues.
+Django web app for linguodidactics research — teaches constructive communication roles, tactics and metagrapheme use (emojis, formatting, hashtags) in online polylogues.
 
 ## Run
 

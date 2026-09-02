@@ -199,7 +199,7 @@ SCENARIO: dict[str, Any] = {
             "next_state": {"1": "analysis_intro_advanced", "2": "roleplay_intro"},
         },
         "analysis_intro_beginner": {
-            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll learn to identify basic metagraheme functions and practice softening simple criticism using examples of online comments.\n\n▶️ **Type 'yes' to start or 'back' to return to menu:**",
+            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll learn to identify basic metagrapheme functions and practice softening simple criticism using examples of online comments.\n\n▶️ **Type 'yes' to start or 'back' to return to menu:**",
             "options": {"yes": "Yes, proceed", "back": "Back to menu"},
             "next_state": {
                 "yes": "analysis_task_1_beginner",
@@ -207,7 +207,7 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "analysis_intro_intermediate": {
-            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll analyze more complex examples of online comments and practice nuanced use of metagrahemes.\n\n▶️ **Type 'yes' to start or 'back' to return to menu:**",
+            "message": "**Step1️⃣: ANALYSIS**\n\nYou'll analyze more complex examples of online comments and practice nuanced use of metagraphemes.\n\n▶️ **Type 'yes' to start or 'back' to return to menu:**",
             "options": {"yes": "Yes, proceed", "back": "Back to menu"},
             "next_state": {
                 "yes": "analysis_task_1_intermediate",
@@ -241,7 +241,7 @@ SCENARIO: dict[str, Any] = {
             "next_state": "analysis_feedback_1_intermediate",
         },
         "analysis_task_2_intermediate": {
-            "message": "**📝 TASK 2: Recognizing Aggressive Formatting (Intermediate)**\n\nMessage: {message}\n\n❓ **Question:** Identify TWO metagraheme techniques used here.\n\n*Hint: {hint}*\n\n▶️ **Type your answer:**",
+            "message": "**📝 TASK 2: Recognizing Aggressive Formatting (Intermediate)**\n\nMessage: {message}\n\n❓ **Question:** Identify TWO metagrapheme techniques used here.\n\n*Hint: {hint}*\n\n▶️ **Type your answer:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "analysis_feedback_2_intermediate",
@@ -261,7 +261,7 @@ SCENARIO: dict[str, Any] = {
             },
         },
         "analysis_task_2_advanced": {
-            "message": "**📝 TASK 2: Recognizing Aggressive Formatting (Advanced)**\n\nMessage: {message}\n\n❓ **Question:** Analyze ALL metagraheme techniques used here.\n\n▶️ **Type your analysis:**",
+            "message": "**📝 TASK 2: Recognizing Aggressive Formatting (Advanced)**\n\nMessage: {message}\n\n❓ **Question:** Analyze ALL metagrapheme techniques used here.\n\n▶️ **Type your analysis:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "analysis_feedback_2_advanced",
@@ -449,7 +449,7 @@ SCENARIO: dict[str, Any] = {
             "next_state": "role_menu",
         },
         "reflection": {
-            "message": "**💭 REFLECTION**\n\nPlease answer briefly:\n\n🅰️Which role was most challenging? Why?\n\n🅱️What new insight about metagrahemes did you gain?\n\n▶️ **Type your reflection:**",
+            "message": "**💭 REFLECTION**\n\nPlease answer briefly:\n\n🅰️Which role was most challenging? Why?\n\n🅱️What new insight about metagraphemes did you gain?\n\n▶️ **Type your reflection:**",
             "input_type": "text",
             "validation": ".+",
             "next_state": "posttest",
