@@ -261,30 +261,53 @@ html, body {
 .message-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 8px;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 128, 128, 0.15);
 }
 
 .option-btn {
-  background-color: #008080;
+  background: linear-gradient(135deg, #008080 0%, #006666 100%);
   color: white;
   border: none;
-  border-radius: 20px;
-  padding: 8px 16px;
+  border-radius: 12px;
+  padding: 10px 20px;
   font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.3px;
   cursor: pointer;
-  transition: background-color 0.2s, transform 0.1s;
+  box-shadow: 0 2px 8px rgba(0, 128, 128, 0.25);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.option-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left 0.4s ease;
 }
 
 .option-btn:hover {
-  background-color: #006666;
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #009999 0%, #007777 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 128, 128, 0.35);
+}
+
+.option-btn:hover::before {
+  left: 100%;
 }
 
 .option-btn:active {
-  background-color: #004d4d;
+  background: linear-gradient(135deg, #006666 0%, #005555 100%);
   transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(0, 128, 128, 0.2);
 }
 
 .session-complete {
