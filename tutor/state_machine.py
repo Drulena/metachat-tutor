@@ -82,6 +82,8 @@ def init_session(request: Any) -> None:
             "posttest_scores": None,
             "current_role": None,
             "current_role_variant": None,
+            "completed_roles": [],
+            "completed_modes": [],
         }
         request.session["scenario"] = randomize_scenario(_SCENARIO)
         request.session["session_id"] = uuid.uuid4().hex
@@ -259,6 +261,11 @@ def handle_roleplay_feedback(request: Any, user_input: str) -> None:
     if cmd == "revise":
         request.session["current_state"] = current_role
     elif cmd in ("next", "back"):
+        # Отмечаем текущую роль как завершённую
+        completed_roles = request.session["user_data"].setdefault("completed_roles", [])
+        if current_role not in completed_roles:
+            completed_roles.append(current_role)
+        request.session.modified = True
         request.session["current_state"] = "role_menu"
     else:
         dj_messages.warning(
@@ -280,8 +287,17 @@ def handle_after_registration(request: Any, user_input: str) -> None:
         if user_input == "1":
             level = user_data.get("level", "beginner")
             request.session["current_state"] = f"analysis_intro_{level}"
+            # Отмечаем режим анализа как завершённый
+            completed_modes = user_data.setdefault("completed_modes", [])
+            if "analysis" not in completed_modes:
+                completed_modes.append("analysis")
         else:
             request.session["current_state"] = "roleplay_intro"
+            # Отмечаем режим ролевой игры как завершённый
+            completed_modes = user_data.setdefault("completed_modes", [])
+            if "roleplay" not in completed_modes:
+                completed_modes.append("roleplay")
+        request.session.modified = True
         _append_assistant_message(request)
     elif user_input.lower() == "back":
         request.session["current_state"] = "level_assessment"

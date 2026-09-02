@@ -21,6 +21,83 @@ def _limit_length(value: str) -> str:
     return value[:_MAX_INPUT_LENGTH]
 
 
+def _add_completion_markers(request: HttpRequest) -> None:
+    """Добавить маркеры завершения (✅) к пунктам меню выбора."""
+    user_data: Dict[str, Any] = request.session.get("user_data", {})
+    current_state: str = request.session.get("current_state", "start")
+    chat_history: List[Dict[str, str]] = request.session.get("chat_history", [])
+
+    # Найти последнее сообщение ассистента
+    last_assistant_msg = None
+    for msg in reversed(chat_history):
+        if msg.get("role") == "assistant":
+            last_assistant_msg = msg
+            break
+
+    if not last_assistant_msg:
+        return
+
+    content = last_assistant_msg["content"]
+    modified = False
+
+    # Маппинг ключей ролей к именам для отображения в меню
+    _ROLE_KEY_TO_NAME: Dict[str, str] = {
+        "role_mediator": "Mediator",
+        "role_logical": "Logical Expert",
+        "role_idea_generator": "Idea Generator",
+        "role_researcher": "Researcher",
+        "role_interpreter": "Interpreter",
+        "role_advocate": "Advocate",
+        "role_judge": "Judge",
+        "role_peacemaker": "Peacemaker",
+        "role_empath": "Empath",
+    }
+
+    if current_state == "role_menu":
+        completed_roles = user_data.get("completed_roles", [])
+        for role_key in completed_roles:
+            role_name = _ROLE_KEY_TO_NAME.get(role_key)
+            if not role_name:
+                continue
+            old_pattern = f" - {role_name} ("
+            new_pattern = f" - {role_name} ✅ ("
+            if old_pattern in content and new_pattern not in content:
+                content = content.replace(old_pattern, new_pattern, 1)
+                modified = True
+
+    elif current_state.startswith("after_registration_"):
+        completed_modes = user_data.get("completed_modes", [])
+        if "analysis" in completed_modes:
+            old = "🔹 **Step1️⃣** - ANALYSIS"
+            new = "🔹 **Step1️⃣** - ANALYSIS ✅"
+            if old in content and new not in content:
+                content = content.replace(old, new, 1)
+                modified = True
+        if "roleplay" in completed_modes:
+            old = "🔹 **Step2️⃣** - ROLE-PLAY"
+            new = "🔹 **Step2️⃣** - ROLE-PLAY ✅"
+            if old in content and new not in content:
+                content = content.replace(old, new, 1)
+                modified = True
+
+    elif current_state == "level_assessment":
+        level = user_data.get("level")
+        if level:
+            _LEVEL_TO_NUM = {"beginner": "1", "intermediate": "2", "advanced": "3"}
+            level_num = _LEVEL_TO_NUM.get(level)
+            if level_num:
+                level_label = level.capitalize()
+                old = f"▫️{level_num}▫️ {level_label} ("
+                new = f"▫️{level_num}▫️ {level_label} ✅ ("
+                if old in content and new not in content:
+                    content = content.replace(old, new, 1)
+                    modified = True
+
+    if modified:
+        last_assistant_msg["content"] = content
+        request.session.modified = True
+
+
 def chat_view(request: HttpRequest):
     try:
         init_session(request)
@@ -29,6 +106,7 @@ def chat_view(request: HttpRequest):
             user_input = request.POST.get("user_input", "").strip()
             if user_input:
                 process_input(request, _limit_length(user_input))
+                _add_completion_markers(request)
 
         history = request.session.get("chat_history", [])
         user_data: Dict[str, Any] = request.session.get("user_data", {})
