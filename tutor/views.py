@@ -207,6 +207,16 @@ def chat_view(request: HttpRequest):
         # finish — только в role_menu
         show_finish = current_state == "role_menu"
 
+        # If last assistant message is an LLM error state, hide advance button
+        # (retry shows from options, back shows from show_back)
+        last_assistant = None
+        for msg in reversed(display_history):
+            if msg.get("role") == "assistant":
+                last_assistant = msg
+                break
+        if last_assistant and (last_assistant.get("options") or {}).get("retry"):
+            show_advance = False
+
         context = {
             "chat_history": display_history,
             "welcome_message": SCENARIO["welcome_message"],
@@ -221,6 +231,7 @@ def chat_view(request: HttpRequest):
             "user_data": user_data,
             "session_id": request.session.get("session_id", ""),
             "debug": settings.DEBUG,
+            "nav_use_form_submit": True,
             "progress": calculate_progress(request),
             "analysis_tasks": analysis_tasks,
             "role_tasks": role_tasks,

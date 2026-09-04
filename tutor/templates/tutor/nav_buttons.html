@@ -5,7 +5,7 @@
 <div class="nav-bar">
   {% if nav_use_form_submit %}
     {# For chat.html: use form-submit JS pattern #}
-    <button type="button" class="system-btn nav-btn" data-value="back">⬅️ Back</button>
+    <button type="button" class="option-btn system-btn nav-btn" data-value="back">⬅️ Back</button>
     <a href="{% url 'main_menu' %}" class="system-btn nav-btn nav-link">🏠 Main Menu</a>
   {% else %}
     {# For other pages: use regular links #}

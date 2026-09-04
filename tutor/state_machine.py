@@ -190,14 +190,23 @@ def _append_assistant_message(request: Any) -> None:
             "State %s not found in scenario", request.session["current_state"]
         )
         return
-    content = get_current_message(request)
+    content, llm_failed = get_current_message(request)
+    options = state_data.get("options") if state_data else None
+    if llm_failed:
+        if options is None:
+            options = {}
+        else:
+            options = dict(options)  # shallow copy to avoid mutating state data
+        retry_count = request.session.get("retry_count", 1)
+        options["retry"] = f"🔄 Retry LLM ({retry_count}/3)"
+        options["back"] = "⬅️ Back"
     request.session["chat_history"].append(
         {
             "role": "assistant",
             "content": content,
             "state": request.session["current_state"],
             "timestamp": datetime.now().isoformat(),
-            "options": state_data.get("options") if state_data else None,
+            "options": options,
         }
     )
     request.session.modified = True
@@ -245,11 +254,15 @@ def init_session(request: Any) -> None:
         request.session.modified = True
 
 
-def get_current_message(request: Any) -> str:
+def get_current_message(request: Any) -> tuple[str, bool]:
     """Return the formatted message for the current state.
 
     Performs variable substitution ({user_name}, {level}) and injects
     LLM feedback for analysis/roleplay feedback states.
+
+    Returns:
+        Tuple of (formatted_message, llm_failed) where llm_failed indicates
+        whether the LLM was unreachable (used to show a retry option).
     """
     scenario = request.session["scenario"]
     current_state = request.session["current_state"]
@@ -280,8 +293,9 @@ def get_current_message(request: Any) -> str:
     user_answer = chat_history[-1]["content"] if chat_history else ""
 
     # --- LLM feedback injection ---
+    llm_failed = False
     if task_context and user_data.get("user_name") and user_data.get("level"):
-        llm_out = get_llm_feedback(
+        llm_out, llm_failed = get_llm_feedback(
             user_name=user_data["user_name"],
             level=user_data["level"],
             role_name=role_name,
@@ -291,9 +305,9 @@ def get_current_message(request: Any) -> str:
         if llm_out:
             skip_model_answer = "roleplay_feedback" in current_state
             markers = (
-                ["\n\n\u25b6\ufe0f"]
+                ["\n\n▶️"]
                 if skip_model_answer
-                else ["\n\n**\U0001f4cb Model answer:**", "\n\n\u25b6\ufe0f"]
+                else ["\n\n**📋 Model answer:**", "\n\n▶️"]
             )
             for marker in markers:
                 parts = message.split(marker, 1)
@@ -310,7 +324,7 @@ def get_current_message(request: Any) -> str:
     if "{level}" in message and user_data.get("level"):
         message = message.replace("{level}", user_data["level"])
 
-    return message
+    return message, llm_failed
 
 
 # ---------------------------------------------------------------------------
@@ -323,6 +337,9 @@ def handle_back(request: Any) -> None:
     user_data = request.session["user_data"]
     level = user_data.get("level", "beginner")
     current_state = request.session["current_state"]
+
+    # Reset retry count when navigating away
+    request.session["retry_count"] = 0
 
     if "analysis_task_" in current_state:
         request.session["current_state"] = f"analysis_intro_{level}"
@@ -627,6 +644,46 @@ def process_input(request: Any, user_input: str) -> None:
     # --- Handle 'back' command globally ---
     if user_input.lower() == "back":
         handle_back(request)
+        return
+
+    # --- Handle 'retry' command — re-trigger LLM for current feedback state ---
+    if user_input.lower() == "retry" and (
+        "analysis_feedback" in current_state or "roleplay_feedback" in current_state
+    ):
+        # Increment retry counter
+        retry_count = request.session.get("retry_count", 0) + 1
+        request.session["retry_count"] = retry_count
+        request.session.modified = True
+
+        # Re-generate LLM content for the current state
+        content, llm_failed = get_current_message(request)
+
+        # Update the last assistant message in-place instead of appending new one
+        chat_history = request.session["chat_history"]
+        if chat_history and chat_history[-1]["role"] == "assistant":
+            chat_history[-1]["content"] = content
+
+            if llm_failed:
+                # Still failing — show retry (if under limit) + back
+                if retry_count < 3:
+                    chat_history[-1]["options"] = {
+                        "retry": f"🔄 Retry LLM ({retry_count}/3)",
+                        "back": "⬅️ Back",
+                    }
+                else:
+                    # Max retries reached — only back button
+                    chat_history[-1]["options"] = {
+                        "back": "⬅️ Back",
+                    }
+            else:
+                # LLM succeeded — reset counter, restore normal state options
+                request.session["retry_count"] = 0
+                scenario = request.session["scenario"]
+                state_data = scenario["states"].get(current_state, {})
+                chat_history[-1]["options"] = state_data.get("options")
+
+            chat_history[-1]["timestamp"] = datetime.now().isoformat()
+            request.session.modified = True
         return
 
     # --- Append user message to history ---

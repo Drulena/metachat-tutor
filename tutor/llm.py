@@ -31,7 +31,7 @@ def get_llm_feedback(
     user_name: str,
     level: str,
     task_question: Optional[str] = None,
-) -> str:
+) -> tuple[str, bool]:
     """Get LLM feedback on a student's answer.
 
     Args:
@@ -42,7 +42,9 @@ def get_llm_feedback(
         task_question: The original task question for context.
 
     Returns:
-        Feedback string from the LLM, or a demo/fallback message.
+        Tuple of (feedback_string, failed). ``failed`` is True when the
+        LLM was unreachable or returned an error, indicating the user
+        may want to retry.
     """
     if task_question is None:
         task_question = "(task context unknown)"
@@ -51,7 +53,8 @@ def get_llm_feedback(
     if api_key is None:
         return (
             "**\U0001f916 LLM Feedback (API not configured):** "
-            "Set LLM_API_KEY in .env to enable AI feedback."
+            "Set LLM_API_KEY in .env to enable AI feedback.",
+            True,
         )
 
     truncated_answer = user_answer[:_MAX_ANSWER_LENGTH]
@@ -129,7 +132,7 @@ def get_llm_feedback(
                     or ""
                 )
                 if text.strip():
-                    return html_mod.unescape(text.strip())
+                    return html_mod.unescape(text.strip()), False
 
             errors.append(f"{label}: no valid choices in response")
             logger.debug(
@@ -164,4 +167,4 @@ def get_llm_feedback(
             f"**\U0001f916 LLM Feedback (API failed \u2014 {detail}):** "
             f'You wrote: "{safe}". {hint}'
         )
-    return html_mod.unescape(fallback_text)
+    return html_mod.unescape(fallback_text), True

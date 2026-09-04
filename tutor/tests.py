@@ -46,7 +46,7 @@ class HTMLUnescapeLLMOutputTest(SimpleTestCase):
         )
         mock_post.return_value = self._fake_llm_response(html_entity_text)
 
-        result = get_llm_feedback(
+        result, failed = get_llm_feedback(
             user_answer="test answer",
             role_name="mediator",
             user_name="TestStudent",
@@ -69,7 +69,7 @@ class HTMLUnescapeLLMOutputTest(SimpleTestCase):
         )
         mock_post.return_value = self._fake_llm_response(html_entity_text)
 
-        result = get_llm_feedback(
+        result, failed = get_llm_feedback(
             user_answer="test answer",
             role_name="mediator",
             user_name="TestStudent",
@@ -92,7 +92,7 @@ class HTMLUnescapeLLMOutputTest(SimpleTestCase):
         )
         mock_post.return_value = self._fake_llm_response(html_entity_text)
 
-        result = get_llm_feedback(
+        result, failed = get_llm_feedback(
             user_answer="test answer",
             role_name="mediator",
             user_name="TestStudent",
@@ -141,7 +141,7 @@ class DoubleEscapeRegressionTest(SimpleTestCase):
         """
         from .state_machine import get_current_message
 
-        mock_llm.return_value = "It's a great answer!"
+        mock_llm.return_value = ("It's a great answer!", False)
 
         # Нужны оба состояния: analysis_task (контекст) и analysis_feedback (вызов LLM)
         scenario_states = {
@@ -162,7 +162,7 @@ class DoubleEscapeRegressionTest(SimpleTestCase):
             },
         )
 
-        result = get_current_message(request)
+        result, _ = get_current_message(request)
 
         # Апостроф должен остаться обычным символом, а не стать HTML-сущностью
         self.assertNotIn("&#x27;", result)
@@ -178,7 +178,7 @@ class DoubleEscapeRegressionTest(SimpleTestCase):
         """
         from .state_machine import get_current_message
 
-        mock_llm.return_value = 'He said "hello" to her.'
+        mock_llm.return_value = ('He said "hello" to her.', False)
 
         scenario_states = {
             "analysis_task_2_beginner": {
@@ -198,7 +198,7 @@ class DoubleEscapeRegressionTest(SimpleTestCase):
             },
         )
 
-        result = get_current_message(request)
+        result, _ = get_current_message(request)
 
         self.assertNotIn("&quot;", result)
         self.assertNotIn("&#34;", result)
@@ -213,7 +213,7 @@ class DoubleEscapeRegressionTest(SimpleTestCase):
         """
         from .state_machine import get_current_message
 
-        mock_llm.return_value = "Use A & B together."
+        mock_llm.return_value = ("Use A & B together.", False)
 
         scenario_states = {
             "analysis_task_1_beginner": {
@@ -233,7 +233,7 @@ class DoubleEscapeRegressionTest(SimpleTestCase):
             },
         )
 
-        result = get_current_message(request)
+        result, _ = get_current_message(request)
 
         self.assertNotIn("&amp;", result)
         self.assertIn("A & B", result)
@@ -281,7 +281,7 @@ class ModelAnswerRemovalTest(SimpleTestCase):
         """
         from .state_machine import get_current_message
 
-        mock_llm.return_value = "Great mediator response!"
+        mock_llm.return_value = ("Great mediator response!", False)
 
         # The roleplay_feedback_mediator message includes the Model answer
         # marker (see scenarios.py line 350).
@@ -309,7 +309,7 @@ class ModelAnswerRemovalTest(SimpleTestCase):
             },
         )
 
-        result = get_current_message(request)
+        result, _ = get_current_message(request)
 
         # The role-play feedback must NOT contain the Model answer section.
         # After the fix, this assertion should pass.  Currently it FAILS
@@ -329,7 +329,7 @@ class ModelAnswerRemovalTest(SimpleTestCase):
         """
         from .state_machine import get_current_message
 
-        mock_llm.return_value = "Good analysis!"
+        mock_llm.return_value = ("Good analysis!", False)
 
         # The analysis_feedback_1_beginner message includes the Model answer
         # marker (see scenarios.py line 275).
@@ -356,7 +356,7 @@ class ModelAnswerRemovalTest(SimpleTestCase):
             },
         )
 
-        result = get_current_message(request)
+        result, _ = get_current_message(request)
 
         # Analysis feedback must still contain the Model answer section.
         self.assertIn("Model answer", result)
@@ -443,8 +443,8 @@ class NavigationButtonsTestCase(TestCase):
         self.assertContains(response, 'data-value="back"')
         self.assertContains(response, 'data-value="yes"')
 
-    def test_analysis_feedback_has_back_and_next(self):
-        """Analysis feedback should have back and next buttons."""
+    def test_analysis_feedback_has_back_and_retry(self):
+        """Analysis feedback with LLM failure should have back and retry buttons."""
         self.client.post(self.chat_url, {"user_input": "Test User"})
         self.client.post(self.chat_url, {"user_input": "1 2 3"})
         self.client.post(self.chat_url, {"user_input": "1"})
@@ -455,7 +455,8 @@ class NavigationButtonsTestCase(TestCase):
         response = self.client.get(self.chat_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'data-value="back"')
-        self.assertContains(response, 'data-value="next"')
+        self.assertContains(response, 'data-value="retry"')
+        self.assertContains(response, "Retry LLM (1/3)")
 
     def test_roleplay_intro_has_back_and_continue(self):
         """Roleplay intro should have back and continue buttons."""
@@ -539,8 +540,8 @@ class NavigationButtonsTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self._last_message_system_options(response), "")
 
-    def test_roleplay_feedback_empath_has_options(self):
-        """Roleplay feedback empath state should have options."""
+    def test_roleplay_feedback_empath_has_retry(self):
+        """Roleplay feedback empath state with LLM failure should have retry button."""
         self.client.post(self.chat_url, {"user_input": "Test User"})
         self.client.post(self.chat_url, {"user_input": "1 2 3"})
         self.client.post(self.chat_url, {"user_input": "1"})
@@ -552,8 +553,9 @@ class NavigationButtonsTestCase(TestCase):
         response = self.client.get(self.chat_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'data-value="back"')
-        self.assertContains(response, 'data-value="next"')
+        self.assertContains(response, 'data-value="retry"')
         self.assertContains(response, 'data-value="revise"')
+        self.assertContains(response, "Retry LLM (1/3)")
 
     def test_roleplay_feedback_other_states_no_options(self):
         """Other roleplay feedback states have no options defined."""
