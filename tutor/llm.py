@@ -8,6 +8,7 @@ from typing import Optional
 import requests
 
 from .data import THEORETICAL_BASE
+from .scenarios import ROLEPLAY_ERROR_TEMPLATES, ROLEPLAY_ERROR_DEFAULT
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +17,17 @@ _PRIMARY_TIMEOUT = 15
 _FALLBACK_TIMEOUT = 10
 
 
+def get_roleplay_fallback(level: str, role_name: str, detail: str) -> str:
+    """Build a role-aware fallback message for role-play mode."""
+    normalized = role_name if role_name.startswith("role_") else f"role_{role_name}"
+    templates = ROLEPLAY_ERROR_TEMPLATES.get(level, {})
+    hint = templates.get(normalized, ROLEPLAY_ERROR_DEFAULT)
+    return f"**🤖 LLM Feedback (API failed — {detail}):** {hint}"
+
+
 def get_llm_feedback(
     user_answer: str,
-    role_name: str,
+    role_name: Optional[str],
     user_name: str,
     level: str,
     task_question: Optional[str] = None,
@@ -137,19 +146,22 @@ def get_llm_feedback(
             logger.debug("LLM %s error: %s", label, exc)
 
     safe = truncated_answer[:200]
-    if "TASK 1" in task_question:
-        hint = "Adding a friendly emoji like \U0001f642 or \U0001f60a can make criticism feel more supportive."
-    elif "TASK 2" in task_question:
-        hint = "Combining multiple metagrapheme techniques creates stronger effects."
-    else:
-        hint = (
-            "Review the criteria and check if your response addresses all requirements."
-        )
-
     detail = errors[0] if errors else "unknown"
     logger.debug("LLM fell back to demo, errors=%s", errors)
-    fallback_text = (
-        f"**\U0001f916 LLM Feedback (API failed \u2014 {detail}):** "
-        f'You wrote: "{safe}". {hint}'
-    )
+
+    if role_name is not None:
+        fallback_text = get_roleplay_fallback(level, role_name, detail)
+    else:
+        if "TASK 1" in task_question:
+            hint = "Adding a friendly emoji like \U0001f642 or \U0001f60a can make criticism feel more supportive."
+        elif "TASK 2" in task_question:
+            hint = (
+                "Combining multiple metagrapheme techniques creates stronger effects."
+            )
+        else:
+            hint = "Review the criteria and check if your response addresses all requirements."
+        fallback_text = (
+            f"**\U0001f916 LLM Feedback (API failed \u2014 {detail}):** "
+            f'You wrote: "{safe}". {hint}'
+        )
     return html_mod.unescape(fallback_text)

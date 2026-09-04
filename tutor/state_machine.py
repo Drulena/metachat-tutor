@@ -260,6 +260,7 @@ def get_current_message(request: Any) -> str:
 
     # --- Determine task context for LLM feedback injection ---
     task_context: Optional[str] = None
+    role_name: Optional[str] = None
     if "analysis_feedback_1" in current_state:
         task_state = current_state.replace("feedback_1", "task_1")
         if task_state in scenario["states"]:
@@ -269,8 +270,8 @@ def get_current_message(request: Any) -> str:
         if task_state in scenario["states"]:
             task_context = scenario["states"][task_state]["message"]
     elif "roleplay_feedback" in current_state:
-        role_slug = current_state.replace("roleplay_feedback_", "")
-        task_state = f"role_{role_slug}"
+        role_name = current_state.replace("roleplay_feedback_", "")
+        task_state = f"role_{role_name}"
         if task_state in scenario["states"]:
             task_context = scenario["states"][task_state]["message"]
 
@@ -283,7 +284,7 @@ def get_current_message(request: Any) -> str:
         llm_out = get_llm_feedback(
             user_name=user_data["user_name"],
             level=user_data["level"],
-            role_name=user_data.get("current_role"),
+            role_name=role_name,
             user_answer=user_answer,
             task_question=task_context,
         )
