@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 .DS_Store
 *.log
+.ruff_cache/
 venv
 *.sqlite3
 staticfiles/
