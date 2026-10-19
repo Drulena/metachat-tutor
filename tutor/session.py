@@ -14,7 +14,7 @@ reaching into the Django session and the LLM service directly:
 - :class:`Feedback` -- the injectable ``feedback(...)`` callable whose default
   is the existing :func:`tutor.llm.get_llm_feedback`.
 
-Nothing here changes existing behavior: the current views and state machine
+Nothing here changes existing behavior: the current views
 keep running exactly as before. This only introduces the types and seam the
 next module will depend on.
 """
@@ -38,7 +38,7 @@ class State:
 
     The fields mirror the keys the Django session currently holds, so the
     storage adapters can round-trip a ``State`` without changing the on-wire
-    format the existing views and state machine read.
+    format the existing views read.
     """
 
     session_id: str
@@ -74,7 +74,7 @@ class Summary:
     session.
     """
 
-    # Progress metrics (mirrors ``state_machine.calculate_progress``).
+    # Progress metrics.
     status_badge: str = "not_started"
     percentage: int = 0
     current_step: int = 0
@@ -104,7 +104,7 @@ class Summary:
 
 # The session keys a State maps onto. Keeping them in one place is what makes
 # the Django adapter behavior-neutral: it writes exactly the keys the current
-# views and state machine already read.
+# views already read.
 _SESSION_KEYS = [f.name for f in fields(State)]
 
 # Per-key defaults the adapters fall back to when a stored session is
@@ -170,9 +170,9 @@ class SessionStorage:
     """Production adapter backed by a Django session object.
 
     Named ``SessionStorage`` to match ADR-0001. Maps :class:`State` fields onto
-    the same per-key session format the existing code uses (see
-    ``state_machine.init_session``), so routing a session through the seam
-    changes nothing about the format the current views and state machine read.
+    the same per-key session format the existing code uses, so routing a
+    session through the seam changes nothing about the format the current
+    views read.
     Assigning each key marks the session modified, so no dirtiness handling is
     needed.
     """
@@ -182,8 +182,7 @@ class SessionStorage:
 
     def load(self) -> Optional[State]:
         s = self._session
-        # ``current_state`` is the marker of an initialized session, matching
-        # ``state_machine.init_session``.
+        # ``current_state`` is the marker of an initialized session.
         if "current_state" not in s:
             return None
         return State(**{name: s.get(name, _KEY_DEFAULTS[name]) for name in _SESSION_KEYS})

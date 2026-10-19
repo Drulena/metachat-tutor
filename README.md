@@ -19,7 +19,8 @@ Django project `tutor_project/` with a single app `tutor/`:
 
 - `tutor_project/settings.py` — project config; reads `DEBUG`, `SECRET_KEY`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` from env
 - `tutor/views.py` — session-driven chat view + `export/` (JSON download) and `reset/` routes
-- `tutor/state_machine.py` — conversation state machine (`init_session`, `process_input`)
+- `tutor/tutor_session.py` — session behaviour: lifecycle, navigation options and progress (single source of behaviour)
+- `tutor/session.py` — storage seam: state persistence behind a small `Storage` protocol
 - `tutor/scenarios.py` — scenario content and variants
 - `tutor/llm.py` — optional LLM feedback via `get_llm_feedback()`
 - `tutor/templates/tutor/chat.html` — UI template (uses ChatML-style HTML)
