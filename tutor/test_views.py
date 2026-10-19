@@ -14,20 +14,8 @@ from dataclasses import asdict
 from django.test import TestCase
 
 from .session import SessionStorage
-from .test_tutor_session import ROLE_MENU_INPUTS
+from .test_tutor_session import FakeLLM, ROLE_MENU_INPUTS
 from .tutor_session import TutorSession
-
-
-class _FakeLLM:
-    """Deterministic feedback callable for view tests."""
-
-    def __init__(self, text="Feedback for the answer."):
-        self.text = text
-        self.calls = []
-
-    def __call__(self, user_answer, role_name, user_name, level, task_question=None):
-        self.calls.append((user_answer, role_name, user_name, level))
-        return (self.text, False)
 
 
 def _drive(client, inputs):
@@ -37,7 +25,7 @@ def _drive(client, inputs):
     their own ``TutorSession`` over ``request.session``) observe the same state.
     """
     store = client.session
-    fake = _FakeLLM()
+    fake = FakeLLM()
     session = TutorSession(SessionStorage(store), fake)
     session.start()
     for text in inputs:

@@ -18,6 +18,19 @@ def _session_for(request: HttpRequest) -> TutorSession:
     return TutorSession(SessionStorage(request.session))
 
 
+def _summary_or_none(session: TutorSession) -> Summary | None:
+    """Return the session's ``Summary``, or ``None`` if the session is unstarted.
+
+    ``TutorSession.progress()`` raises ``RuntimeError`` on an unstarted
+    session; this is the single place that translates that into ``None`` so
+    the views never spell the "is it started?" probe themselves.
+    """
+    try:
+        return session.progress()
+    except RuntimeError:
+        return None
+
+
 def _started_session(request: HttpRequest) -> TutorSession:
     """Build a TutorSession, starting one if the browser has none yet.
 
@@ -26,9 +39,7 @@ def _started_session(request: HttpRequest) -> TutorSession:
     browser session is left unstarted (no side effect).
     """
     session = _session_for(request)
-    try:
-        session.turns()
-    except RuntimeError:
+    if _summary_or_none(session) is None:
         session.start()
     return session
 
@@ -81,10 +92,7 @@ def reset_confirm_view(request: HttpRequest):
     was never started renders the plain confirmation card.
     """
     session = _session_for(request)
-    try:
-        summary = session.progress()
-    except RuntimeError:
-        summary = None
+    summary = _summary_or_none(session)
     return render(request, "tutor/reset_confirm.html", {"summary": summary})
 
 
@@ -128,12 +136,13 @@ def export_view(request: HttpRequest):
     representation without being started (no side effect).
     """
     session = _session_for(request)
-    try:
-        summary = session.progress()
-        turns = session.turns()
-    except RuntimeError:
+    summary = _summary_or_none(session)
+    if summary is None:
+        # Unstarted session: export a fresh, empty representation (no side effect).
         summary = Summary()
         turns = []
+    else:
+        turns = session.turns()
     data = {
         "session_id": summary.session_id,
         "turns": [asdict(turn) for turn in turns],
