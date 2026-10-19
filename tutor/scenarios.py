@@ -319,7 +319,7 @@ SCENARIO: dict[str, Any] = {
                 "5": "Peacemaker",
                 "6": "Idea Generator",
                 "7": "Researcher",
-                "8": "Interpeter",
+                "8": "Interpreter",
                 "9": "Empath",
                 "finish": "Finish roles",
                 "back": "Back to Role-Play Intro",

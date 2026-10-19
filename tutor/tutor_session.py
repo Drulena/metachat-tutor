@@ -329,6 +329,8 @@ class TutorSession:
             opened_tasks=opened,
             level=level,
             phase=_phase(current),
+            user_name=ud.get("user_name"),
+            session_id=state.session_id,
         )
 
     def reset(self) -> None:
@@ -622,12 +624,16 @@ class TutorSession:
     def _navigation_options(self, state: State, entry: dict) -> dict[str, str]:
         """Navigation options for the current assistant turn only.
 
-        ``back`` is always available. On a failed LLM message the retry
-        option replaces the advance option (up to 3 tries); ``finish``
-        appears on the role menu. Scenario-defined options win on clashes.
+        ``back`` is available in every state except ``start`` (there is
+        nothing to go back to on the welcome turn). On a failed LLM
+        message the retry option replaces the advance option (up to 3
+        tries); ``finish`` appears on the role menu. Scenario-defined
+        options win on clashes.
         """
-        navigation: dict[str, str] = {"back": _BACK_LABEL}
+        navigation: dict[str, str] = {}
         current = state.current_state
+        if current != "start":
+            navigation["back"] = _BACK_LABEL
         if entry.get("llm_failed") and state.retry_count < 3:
             navigation["retry"] = f"🔄 Retry LLM ({max(state.retry_count, 1)}/3)"
         else:

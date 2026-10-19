@@ -22,39 +22,28 @@
       </button>
       <h1>🎓 MetaChat Tutor - Research Edition</h1>
     </header>
+    {% if messages %}
+      {% for message in messages %}
+        <div class="warning">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
     <div class="chat-messages" id="chat-messages">
-      {% if not chat_history %}
-        <div class="message assistant">{{ welcome_message|markdown }}</div>
-      {% else %}
-        {% for msg in chat_history %}
-          <div class="message {{ msg.role }}">
-            {% if msg.role == 'assistant' %}
-              {{ msg.content|markdown }}
-              {% if msg.options %}
-                <div class="message-options">
-                  {% for key, label in msg.options.items %}
-                    {% if key not in system_option_keys %}
-                      <button class="option-btn{% if key in completed_option_values %} used{% endif %}" type="button" data-value="{{ key }}"{% if key in completed_option_values %} data-used="true"{% endif %}>{{ label }}</button>
-                    {% endif %}
-                  {% endfor %}
-                </div>
-                <div class="message-options system-options">
-                  {% if show_back %}<button class="option-btn system-btn" type="button" data-value="back">⬅️ Back</button>{% endif %}
-                  {% if show_advance %}<button class="option-btn system-btn" type="button" data-value="{{ advance_command }}">➡️ {{ advance_label }}</button>{% endif %}
-                  {% if show_finish %}<button class="option-btn system-btn" type="button" data-value="finish">✅ Finish</button>{% endif %}
-                </div>
-              {% endif %}
-            {% else %}
-              {{ msg.content|linebreaksbr }}
+      {% for turn in turns %}
+        <div class="message {{ turn.role }}">
+          {% if turn.role == 'assistant' %}
+            {{ turn.message|markdown }}
+            {% if turn.options %}
+              <div class="message-options">
+                {% for key, label in turn.options.items %}
+                  <button class="option-btn{% if key in summary.completed_option_values %} used{% endif %}" type="button" data-value="{{ key }}"{% if key in summary.completed_option_values %} data-used="true"{% endif %}>{{ label }}</button>
+                {% endfor %}
+              </div>
             {% endif %}
-          </div>
-        {% endfor %}
-      {% endif %}
-      {% if messages %}
-        {% for message in messages %}
-          <div class="warning {{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
+          {% else %}
+            {{ turn.message|linebreaksbr }}
+          {% endif %}
+        </div>
+      {% endfor %}
     </div>
     <div class="input-area">
       {% if not is_end %}
@@ -95,9 +84,12 @@
     });
   }
 
-  document.getElementById('main-form').addEventListener('submit', function() {
-    document.getElementById('loading-overlay').classList.add('active');
-  });
+  var mainForm = document.getElementById('main-form');
+  if (mainForm) {
+    mainForm.addEventListener('submit', function() {
+      document.getElementById('loading-overlay').classList.add('active');
+    });
+  }
 
   // Inline option buttons — fill input and submit form
   document.querySelectorAll('.option-btn').forEach(function(btn) {

@@ -84,8 +84,10 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(summary.opened_tasks, [])
         self.assertIsNone(summary.level)
         self.assertEqual(summary.phase, "registration")
+        self.assertIsNone(summary.user_name)
+        self.assertTrue(summary.session_id)  # a started session always has an id
 
-    def test_summary_exposes_all_fifteen_fields(self):
+    def test_summary_exposes_all_seventeen_fields(self):
         session, _, _ = self.make_session()
         summary = session.progress()
         names = [f.name for f in fields(Summary)]
@@ -96,6 +98,7 @@ class TutorSessionTests(SimpleTestCase):
                 "completed_steps_count", "analysis_progress", "roleplay_progress",
                 "completed_option_values", "completed_roles", "completed_modes",
                 "analysis_tasks", "role_tasks", "opened_tasks", "level", "phase",
+                "user_name", "session_id",
             ],
         )
         self.assertEqual(summary.analysis_tasks, [(k, ANALYSIS_LABELS[k]) for k in ANALYSIS_STEP_KEYS])
@@ -293,6 +296,122 @@ class TutorSessionTests(SimpleTestCase):
         session.submit("retry")
         self.assertEqual(self.state_of(storage).current_state, "role_menu")
         self.assertEqual(session.turns()[-1].role, "user")
+
+    # ------------------------------------------- cutover navigation matrix
+    # Issue #4: the chat view and template no longer compute navigation from
+    # ``current_state``. The module's ``Turn.options`` on the current assistant
+    # turn is the single source of truth, so the old rendered-HTML navigation
+    # tests (deleted from ``tests.py``) are carried over here as structured
+    # assertions against exact option dicts — in-memory adapter + fake LLM.
+
+    def test_cutover_navigation_matrix(self):
+        # state -> (drive path from start, expected exact options dict)
+        matrix = {
+            "start": (
+                [],
+                {},  # welcome turn: no navigation (nothing to go back to)
+            ),
+            "level_assessment": (
+                ["Alice", "3 4 5"],
+                {
+                    "back": "⬅️ Back",
+                    "1": "Beginner",
+                    "2": "Intermediate",
+                    "3": "Advanced",
+                },
+            ),
+            "after_registration_intermediate": (
+                ["Alice", "3 4 5", "2"],
+                {
+                    "back": "⬅️ Back",
+                    "1": "Step1️⃣: ANALYSIS",
+                    "2": "Step2️⃣: ROLE-PLAY",
+                },
+            ),
+            "analysis_intro_intermediate": (
+                ["Alice", "3 4 5", "2", "1"],
+                {"back": "Back to menu", "yes": "Yes, proceed"},
+            ),
+            # Non-nav states: only the always-available back button.
+            "analysis_task_1_intermediate": (
+                ["Alice", "3 4 5", "2", "1", "yes"],
+                {"back": "⬅️ Back"},
+            ),
+            "role_mediator": (
+                ["Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
+                 "Answer two", "next", "continue", "1"],
+                {"back": "⬅️ Back"},
+            ),
+            "roleplay_intro": (
+                ["Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
+                 "Answer two", "next"],
+                {"continue": "View Available Roles", "back": "Back to Main Menu"},
+            ),
+            "role_menu": (
+                ["Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
+                 "Answer two", "next", "continue"],
+                {
+                    "back": "Back to Role-Play Intro",
+                    "1": "Mediator", "2": "Logical Expert", "3": "Advocate",
+                    "4": "Judge", "5": "Peacemaker", "6": "Idea Generator",
+                    "7": "Researcher", "8": "Interpreter", "9": "Empath",
+                    "finish": "Finish roles",
+                },
+            ),
+            # data_collection: the scenario's exit label matches the nav label.
+            "data_collection": (
+                ["Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
+                 "Answer two", "next", "continue", "1", "I mediate", "next",
+                 "finish", "A long reflection", "4 4 4"],
+                {"back": "⬅️ Back", "exit": "Exit"},
+            ),
+        }
+        for state, (path, expected) in matrix.items():
+            with self.subTest(state=state):
+                session, storage, _ = self.make_session()
+                self.drive(session, *path)
+                self.assertEqual(self.state_of(storage).current_state, state)
+                current = session.turns()[-1]
+                self.assertEqual(current.role, "assistant")
+                self.assertEqual(current.options, expected)
+
+    def test_cutover_feedback_llm_success_options(self):
+        session, _, _ = self.make_session()
+        self.drive(session, "Alice", "3 4 5", "2", "1", "yes", "Answer one")
+        current = session.turns()[-1]
+        self.assertEqual(current.options, {"back": "Back to menu", "next": "Next Task"})
+
+    def test_cutover_feedback_llm_failure_options(self):
+        session, _, _ = self.make_session(llm=FakeLLM(fail_times=1))
+        self.drive(session, "Alice", "3 4 5", "2", "1", "yes", "Answer one")
+        current = session.turns()[-1]
+        # retry replaces the advance option; the scenario's next survives the merge.
+        self.assertEqual(
+            current.options,
+            {"back": "Back to menu", "retry": "🔄 Retry LLM (1/3)", "next": "Next Task"},
+        )
+
+    def test_cutover_roleplay_feedback_llm_failure_options(self):
+        session, _, _ = self.make_session(llm=FakeLLM(fail_times=3))
+        self.drive(session, "Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
+                   "Answer two", "next", "continue", "1", "I mediate")
+        current = session.turns()[-1]
+        # roleplay_feedback_* states carry no scenario options, so the
+        # llm_failed merge yields nav-only buttons (no scenario 'next' to keep).
+        self.assertEqual(
+            current.options,
+            {"back": "⬅️ Back", "retry": "🔄 Retry LLM (1/3)"},
+        )
+
+    def test_cutover_end_turn_has_no_options(self):
+        session, _, _ = self.make_session()
+        self.drive(session, "Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
+                   "Answer two", "next", "continue", "1", "I mediate", "next",
+                   "finish", "A long reflection", "4 4 4", "exit")
+        last = session.turns()[-1]
+        self.assertEqual(last.role, "user")
+        self.assertEqual(last.message, "exit")
+        self.assertIsNone(last.options)
 
     # ------------------------------------------------------------ LLM wiring
 

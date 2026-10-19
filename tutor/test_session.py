@@ -147,6 +147,8 @@ class SummaryValueTypeTest(SimpleTestCase):
                 "opened_tasks",
                 "level",
                 "phase",
+                "user_name",
+                "session_id",
             ],
         )
 

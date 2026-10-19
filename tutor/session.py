@@ -92,6 +92,10 @@ class Summary:
     # Context.
     level: Optional[str] = None
     phase: str = ""
+    # Identity (the chat sidebar and export link need these; the module is the
+    # only place that knows them, so the Summary carries them out).
+    user_name: Optional[str] = None
+    session_id: str = ""
 
 
 # ---------------------------------------------------------------------------
