@@ -378,10 +378,7 @@ class NavigationButtonsTestCase(TestCase):
             ),
         )
         self._llm_patch.start()
-
-    def tearDown(self):
-        self._llm_patch.stop()
-        super().tearDown()
+        self.addCleanup(self._llm_patch.stop)
 
     def _set_session_state(self, state, user_data=None):
         """Helper to set session state for testing."""

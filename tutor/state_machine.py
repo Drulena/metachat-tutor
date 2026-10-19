@@ -43,7 +43,7 @@ def calculate_progress(request: Any) -> dict:
     user_data = request.session["user_data"]
     completed_steps = user_data.get("completed_steps", [])
     completed_count = len(completed_steps)
-    percentage = int((completed_count / len(STEP_KEYS)) * 100) if STEP_KEYS else 0
+    percentage = int((completed_count / len(STEP_KEYS)) * 100)
 
     # Определить текущий шаг (находится в процессе)
     current_state = request.session.get("current_state", "start")

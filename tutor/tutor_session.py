@@ -140,17 +140,6 @@ def _phase(state: str) -> str:
     return ""
 
 
-def _items_of(state: State) -> dict[str, str]:
-    """Return the canonical items map, creating it if a legacy state lacks it."""
-    items = state.user_data.get("items")
-    if items is None:
-        items = {key: "not_started" for key in ITEM_KEYS}
-        state.user_data["items"] = items
-    for key in ITEM_KEYS:
-        items.setdefault(key, "not_started")
-    return items
-
-
 def _migrate_items(state: State) -> None:
     """Build the canonical items model from a legacy state's parallel lists.
 
@@ -252,11 +241,12 @@ class TutorSession:
             self._retry(state)
         else:
             self._append_user_turn(state, text)
-            new_state, accepted = self._route(state, text)
-            if accepted and new_state is not None:
-                state.current_state = new_state
-                if new_state != "end":
-                    self._append_assistant_turn(state)
+            if self._matches_validation(state, text):
+                new_state, accepted = self._route(state, text)
+                if accepted and new_state is not None:
+                    state.current_state = new_state
+                    if new_state != "end":
+                        self._append_assistant_turn(state)
 
         _project_legacy(state)
         self._storage.save(state)
@@ -385,6 +375,12 @@ class TutorSession:
     def _is_feedback_state(state: str) -> bool:
         return state.startswith(("analysis_feedback_", "roleplay_feedback_"))
 
+    @staticmethod
+    def _matches_validation(state: State, text: str) -> bool:
+        """Scenario validation gate (the old process_input checked this too)."""
+        pattern = state.scenario["states"].get(state.current_state, {}).get("validation")
+        return not pattern or bool(re.fullmatch(pattern, text))
+
     def _route(self, state: State, text: str) -> tuple[Optional[str], bool]:
         """Route one input in the current state.
 
@@ -469,7 +465,7 @@ class TutorSession:
             role = current
             if role not in ROLE_STEP_KEYS:
                 return None, False
-            items[role] = "completed"
+            # Completes only at roleplay_feedback next/back (old-app parity).
             return f"roleplay_feedback_{role.replace('role_', '')}", True
 
         if current.startswith("roleplay_feedback_"):
@@ -477,6 +473,8 @@ class TutorSession:
             if command == "revise":
                 items[role] = "in_progress"
                 return role, True
+            # "back" never reaches here: submit() routes it to _go_back first,
+            # mirroring the old process_input global interception.
             if command == "next":
                 items[role] = "completed"
                 return "role_menu", True
@@ -509,9 +507,10 @@ class TutorSession:
             target = "role_menu"
         else:
             target = f"after_registration_{level}"
-        if target != current:
-            state.current_state = target
-            self._append_assistant_turn(state)
+        # The old handle_back re-appended the assistant turn even when the
+        # state did not change (e.g. from after_registration_*).
+        state.current_state = target
+        self._append_assistant_turn(state)
 
     def _retry(self, state: State) -> None:
         state.retry_count += 1

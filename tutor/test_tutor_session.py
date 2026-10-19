@@ -230,15 +230,18 @@ class TutorSessionTests(SimpleTestCase):
 
     # ----------------------------------------------------------------- back
 
-    def test_back_from_roleplay_feedback_returns_to_role_menu_without_completing(self):
+    def test_back_from_roleplay_feedback_returns_to_menu_without_completing(self):
         session, storage, _ = self.make_session()
         self.drive_to_role_menu(session)
         self.drive(session, "1", "I mediate")
         self.assertEqual(self.state_of(storage).current_state, "roleplay_feedback_mediator")
+        # the role is in_progress at feedback (completes only on "next")
+        self.assertEqual(session.progress().completed_roles, [])
         session.submit("back")
         self.assertEqual(self.state_of(storage).current_state, "role_menu")
-        # the role was completed on submit (old-app parity); back adds nothing
-        self.assertEqual(session.progress().completed_roles, ["role_mediator"])
+        # "back" is intercepted by the global handler before routing, so the
+        # role stays in_progress (old-app parity)
+        self.assertEqual(session.progress().completed_roles, [])
 
     def test_back_from_analysis_task_returns_to_analysis_intro(self):
         session, storage, _ = self.make_session()
@@ -415,5 +418,6 @@ class TutorSessionTests(SimpleTestCase):
         # the migration persists on the next save; continue from the migrated state
         session.submit("I mediate")
         saved = self.state_of(storage)
-        self.assertEqual(saved.user_data["items"]["role_mediator"], "completed")
+        # the role answer does not complete the role (only feedback "next" does)
+        self.assertEqual(saved.user_data["items"]["role_mediator"], "in_progress")
         self.assertEqual(saved.current_state, "roleplay_feedback_mediator")
