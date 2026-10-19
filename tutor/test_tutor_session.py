@@ -12,6 +12,21 @@ from .data import ANALYSIS_LABELS, ANALYSIS_STEP_KEYS, ROLE_LABELS, ROLE_STEP_KE
 from .session import MemoryStorage, State, Summary
 from .tutor_session import TutorSession
 
+#: Input sequence that drives a fresh session to the role menu.
+#: Shared with :mod:`tutor.test_views` so the two test modules cannot drift.
+ROLE_MENU_INPUTS = [
+    "Alice",            # start -> pretest
+    "3 4 5",            # pretest -> level_assessment
+    "2",                # level_assessment -> after_registration_intermediate
+    "1",                # -> analysis_intro_intermediate
+    "yes",              # -> analysis_task_1_intermediate
+    "Answer to task one",   # -> analysis_feedback_1_intermediate
+    "next",             # -> analysis_task_2_intermediate
+    "Answer to task two",   # -> analysis_feedback_2_intermediate
+    "next",             # -> roleplay_intro
+    "continue",         # -> role_menu
+]
+
 
 class FakeLLM:
     """Deterministic feedback callable matching the Feedback protocol."""
@@ -124,19 +139,7 @@ class TutorSessionTests(SimpleTestCase):
     # -------------------------------------------------------- happy path
 
     def drive_to_role_menu(self, session: TutorSession) -> TutorSession:
-        return self.drive(
-            session,
-            "Alice",            # start -> pretest
-            "3 4 5",            # pretest -> level_assessment
-            "2",                # level_assessment -> after_registration_intermediate
-            "1",                # -> analysis_intro_intermediate
-            "yes",              # -> analysis_task_1_intermediate
-            "Answer to task one",   # -> analysis_feedback_1_intermediate
-            "next",             # -> analysis_task_2_intermediate
-            "Answer to task two",   # -> analysis_feedback_2_intermediate
-            "next",             # -> roleplay_intro
-            "continue",         # -> role_menu
-        )
+        return self.drive(session, *ROLE_MENU_INPUTS)
 
     def test_full_single_role_path_reaches_end(self):
         session, storage, _ = self.make_session()

@@ -1,18 +1,36 @@
 import logging
+from dataclasses import asdict
 from datetime import datetime
-from typing import Any, Dict
 
 from django.conf import settings
 from django.contrib import messages
 from django.http import HttpRequest, JsonResponse
 from django.shortcuts import redirect, render
 
-from .data import ANALYSIS_STEP_KEYS, ROLE_STEP_KEYS
-from .session import SessionStorage
-from .state_machine import init_session, calculate_progress
+from .session import SessionStorage, Summary
 from .tutor_session import TutorSession
 
 logger = logging.getLogger(__name__)
+
+
+def _session_for(request: HttpRequest) -> TutorSession:
+    """Build a TutorSession over the browser's Django session."""
+    return TutorSession(SessionStorage(request.session))
+
+
+def _started_session(request: HttpRequest) -> TutorSession:
+    """Build a TutorSession, starting one if the browser has none yet.
+
+    Used by views that must render a live session (chat, menu). Views that
+    only inspect or wipe state use :func:`_session_for` directly so a fresh
+    browser session is left unstarted (no side effect).
+    """
+    session = _session_for(request)
+    try:
+        session.turns()
+    except RuntimeError:
+        session.start()
+    return session
 
 
 def chat_view(request: HttpRequest):
@@ -22,13 +40,7 @@ def chat_view(request: HttpRequest):
     navigation options are available and attaches them to the current
     assistant turn; the template renders exactly one option list per turn.
     """
-    session: TutorSession = TutorSession(SessionStorage(request.session))
-
-    # A fresh browser session has nothing stored yet — start one.
-    try:
-        session.turns()
-    except RuntimeError:
-        session.start()
+    session = _started_session(request)
 
     if request.method == "POST":
         text = request.POST.get("user_input", "").strip()
@@ -63,8 +75,17 @@ def chat_view(request: HttpRequest):
 
 
 def reset_confirm_view(request: HttpRequest):
-    """Confirm page shown before wiping the session (GET only)."""
-    return render(request, "tutor/reset_confirm.html", {})
+    """Confirm page shown before wiping the session (GET only).
+
+    Shows what a reset would wipe via the module's Summary; a session that
+    was never started renders the plain confirmation card.
+    """
+    session = _session_for(request)
+    try:
+        summary = session.progress()
+    except RuntimeError:
+        summary = None
+    return render(request, "tutor/reset_confirm.html", {"summary": summary})
 
 
 def reset_view(request: HttpRequest):
@@ -72,92 +93,57 @@ def reset_view(request: HttpRequest):
     if request.method != "POST":
         return redirect("reset_confirm")
 
+    session = _session_for(request)
     try:
-        request.session.flush()
-        logger.info("Session reset for client %s", request.META.get("REMOTE_ADDR"))
+        session.reset()
     except Exception:
-        logger.exception("Failed to reset session")
+        logger.exception("Session reset failed for client %s", request.META.get("REMOTE_ADDR"))
         raise
+    logger.info("Session reset for client %s", request.META.get("REMOTE_ADDR"))
     return redirect("chat")
 
 
 def main_menu_view(request: HttpRequest):
-    """Standalone progress overview page."""
-    init_session(request)
+    """Standalone progress overview page, driven entirely by the module's Summary.
 
-    user_data: Dict[str, Any] = request.session.get("user_data", {})
-    current_state: str = request.session.get("current_state", "start")
-
-    completed_option_values: set = set()
-    completed_roles = user_data.get("completed_roles", [])
-    completed_modes = user_data.get("completed_modes", [])
-    level = user_data.get("level")
-
-    if current_state == "role_menu":
-        _ROLE_VAL_TO_KEY = {
-            "1": "role_mediator",
-            "2": "role_logical",
-            "3": "role_idea_generator",
-            "4": "role_researcher",
-            "5": "role_interpreter",
-            "6": "role_advocate",
-            "7": "role_judge",
-            "8": "role_peacemaker",
-            "9": "role_empath",
-        }
-        for val, key in _ROLE_VAL_TO_KEY.items():
-            if key in completed_roles:
-                completed_option_values.add(val)
-    elif current_state.startswith("after_registration_"):
-        if "analysis" in completed_modes:
-            completed_option_values.add("1")
-        if "roleplay" in completed_modes:
-            completed_option_values.add("2")
-
-    _ANALYSIS_LABELS = {
-        "analysis_task_1": "Task 1: Softening Criticism",
-        "analysis_task_2": "Task 2: Aggressive Formatting",
-    }
-    _ROLE_LABELS = {
-        "role_mediator": "Mediator",
-        "role_logical": "Logical Expert",
-        "role_idea_generator": "Idea Generator",
-        "role_researcher": "Researcher",
-        "role_interpreter": "Interpreter",
-        "role_advocate": "Advocate",
-        "role_judge": "Judge",
-        "role_peacemaker": "Peacemaker",
-        "role_empath": "Empath",
-    }
-
-    analysis_tasks = [(k, _ANALYSIS_LABELS[k]) for k in ANALYSIS_STEP_KEYS]
-    role_tasks = [(k, _ROLE_LABELS[k]) for k in ROLE_STEP_KEYS]
-
-    context = {
-        "user_data": user_data,
-        "session_id": request.session.get("session_id", ""),
-        "debug": settings.DEBUG,
-        "progress": calculate_progress(request),
-        "analysis_tasks": analysis_tasks,
-        "role_tasks": role_tasks,
-        "completed_option_values": completed_option_values,
-        "completed_roles": completed_roles,
-        "opened_tasks": user_data.get("opened_tasks", []),
-    }
-    return render(request, "tutor/main_menu.html", context)
+    The view never branches on the current state: every figure (percentage,
+    step counts, task lists, completed sets, level, participant name) comes
+    from ``TutorSession.progress()``.
+    """
+    session = _started_session(request)
+    summary = session.progress()
+    return render(
+        request,
+        "tutor/main_menu.html",
+        {"summary": summary, "debug": settings.DEBUG},
+    )
 
 
 def export_view(request: HttpRequest):
+    """Session export, composed from the module's turns, progress, and identity.
+
+    No raw session keys are read: the payload is built from
+    ``TutorSession.turns()``, ``TutorSession.progress()``, and the Summary's
+    session id. A session that was never started exports an empty, fresh
+    representation without being started (no side effect).
+    """
+    session = _session_for(request)
+    try:
+        summary = session.progress()
+        turns = session.turns()
+    except RuntimeError:
+        summary = Summary()
+        turns = []
     data = {
-        "session_id": request.session.get("session_id"),
-        "user_data": request.session.get("user_data"),
-        "chat_history": request.session.get("chat_history"),
+        "session_id": summary.session_id,
+        "turns": [asdict(turn) for turn in turns],
+        "progress": asdict(summary),
         "export_time": datetime.now().isoformat(),
     }
     response = JsonResponse(
         data, json_dumps_params={"indent": 2, "ensure_ascii": False}
     )
     response["Content-Disposition"] = (
-        f'attachment; filename="metachat_session_{request.session.get("session_id")}.json"'
+        f'attachment; filename="metachat_session_{summary.session_id}.json"'
     )
     return response

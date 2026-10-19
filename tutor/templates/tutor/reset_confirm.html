@@ -81,6 +81,12 @@
   <div class="confirm-card">
     <h1>🔄 Reset Session?</h1>
     <p>This will permanently erase the current chat history, participant data, and scenario progress. This action cannot be undone.</p>
+    {% if summary and summary.user_name %}
+      <p><strong>Participant:</strong> {{ summary.user_name }}</p>
+      {% if summary.level %}
+        <p><strong>Level:</strong> {{ summary.level|title }}</p>
+      {% endif %}
+    {% endif %}
     <div class="confirm-actions">
       <form method="post" action="{% url 'reset' %}">
         {% csrf_token %}
