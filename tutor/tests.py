@@ -1,4 +1,4 @@
-﻿"""Regression tests for tutor/llm.py — HTML entity unescaping.
+"""Regression tests for tutor/llm.py — HTML entity unescaping.
 
 The LLM API may return text containing HTML entities (e.g. ``&quot;`` for
 a plain double-quote).  These entities should be unescaped to their Unicode
@@ -368,6 +368,20 @@ class NavigationButtonsTestCase(TestCase):
     def setUp(self):
         self.client = Client()
         self.chat_url = reverse("chat")
+        # Force the LLM failure path so navigation tests are deterministic
+        # even when LLM_API_KEY is set in the environment.
+        self._llm_patch = patch(
+            "tutor.state_machine.get_llm_feedback",
+            return_value=(
+                "**🤖 LLM Feedback (API not configured):** test failure",
+                True,
+            ),
+        )
+        self._llm_patch.start()
+
+    def tearDown(self):
+        self._llm_patch.stop()
+        super().tearDown()
 
     def _set_session_state(self, state, user_data=None):
         """Helper to set session state for testing."""

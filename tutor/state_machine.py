@@ -10,32 +10,13 @@ import uuid
 from datetime import datetime
 from typing import Any, Optional
 
+from .data import STEP_KEYS, TOTAL_STEPS
 from .llm import get_llm_feedback
 
 logger = logging.getLogger(__name__)
 
 _MAX_INPUT_LENGTH = 5000
 _MAX_NAME_LENGTH = 50
-
-# Шаги tutorials (steps of the tutorial)
-TOTAL_STEPS = 15
-STEP_KEYS = [
-    "pretest",
-    "level_assessment",
-    "analysis_task_1",
-    "analysis_task_2",
-    "role_mediator",
-    "role_logical",
-    "role_idea_generator",
-    "role_researcher",
-    "role_interpreter",
-    "role_advocate",
-    "role_judge",
-    "role_peacemaker",
-    "role_empath",
-    "reflection",
-    "posttest",
-]
 
 
 def _mark_step_completed(request: Any, step_key: str) -> None:
@@ -62,7 +43,7 @@ def calculate_progress(request: Any) -> dict:
     user_data = request.session["user_data"]
     completed_steps = user_data.get("completed_steps", [])
     completed_count = len(completed_steps)
-    percentage = int((completed_count / TOTAL_STEPS) * 100) if TOTAL_STEPS > 0 else 0
+    percentage = int((completed_count / len(STEP_KEYS)) * 100) if STEP_KEYS else 0
 
     # Определить текущий шаг (находится в процессе)
     current_state = request.session.get("current_state", "start")
