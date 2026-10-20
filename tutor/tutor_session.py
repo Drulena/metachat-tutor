@@ -17,10 +17,9 @@ adapter and receives LLM feedback as an injected callable
 ``user_data["items"]`` — a mapping of every assessable item to
 ``not_started`` / ``in_progress`` / ``completed`` — and every figure the
 view shows (percentage, step counters, task lists, completed value sets)
-is derived from that single model. The legacy parallel lists
-(``completed_steps`` / ``completed_roles`` / ``completed_modes`` /
-``opened_tasks`` / ``completed_tasks``) are kept in sync on save so the
-not-yet-cut-over views keep working while both paths run in parallel.
+is derived from that single model. Legacy states saved before this module
+(parallel ``completed_*`` / ``opened_tasks`` lists) are migrated to the
+items model on load.
 """
 
 from __future__ import annotations
@@ -174,34 +173,6 @@ def _migrate_items(state: State) -> None:
     state.user_data["items"] = items
 
 
-def _project_legacy(state: State) -> None:
-    """Keep the legacy parallel lists in sync (old views read them in parallel)."""
-    items = state.user_data["items"]
-    level = state.user_data.get("level")
-    ud = state.user_data
-
-    steps = [key for key in STEP_KEYS if items.get(key) == "completed"]
-    if state.current_state == "end":
-        steps.append("data_collection")
-    ud["completed_steps"] = steps
-    ud["completed_roles"] = [key for key in ROLE_STEP_KEYS if items.get(key) == "completed"]
-    ud["completed_modes"] = [
-        name
-        for name, key in (("analysis", "mode_analysis"), ("roleplay", "mode_roleplay"))
-        if items.get(key) == "completed"
-    ]
-    ud["opened_tasks"] = [
-        _task_slug(key, level)
-        for key in ITEM_KEYS
-        if items.get(key) == "in_progress" and _task_slug(key, level)
-    ]
-    ud["completed_tasks"] = [
-        _task_slug(key, level)
-        for key in ITEM_KEYS
-        if items.get(key) == "completed" and _task_slug(key, level)
-    ]
-
-
 def _task_slug(key: str, level: Optional[str]) -> str:
     """The legacy task slug for a canonical item ("" if not expressible)."""
     if key.startswith("analysis_task_"):
@@ -222,7 +193,15 @@ class TutorSession:
     # ------------------------------------------------------------------ API
 
     def start(self) -> Turn:
-        """Create a fresh session and return the welcome turn."""
+        """Begin a session and return the current turn.
+
+        Idempotent: if a session already exists (in memory or on disk),
+        its current turn is returned unchanged.
+        """
+        existing = self._load()
+        if existing is not None:
+            self._state = existing
+            return self._make_turn(existing, existing.chat_history[-1], is_current=True)
         state = self._new_state()
         self._append_assistant_turn(state)
         self._storage.save(state)
@@ -248,7 +227,6 @@ class TutorSession:
                     if new_state != "end":
                         self._append_assistant_turn(state)
 
-        _project_legacy(state)
         self._storage.save(state)
         return self._make_turn(state, state.chat_history[-1], is_current=True)
 

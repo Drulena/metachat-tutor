@@ -489,23 +489,36 @@ class TutorSessionTests(SimpleTestCase):
         for turn in user_turns:
             self.assertIsNone(turn.options)
 
-    def test_saved_state_projects_legacy_lists(self):
+    def test_start_is_idempotent(self):
+        session, storage, _ = self.make_session()
+        self.drive(session, "Alice", "3 4 5")
+
+        before = self.state_of(storage)
+        turns_before = session.turns()
+
+        again = session.start()
+
+        self.assertEqual(again.state, before.current_state)
+        self.assertEqual(
+            [(t.role, t.message) for t in session.turns()],
+            [(t.role, t.message) for t in turns_before],
+        )
+        self.assertEqual(self.state_of(storage).current_state, before.current_state)
+
+    def test_saved_state_preserves_items_model(self):
         session, storage, _ = self.make_session()
         self.drive_to_role_menu(session)
         self.drive(session, "1", "I mediate", "next")
 
-        ud = self.state_of(storage).user_data
-        self.assertIn("pretest", ud["completed_steps"])
-        self.assertIn("level_assessment", ud["completed_steps"])
-        self.assertIn("analysis_task_1", ud["completed_steps"])
-        self.assertIn("analysis_task_2", ud["completed_steps"])
-        self.assertEqual(ud["completed_roles"], ["role_mediator"])
-        self.assertEqual(ud["completed_modes"], ["analysis"])  # path picks "1"
-        self.assertEqual(
-            ud["completed_tasks"],
-            ["analysis_task_1_intermediate", "analysis_task_2_intermediate", "role_mediator"],
-        )
-        self.assertEqual(ud["opened_tasks"], [])
+        items = self.state_of(storage).user_data["items"]
+        self.assertEqual(items["analysis_task_1"], "completed")
+        self.assertEqual(items["analysis_task_2"], "completed")
+        self.assertEqual(items["role_mediator"], "completed")
+        self.assertEqual(items["mode_analysis"], "completed")
+
+        reloaded = TutorSession(storage)
+        self.assertEqual(reloaded.progress().completed_roles, ["role_mediator"])
+        self.assertEqual(reloaded.progress().percentage, 33)  # 5 of 15 steps
 
     def test_legacy_state_migrates_to_items_model(self):
         storage = MemoryStorage()
