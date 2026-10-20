@@ -64,6 +64,7 @@ _LEVEL_BY_NAME: dict[str, str] = {value: key for key, value in _LEVEL_BY_VALUE.i
 
 _MAX_INPUT_LENGTH = 5000
 _MAX_NAME_LENGTH = 50
+_NAME_PLACEHOLDER = "student"
 
 _ANALYSIS_MARKERS = ("\n\n**📋 Model answer:**", "\n\n▶️")
 _ROLEPLAY_MARKERS = ("\n\n▶️",)
@@ -550,8 +551,8 @@ class TutorSession:
                 else:
                     message = message.split("\n\n", 1)[0] + "\n\n" + llm_output
 
-        if ud.get("user_name"):
-            message = message.replace("{user_name}", ud["user_name"])
+        name = (ud.get("user_name") or "").strip()
+        message = message.replace("{user_name}", name or _NAME_PLACEHOLDER)
         if "{level}" in message and ud.get("level"):
             message = message.replace("{level}", ud["level"])
 

@@ -102,6 +102,26 @@ class TutorSessionTests(SimpleTestCase):
         self.assertIsNone(summary.user_name)
         self.assertTrue(summary.session_id)  # a started session always has an id
 
+    def test_first_turn_uses_placeholder_when_name_unavailable(self):
+        session, _, _ = self.make_session()
+        turn = session.turns()[-1]
+        self.assertIn("Nice to meet you, student!", turn.message)
+        self.assertNotIn("{user_name}", turn.message)
+
+    def test_blank_name_renders_placeholder_in_later_turns(self):
+        session, _, _ = self.make_session()
+        self.drive(session, "   ", "3 4 5", "1")  # whitespace-only name -> beginner
+        turn = session.turns()[-1]
+        self.assertIn("Thank you, student! (Level: Beginner)", turn.message)
+        self.assertNotIn("{user_name}", turn.message)
+
+    def test_captured_name_renders_in_later_turns(self):
+        session, _, _ = self.make_session()
+        self.drive(session, "Alice", "3 4 5", "2")
+        turn = session.turns()[-1]
+        self.assertIn("Thank you, Alice! (Level: Intermediate)", turn.message)
+        self.assertNotIn("{user_name}", turn.message)
+
     def test_summary_exposes_all_seventeen_fields(self):
         session, _, _ = self.make_session()
         summary = session.progress()
