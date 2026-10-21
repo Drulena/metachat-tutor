@@ -21,7 +21,7 @@ Each row is a plain mapping with the fields in :data:`ROW_FIELDS`:
 - ``phase`` — the learning phase label for progress display.
 - ``accept`` — the accept gate: ``None`` (no gate — the legacy if-chain
   validates nothing in this state), a validation regex string, or the
-  list of accepted literal values (button-driven states).
+  list of accepted literal values (option-driven states).
 - ``effects`` — declarative triples (or, when ``next`` is a map, a dict
   keyed by the accepted value) drawn from the CLOSED primitive set
   :data:`EFFECT_OPS`: ``("set-item", key, status)`` and
