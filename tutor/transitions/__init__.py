@@ -1,0 +1,125 @@
+"""State transition table — one data row per concrete scenario state (ticket #8).
+
+This package is the single source of state-transition mechanics for the
+scenario: 44 rows, one per scenario state except the terminal ``end``.
+It is the EXPAND step of an expand–contract refactor: the legacy
+routing if-chains in :mod:`tutor.tutor_session` keep running until the
+migrate step, so the table must describe exactly what they do — no
+behavior change.
+
+Each row lives in its own module, one per scenario state. The row schema,
+the closed sets and :func:`validate_transitions` live in
+:mod:`tutor.transitions._validate` and are re-exported here.
+"""
+
+from . import (
+    start,
+    pretest,
+    level_assessment,
+    after_registration_beginner,
+    after_registration_intermediate,
+    after_registration_advanced,
+    analysis_intro_beginner,
+    analysis_task_1_beginner,
+    analysis_task_2_beginner,
+    analysis_intro_intermediate,
+    analysis_task_1_intermediate,
+    analysis_task_2_intermediate,
+    analysis_intro_advanced,
+    analysis_task_1_advanced,
+    analysis_task_2_advanced,
+    analysis_feedback_1_beginner,
+    analysis_feedback_2_beginner,
+    analysis_feedback_1_intermediate,
+    analysis_feedback_2_intermediate,
+    analysis_feedback_1_advanced,
+    analysis_feedback_2_advanced,
+    roleplay_intro,
+    role_menu,
+    role_mediator,
+    role_logical,
+    role_idea_generator,
+    role_researcher,
+    role_interpreter,
+    role_advocate,
+    role_judge,
+    role_peacemaker,
+    role_empath,
+    roleplay_feedback_mediator,
+    roleplay_feedback_logical,
+    roleplay_feedback_idea,
+    roleplay_feedback_researcher,
+    roleplay_feedback_interpreter,
+    roleplay_feedback_advocate,
+    roleplay_feedback_judge,
+    roleplay_feedback_peacemaker,
+    roleplay_feedback_empath,
+    reflection,
+    posttest,
+    data_collection
+)
+from ._validate import (
+    EFFECT_OPS,
+    ITEM_STATUSES,
+    ROW_FIELDS,
+    USER_DATA_KEYS,
+    USER_DATA_SOURCES,
+    validate_transitions,
+)
+
+__all__ = [
+    "TRANSITIONS",
+    "EFFECT_OPS",
+    "ITEM_STATUSES",
+    "ROW_FIELDS",
+    "USER_DATA_KEYS",
+    "USER_DATA_SOURCES",
+    "validate_transitions",
+]
+
+TRANSITIONS = {
+    "start": start.ROW,
+    "pretest": pretest.ROW,
+    "level_assessment": level_assessment.ROW,
+    "after_registration_beginner": after_registration_beginner.ROW,
+    "after_registration_intermediate": after_registration_intermediate.ROW,
+    "after_registration_advanced": after_registration_advanced.ROW,
+    "analysis_intro_beginner": analysis_intro_beginner.ROW,
+    "analysis_task_1_beginner": analysis_task_1_beginner.ROW,
+    "analysis_task_2_beginner": analysis_task_2_beginner.ROW,
+    "analysis_intro_intermediate": analysis_intro_intermediate.ROW,
+    "analysis_task_1_intermediate": analysis_task_1_intermediate.ROW,
+    "analysis_task_2_intermediate": analysis_task_2_intermediate.ROW,
+    "analysis_intro_advanced": analysis_intro_advanced.ROW,
+    "analysis_task_1_advanced": analysis_task_1_advanced.ROW,
+    "analysis_task_2_advanced": analysis_task_2_advanced.ROW,
+    "analysis_feedback_1_beginner": analysis_feedback_1_beginner.ROW,
+    "analysis_feedback_2_beginner": analysis_feedback_2_beginner.ROW,
+    "analysis_feedback_1_intermediate": analysis_feedback_1_intermediate.ROW,
+    "analysis_feedback_2_intermediate": analysis_feedback_2_intermediate.ROW,
+    "analysis_feedback_1_advanced": analysis_feedback_1_advanced.ROW,
+    "analysis_feedback_2_advanced": analysis_feedback_2_advanced.ROW,
+    "roleplay_intro": roleplay_intro.ROW,
+    "role_menu": role_menu.ROW,
+    "role_mediator": role_mediator.ROW,
+    "role_logical": role_logical.ROW,
+    "role_idea_generator": role_idea_generator.ROW,
+    "role_researcher": role_researcher.ROW,
+    "role_interpreter": role_interpreter.ROW,
+    "role_advocate": role_advocate.ROW,
+    "role_judge": role_judge.ROW,
+    "role_peacemaker": role_peacemaker.ROW,
+    "role_empath": role_empath.ROW,
+    "roleplay_feedback_mediator": roleplay_feedback_mediator.ROW,
+    "roleplay_feedback_logical": roleplay_feedback_logical.ROW,
+    "roleplay_feedback_idea": roleplay_feedback_idea.ROW,
+    "roleplay_feedback_researcher": roleplay_feedback_researcher.ROW,
+    "roleplay_feedback_interpreter": roleplay_feedback_interpreter.ROW,
+    "roleplay_feedback_advocate": roleplay_feedback_advocate.ROW,
+    "roleplay_feedback_judge": roleplay_feedback_judge.ROW,
+    "roleplay_feedback_peacemaker": roleplay_feedback_peacemaker.ROW,
+    "roleplay_feedback_empath": roleplay_feedback_empath.ROW,
+    "reflection": reflection.ROW,
+    "posttest": posttest.ROW,
+    "data_collection": data_collection.ROW,
+}
