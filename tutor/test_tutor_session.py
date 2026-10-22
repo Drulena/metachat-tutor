@@ -8,7 +8,16 @@ from dataclasses import fields
 
 from django.test import SimpleTestCase
 
-from .data import ANALYSIS_LABELS, ANALYSIS_STEP_KEYS, ROLE_LABELS, ROLE_STEP_KEYS, SCENARIO, STEP_KEYS, randomize_scenario
+from .data import (
+    ANALYSIS_LABELS,
+    ANALYSIS_STEP_KEYS,
+    ROLE_BY_VALUE,
+    ROLE_LABELS,
+    ROLE_STEP_KEYS,
+    SCENARIO,
+    STEP_KEYS,
+    randomize_scenario,
+)
 from .session import MemoryStorage, State, Summary
 from .tutor_session import TutorSession
 
@@ -292,6 +301,37 @@ class TutorSessionTests(SimpleTestCase):
                 options = session.turns()[-1].options
                 self.assertIn(keys[target], options, f"missing {keys[target]!r} on {target}")
 
+    def test_every_roleplay_feedback_turn_offers_revise(self):
+        """Issue #13: every role-play feedback turn offers revise/next/back.
+
+        The machine routes 'revise' in all nine feedback states (re-entering
+        the current role, left in progress), but the option was offered on the
+        Empath feedback turn only — the other eight accepted it typed-only.
+        """
+        for value, item in sorted(ROLE_BY_VALUE.items()):
+            role = item[len("role_"):]
+            with self.subTest(role=role):
+                session, storage, _ = self.make_session()
+                self.drive_to_role_menu(session)
+                self.drive(session, value, "A constructive answer")
+                self.assertEqual(
+                    self.state_of(storage).current_state, f"roleplay_feedback_{role}"
+                )
+                # the offer matches the routed commands: revise, next, back
+                self.assertEqual(
+                    session.turns()[-1].options,
+                    {
+                        "revise": "✏️ Revise",
+                        "next": "➡️ Next Role",
+                        "back": "⬅️ Back to Menu",
+                    },
+                )
+                # the button is not decorative: revise re-enters the role in progress
+                session.submit("revise")
+                self.assertEqual(self.state_of(storage).current_state, item)
+                self.assertIn(item, session.progress().opened_tasks)
+                self.assertNotIn(item, session.progress().completed_roles)
+
     # ----------------------------------------------------------------- back
 
     def test_back_from_roleplay_feedback_returns_to_menu_without_completing(self):
@@ -415,6 +455,17 @@ class TutorSessionTests(SimpleTestCase):
                  "Answer two", "next", "continue", "1"],
                 {"back": "⬅️ Back"},
             ),
+            # Issue #13: a role-play feedback turn offers the full trio the
+            # machine routes — revise re-enters the role, next the role menu.
+            "roleplay_feedback_mediator": (
+                ["Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
+                 "Answer two", "next", "continue", "1", "I mediate"],
+                {
+                    "revise": "✏️ Revise",
+                    "next": "➡️ Next Role",
+                    "back": "⬅️ Back to Menu",
+                },
+            ),
             "roleplay_intro": (
                 ["Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
                  "Answer two", "next"],
@@ -469,11 +520,17 @@ class TutorSessionTests(SimpleTestCase):
         self.drive(session, "Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
                    "Answer two", "next", "continue", "1", "I mediate")
         current = session.turns()[-1]
-        # roleplay_feedback_* states carry no scenario options, so the
-        # llm_failed merge yields nav-only buttons (no scenario 'next' to keep).
+        # Issue #13: the feedback states now carry scenario options, so the
+        # llm_failed merge keeps them (retry added, the scenario's back label
+        # winning the clash with the always-available navigation back).
         self.assertEqual(
             current.options,
-            {"back": "⬅️ Back", "retry": "🔄 Retry LLM (1/3)"},
+            {
+                "revise": "✏️ Revise",
+                "next": "➡️ Next Role",
+                "back": "⬅️ Back to Menu",
+                "retry": "🔄 Retry LLM (1/3)",
+            },
         )
 
     def test_cutover_end_turn_has_no_options(self):

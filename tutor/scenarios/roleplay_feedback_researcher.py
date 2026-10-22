@@ -8,4 +8,9 @@ for the assembled ``SCENARIO`` dict and
 STATE = {
     "message": "📖 **Read the feedback for you, {user_name} (Researcher), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention correctly?\n✅ Asked TWO specific cultural questions?\n✅ Used thoughtful emoji (🤔, 🧐, 📚)?\n\n**📋 Model answer:** *'@speaker, you mentioned directness is respectful in your culture. 📚 Could you tell me how criticism is typically framed in professional settings there? And are there situations where indirectness might be preferred?'*\n\n👇**Click *revise* to improve your answer, *next* to choose the next Role, or *back* to return to menu:**",
     "validation": ".+",
+    "options": {
+        "revise": "✏️ Revise",
+        "next": "➡️ Next Role",
+        "back": "⬅️ Back to Menu",
+    },
 }

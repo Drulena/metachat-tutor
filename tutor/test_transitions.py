@@ -122,6 +122,23 @@ class TransitionTableShapeTests(SimpleTestCase):
                 else:
                     self.assertIsInstance(row["effects"], list)
 
+    def test_feedback_rows_offer_every_command_they_route(self):
+        """Issue #13: a role-play feedback turn offers what its row routes.
+
+        The row's 'next' map is the machine's capability set; the scenario state
+        must offer exactly those commands plus 'back'. 'revise' is routed in
+        every role-play feedback row, so it has to be offered in every one of
+        them — the Empath used to be the only role that offered it.
+        """
+        for state, row in TRANSITIONS.items():
+            if not state.startswith("roleplay_feedback_"):
+                continue
+            with self.subTest(state=state):
+                options = SCENARIO["states"][state].get("options")
+                self.assertIsNotNone(options, f"{state} offers no options")
+                self.assertEqual(set(options), set(row["next"]) | {"back"})
+                self.assertEqual(options["revise"], "✏️ Revise")
+
     def test_accept_gate_is_well_formed(self):
         for state, row in TRANSITIONS.items():
             accept = row["accept"]

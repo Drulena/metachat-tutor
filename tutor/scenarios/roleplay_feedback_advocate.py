@@ -8,4 +8,9 @@ for the assembled ``SCENARIO`` dict and
 STATE = {
     "message": "📖 **Read the feedback for you, {user_name} (Advocate), carefully and make notes:**\n\n**Criteria check:**\n✅ Used @mention to acknowledge critic?\n✅ Provided TWO reasons for defense?\n✅ Used protective emoji (🛡️, 💪)?\n\n**📋 Model answer:** *'@ Sarah, I understand your concern about missed deadlines. 🛡️ However, Alex has been dealing with a family emergency. Also, when Alex has contributed, the quality has been excellent. Let's check in privately before judging.'*\n\n👇**Click *revise* to improve your answer, *next* to choose the next Role, or *back* to return to menu:**",
     "validation": ".+",
+    "options": {
+        "revise": "✏️ Revise",
+        "next": "➡️ Next Role",
+        "back": "⬅️ Back to Menu",
+    },
 }
