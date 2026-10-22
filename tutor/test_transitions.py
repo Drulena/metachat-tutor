@@ -143,11 +143,13 @@ class TransitionTableShapeTests(SimpleTestCase):
                     all(isinstance(k, str) and isinstance(v, str) for k, v in row["nav"].items())
                 )
                 self.assertIsInstance(row["retryable"], bool)
-                # The item field mirrors ``_state_to_item``, which can yield
-                # the legacy phantom key "role_idea" (not in ITEM_KEYS);
-                # exact parity is asserted by LegacyParityTests.
+                # The item field mirrors ``_state_to_item``, so every key it
+                # yields must be a real completion-model item — the last
+                # phantom (``"role_idea"``, from the abbreviated
+                # ``roleplay_feedback_idea`` key) is gone (issue #12).
                 if row["item"] is not None:
                     self.assertIsInstance(row["item"], str)
+                    self.assertIn(row["item"], ITEM_KEYS, state)
                 self.assertIsInstance(row["phase"], str)
                 self.assertTrue(row["phase"])
 

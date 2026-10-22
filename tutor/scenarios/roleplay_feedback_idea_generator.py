@@ -1,4 +1,4 @@
-"""Scenario state ``roleplay_feedback_idea`` of the MetaChat Tutor.
+"""Scenario state ``roleplay_feedback_idea_generator`` of the MetaChat Tutor.
 
 Part of the pure-data scenario definition; see :mod:`tutor.scenarios`
 for the assembled ``SCENARIO`` dict and

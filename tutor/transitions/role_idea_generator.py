@@ -6,7 +6,7 @@ Part of the pure-data transition table (ticket #8); see
 """
 
 ROW = {
-    "next": "roleplay_feedback_idea",
+    "next": "roleplay_feedback_idea_generator",
     "back": "after_registration_beginner",
     "nav": {},
     "retryable": False,

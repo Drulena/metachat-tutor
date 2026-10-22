@@ -1,4 +1,4 @@
-"""Transition row for scenario state ``roleplay_feedback_idea``.
+"""Transition row for scenario state ``roleplay_feedback_idea_generator``.
 
 Part of the pure-data transition table (ticket #8); see
 :mod:`tutor.transitions` for the row schema and
@@ -10,11 +10,11 @@ ROW = {
     "back": "role_menu",
     "nav": {"next": "Next"},
     "retryable": True,
-    # The legacy ``_state_to_item`` returns the phantom key
-    # ``"role_idea"`` here (``state.replace("roleplay_feedback_", "")``);
-    # the real completion-model item is role_idea_generator. The quirk
-    # is mirrored exactly so the table stays a faithful source.
-    "item": "role_idea",
+    # ``_state_to_item`` derives the item from the state key
+    # (``state.replace("roleplay_feedback_", "")``); with the normalized key
+    # that yields the real completion-model item role_idea_generator, matching
+    # every other role's feedback row (issue #12).
+    "item": "role_idea_generator",
     "phase": "roleplay",
     "accept": ["revise", "next"],
     "effects": {
