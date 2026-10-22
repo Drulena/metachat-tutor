@@ -157,15 +157,17 @@
     <p class="steps-info">{{ summary.completed_steps_count }} / {{ summary.total_steps }} steps completed</p>
   </div>
 
-  {# Analysis Tasks #}
+  {# Analysis Tasks — each row answers its own status (issue #14). #}
   <div class="task-group">
     <h2>📝 Analysis Tasks</h2>
     <ul class="task-list">
-      {% for key, label in summary.analysis_tasks %}
+      {% for row in summary.sections.analysis.rows %}
         <li class="task-item">
-          <span class="task-label">{{ label }}</span>
-          {% if key in summary.completed_option_values %}
+          <span class="task-label">{{ row.label }}</span>
+          {% if row.status == "completed" %}
             <span class="badge badge-completed">✅ Completed</span>
+          {% elif row.status == "in_progress" %}
+            <span class="badge badge-in-progress">🔄 In Progress</span>
           {% else %}
             <span class="badge badge-not-started">⬜ Not Started</span>
           {% endif %}
@@ -178,12 +180,12 @@
   <div class="task-group">
     <h2>🎭 Communication Roles</h2>
     <ul class="task-list">
-      {% for key, label in summary.role_tasks %}
+      {% for row in summary.sections.roles.rows %}
         <li class="task-item">
-          <span class="task-label">{{ label }}</span>
-          {% if key in summary.completed_roles %}
+          <span class="task-label">{{ row.label }}</span>
+          {% if row.status == "completed" %}
             <span class="badge badge-completed">✅ Completed</span>
-          {% elif key in summary.opened_tasks %}
+          {% elif row.status == "in_progress" %}
             <span class="badge badge-in-progress">🔄 In Progress</span>
           {% else %}
             <span class="badge badge-not-started">⬜ Not Started</span>

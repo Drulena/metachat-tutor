@@ -43,6 +43,9 @@ from .data import (
 from .llm import get_llm_feedback
 from .session import (
     Feedback,
+    ProgressRow,
+    ProgressSection,
+    ProgressSections,
     State,
     Storage,
     Summary,
@@ -262,6 +265,7 @@ class TutorSession:
         ]
 
         return Summary(
+            sections=self._sections(items),
             status_badge=badge,
             percentage=percentage,
             current_step=current_step,
@@ -291,6 +295,38 @@ class TutorSession:
             phase=_phase_of(current),
             user_name=ud.get("user_name"),
             session_id=state.session_id,
+        )
+
+    def _sections(self, items: dict[str, str]) -> ProgressSections:
+        """Group the completion model into the rows the pages render.
+
+        Every row carries its own status, so a page renders a badge straight
+        from the row and never re-derives status from a completed count — the
+        two pages cannot disagree (issue #14, GLOSSARY "completion model").
+        Row keys are the completion-model item keys; each page supplies its own
+        heading wording.
+        """
+        analysis_rows = [
+            ProgressRow(key, ANALYSIS_LABELS[key], items.get(key, "not_started"))
+            for key in ANALYSIS_STEP_KEYS
+        ]
+        role_rows = [
+            ProgressRow(key, ROLE_LABELS[key], items.get(key, "not_started"))
+            for key in ROLE_STEP_KEYS
+        ]
+        return ProgressSections(
+            analysis=ProgressSection(
+                "Analysis Tasks",
+                analysis_rows,
+                sum(1 for row in analysis_rows if row.status == "completed"),
+                len(analysis_rows),
+            ),
+            roles=ProgressSection(
+                "Roles",
+                role_rows,
+                sum(1 for row in role_rows if row.status == "completed"),
+                len(role_rows),
+            ),
         )
 
     def reset(self) -> None:

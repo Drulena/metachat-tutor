@@ -34,6 +34,14 @@ def _drive(client, inputs):
     return session
 
 
+def _task_cell(html: str, label: str) -> str:
+    """The ``<li class="task-item">`` block that carries ``label``."""
+    start = html.index(label)
+    begin = html.rindex('<li class="task-item">', 0, start)
+    end = html.index("</li>", start)
+    return html[begin:end]
+
+
 class MainMenuViewTests(TestCase):
     def test_menu_renders_summary(self):
         client = self.client
@@ -53,6 +61,24 @@ class MainMenuViewTests(TestCase):
         client = self.client
         resp = client.get("/menu/")
         self.assertEqual(resp.status_code, 200)
+
+    def test_task_row_shows_the_same_status_on_both_pages(self):
+        """Issue #14: the sidebar and the overview cannot disagree about a row.
+
+        Drives the session to analysis task 2 — task 1 completed, task 2 in
+        progress. Before the Summary answered the status question, the chat
+        sidebar inferred status from a completed count and showed task 2 as
+        "Completed" while the overview page showed it "Not Started". Both pages
+        now render the badge straight from the row's own status.
+        """
+        client = self.client
+        _drive(client, ["Alice", "3 4 5", "2", "1", "yes", "Answer to task one", "next"])
+        for path in ("/menu/", "/"):  # overview page, chat page (sidebar fragment)
+            html = client.get(path).content.decode()
+            cell = _task_cell(html, "Task 2: Aggressive Formatting")
+            self.assertIn("badge-in-progress", cell, f"{path} lost the in-progress badge")
+            self.assertNotIn("badge-completed", cell, f"{path} overstates task 2")
+            self.assertNotIn("badge-not-started", cell, f"{path} understates task 2")
 
 
 class ExportViewTests(TestCase):

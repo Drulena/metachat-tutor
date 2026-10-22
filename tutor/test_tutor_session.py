@@ -111,6 +111,40 @@ class TutorSessionTests(SimpleTestCase):
         self.assertIsNone(summary.user_name)
         self.assertTrue(summary.session_id)  # a started session always has an id
 
+    def test_summary_task_rows_carry_their_own_status(self):
+        """Every task row answers the status question from the completion model.
+
+        A learner part-way through the analysis tasks has one task completed and
+        the next in progress. Each row of the Summary's ``sections`` carries that
+        item's own status (GLOSSARY "completion model": ``not_started`` /
+        ``in_progress`` / ``completed``), so a page renders a badge straight from
+        the row and never infers status from a completed count. Row keys are the
+        completion-model item keys; each page supplies its own heading wording.
+        """
+        session, _, _ = self.make_session()
+        self.drive(
+            session,
+            "Alice", "3 4 5", "2", "1", "yes",
+            "Answer to task one",  # -> analysis_feedback_1_intermediate: task 1 completed
+            "next",                # -> analysis_task_2_intermediate: task 2 in progress
+        )
+        sections = session.progress().sections
+
+        analysis = sections.analysis
+        self.assertEqual(
+            [(row.key, row.status) for row in analysis.rows],
+            [
+                ("analysis_task_1", "completed"),
+                ("analysis_task_2", "in_progress"),
+            ],
+        )
+        self.assertEqual((analysis.completed, analysis.total), (1, 2))
+
+        roles = sections.roles
+        self.assertEqual([row.status for row in roles.rows], ["not_started"] * 9)
+        self.assertEqual((roles.completed, roles.total), (0, 9))
+        self.assertEqual(roles.rows[0].key, "role_mediator")
+
     def test_first_turn_uses_placeholder_when_name_unavailable(self):
         session, _, _ = self.make_session()
         turn = session.turns()[-1]
@@ -131,13 +165,19 @@ class TutorSessionTests(SimpleTestCase):
         self.assertIn("Thank you, Alice! (Level: Intermediate)", turn.message)
         self.assertNotIn("{user_name}", turn.message)
 
-    def test_summary_exposes_all_seventeen_fields(self):
+    def test_summary_exposes_every_field(self):
+        """The interface guard: the Summary carries exactly these fields.
+
+        Issue #14 put ``sections`` first — the progress panel whose rows each
+        answer the status question — so a page needs no other completion list.
+        """
         session, _, _ = self.make_session()
         summary = session.progress()
         names = [f.name for f in fields(Summary)]
         self.assertEqual(
             names,
             [
+                "sections",
                 "status_badge", "percentage", "current_step", "total_steps",
                 "completed_steps_count", "analysis_progress", "roleplay_progress",
                 "completed_option_values", "completed_roles", "completed_modes",

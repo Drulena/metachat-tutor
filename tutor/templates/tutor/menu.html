@@ -24,17 +24,17 @@
       <p class="progress-detail">{{ summary.completed_steps_count }} / {{ summary.total_steps }} steps completed</p>
     </div>
 
-    {# Analysis Progress #}
+    {# Analysis Tasks — each row answers its own status (issue #14). #}
     <div class="task-status-section">
       <h3>📝 Analysis Tasks</h3>
       <ul class="task-list">
-        {% for key, label in summary.analysis_tasks %}
+        {% for row in summary.sections.analysis.rows %}
           <li class="task-item">
-            <span class="task-label">{{ label }}</span>
-            {% if key in summary.completed_option_values %}
+            <span class="task-label">{{ row.label }}</span>
+            {% if row.status == "completed" %}
               <span class="badge badge-completed">✅ Completed</span>
-            {% elif summary.analysis_progress.completed > 0 and forloop.counter <= summary.analysis_progress.completed %}
-              <span class="badge badge-completed">✅ Completed</span>
+            {% elif row.status == "in_progress" %}
+              <span class="badge badge-in-progress">🔄 In Progress</span>
             {% else %}
               <span class="badge badge-not-started">⬜ Not Started</span>
             {% endif %}
@@ -47,12 +47,12 @@
     <div class="task-status-section">
       <h3>🎭 Roles</h3>
       <ul class="task-list">
-        {% for key, label in summary.role_tasks %}
+        {% for row in summary.sections.roles.rows %}
           <li class="task-item">
-            <span class="task-label">{{ label }}</span>
-            {% if key in summary.completed_roles %}
+            <span class="task-label">{{ row.label }}</span>
+            {% if row.status == "completed" %}
               <span class="badge badge-completed">✅ Completed</span>
-            {% elif key in summary.opened_tasks %}
+            {% elif row.status == "in_progress" %}
               <span class="badge badge-in-progress">🔄 In Progress</span>
             {% else %}
               <span class="badge badge-not-started">⬜ Not Started</span>

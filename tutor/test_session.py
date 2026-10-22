@@ -132,6 +132,7 @@ class SummaryValueTypeTest(SimpleTestCase):
         self.assertEqual(
             names,
             [
+                "sections",
                 "status_badge",
                 "percentage",
                 "current_step",

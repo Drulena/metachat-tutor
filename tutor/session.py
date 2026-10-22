@@ -64,6 +64,42 @@ class Turn:
     timestamp: str
 
 
+@dataclass(frozen=True)
+class ProgressRow:
+    """One task's row in the progress panel: an item key and its own status.
+
+    ``status`` is the completion model verbatim (GLOSSARY "completion model":
+    ``not_started`` / ``in_progress`` / ``completed``). A page renders a badge
+    from it and never infers status from a completed count.
+    """
+
+    key: str
+    label: str
+    status: str
+
+
+@dataclass(frozen=True)
+class ProgressSection:
+    """One titled group of :class:`ProgressRow` s, with its own economics."""
+
+    title: str
+    rows: list[ProgressRow]
+    completed: int
+    total: int
+
+
+@dataclass(frozen=True)
+class ProgressSections:
+    """The two progress groups the pages render, named by the domain.
+
+    Each page supplies its own heading ("Roles" in the sidebar, "Communication
+    Roles" on the overview) — the module names the group, never the wording.
+    """
+
+    analysis: ProgressSection = field(default_factory=lambda: ProgressSection("", [], 0, 0))
+    roles: ProgressSection = field(default_factory=lambda: ProgressSection("", [], 0, 0))
+
+
 @dataclass
 class Summary:
     """Derived presentation view the menu and export views will read.
@@ -74,6 +110,9 @@ class Summary:
     session.
     """
 
+    # Progress panel: every task row answers its own status (issue #14). Keyed
+    # by the domain group, so a page names the group it renders.
+    sections: dict[str, ProgressSection] = field(default_factory=dict)
     # Progress metrics.
     status_badge: str = "not_started"
     percentage: int = 0
