@@ -289,6 +289,18 @@ class TutorSessionTests(SimpleTestCase):
         session.submit("back")
         self.assertEqual(self.state_of(storage).current_state, "after_registration_beginner")
 
+    def test_back_at_start_is_unrecognized_input(self):
+        session, storage, _ = self.make_session()
+        turns_before = len(session.turns())
+        session.submit("back")
+        turns = session.turns()
+        # Accepted delta (ticket #9): typed "back" at start is an
+        # unrecognized input — the user turn is recorded, no assistant
+        # re-prompt is appended, and the state stays at start.
+        self.assertEqual(len(turns), turns_before + 1)
+        self.assertEqual(turns[-1].role, "user")
+        self.assertEqual(self.state_of(storage).current_state, "start")
+
     # --------------------------------------------------------------- retry
 
     def test_retry_flow_updates_last_assistant_turn_in_place(self):

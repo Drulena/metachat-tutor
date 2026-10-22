@@ -36,8 +36,6 @@ from .tutor_session import (
     TutorSession,
     _parse_scores,
     _sanitize_name,
-    _state_to_item,
-    _phase,
 )
 
 NON_TERMINAL_STATES = set(SCENARIO["states"]) - {"end"}
@@ -207,7 +205,14 @@ class FixtureCoherenceTests(SimpleTestCase):
 
 
 class LegacyParityTests(SimpleTestCase):
-    """The table must reproduce the legacy routing exactly (criterion 4)."""
+    """The table-driven routing must honour the row data (post-migration).
+
+    During the expand step (#8) these tests proved the table reproduced the
+    legacy if-chains exactly (acceptance criterion 4). The migrate step (#9)
+    removed those if-chains, making the table the single source of truth;
+    what remains here pins down that the table-driven ``_route`` /
+    ``_go_back`` / ``_navigation_options`` read the row data correctly.
+    """
 
     #: Sample accepted input per accept-pattern. States with ``accept=None``
     #: have no gate in the legacy if-chain and use NO_GATE_SAMPLE.
@@ -254,16 +259,6 @@ class LegacyParityTests(SimpleTestCase):
                 return candidate
         self.fail(f"no rejection sample for {name!r}")
 
-    # Legacy _route quirk, same class as the ``role_interpreterer`` typo in
-    # scenarios.py: from ``role_idea_generator`` it computes the next state
-    # "roleplay_feedback_idea_generator", which is NOT a scenario state (the
-    # scenario defines ``roleplay_feedback_idea``). The table targets the
-    # known state; this is the single documented deviation from the legacy
-    # if-chain (acceptance criterion 2 requires known targets).
-    LEGACY_DEAD_TARGETS = {
-        "role_idea_generator": "roleplay_feedback_idea_generator",
-    }
-
     def test_accepted_inputs_route_to_table_targets(self):
         for name, row in TRANSITIONS.items():
             for value in self._accepted_inputs(row):
@@ -271,14 +266,8 @@ class LegacyParityTests(SimpleTestCase):
                     state = self._make_state(name, row)
                     next_state, accepted = self._session()._route(state, value)
                     expected = row["next"] if isinstance(row["next"], str) else row["next"][value]
-                    self.assertTrue(accepted, "legacy rejected a table-accepted input")
-                    quirk = self.LEGACY_DEAD_TARGETS.get(name)
-                    if quirk is not None:
-                        self.assertEqual(next_state, quirk)
-                        self.assertNotIn(next_state, SCENARIO["states"])
-                        self.assertIn(expected, SCENARIO["states"])
-                    else:
-                        self.assertEqual(next_state, expected)
+                    self.assertTrue(accepted, "routing rejected a table-accepted input")
+                    self.assertEqual(next_state, expected)
 
     def test_rejected_inputs_are_rejected_by_legacy(self):
         for name, row in TRANSITIONS.items():
@@ -361,13 +350,6 @@ class LegacyParityTests(SimpleTestCase):
                     expected["back"] = _BACK_LABEL
                 self.assertEqual(nav, expected)
 
-    def test_retryable_flag_matches_legacy_feedback_states(self):
-        # ``retryable`` mirrors the legacy ``_is_feedback_state`` predicate —
-        # the gate for the "retry" command effect in ``submit()``.
-        for name, row in TRANSITIONS.items():
-            with self.subTest(state=name):
-                self.assertEqual(row["retryable"], self._session()._is_feedback_state(name))
-
     def test_nav_offers_retry_at_every_state_after_llm_failure(self):
         # Legacy nav-level behaviour: on ``llm_failed`` the "retry" option is
         # offered at EVERY state (not only the feedback ones) while
@@ -378,9 +360,3 @@ class LegacyParityTests(SimpleTestCase):
                 state = self._make_state(name, row)
                 nav = self._session()._navigation_options(state, entry)
                 self.assertIn("retry", nav)
-
-    def test_item_and_phase_match_legacy_mappers(self):
-        for name, row in TRANSITIONS.items():
-            with self.subTest(state=name):
-                self.assertEqual(row["item"], _state_to_item(name))
-                self.assertEqual(row["phase"], _phase(name))

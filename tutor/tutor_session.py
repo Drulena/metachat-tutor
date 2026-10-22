@@ -49,6 +49,7 @@ from .session import (
     Turn,
     default_feedback,
 )
+from .transitions import TRANSITIONS
 
 #: The one canonical completion model: every assessable item plus the two
 #: mode choices. ``data_collection`` is deliberately NOT an item — the old
@@ -92,52 +93,16 @@ def _parse_scores(text: str) -> Optional[list[int]]:
     return scores
 
 
-def _state_to_item(state: str) -> Optional[str]:
-    """Map a scenario state to the canonical item it represents."""
-    if state == "pretest":
-        return "pretest"
-    if state == "level_assessment":
-        return "level_assessment"
-    if state.startswith("analysis_intro_") or state.startswith(
-        ("analysis_task_1", "analysis_feedback_1")
-    ):
-        return "analysis_task_1"
-    if state.startswith(("analysis_task_2", "analysis_feedback_2")):
-        return "analysis_task_2"
-    if state.startswith("roleplay_feedback_"):
-        return "role_" + state.replace("roleplay_feedback_", "")
-    if state in ROLE_STEP_KEYS:
-        return state
-    if state == "reflection":
-        return "reflection"
-    if state == "posttest":
-        return "posttest"
-    return None
+def _phase_of(current: str) -> str:
+    """Coarse lifecycle phase for the Summary, from the transition row.
 
-
-def _phase(state: str) -> str:
-    """Coarse lifecycle phase for the Summary, derived from the state."""
-    if state == "end":
-        return "finished"
-    if state in ("start", "pretest", "level_assessment") or state.startswith(
-        "after_registration_"
-    ):
-        return "registration"
-    if state.startswith("analysis_"):
-        return "analysis"
-    if (
-        state in ("roleplay_intro", "role_menu")
-        or state.startswith("roleplay_feedback_")
-        or state in ROLE_STEP_KEYS
-    ):
-        return "roleplay"
-    if state == "reflection":
-        return "reflection"
-    if state == "posttest":
-        return "posttest"
-    if state == "data_collection":
-        return "data_collection"
-    return ""
+    The terminal ``end`` state has no row (the table covers the
+    non-terminal states only), so it falls back to ``"finished"``.
+    """
+    row = TRANSITIONS.get(current)
+    if row is not None:
+        return row["phase"]
+    return "finished" if current == "end" else ""
 
 
 def _migrate_items(state: State) -> None:
@@ -168,7 +133,7 @@ def _migrate_items(state: State) -> None:
             items[base] = "in_progress"
     current = state.current_state
     if current.startswith(("analysis_task_", "roleplay_feedback_")) or current in ROLE_STEP_KEYS:
-        item = _state_to_item(current)
+        item = TRANSITIONS.get(current, {}).get("item")
         if item is not None and items.get(item) == "not_started":
             items[item] = "in_progress"
     state.user_data["items"] = items
@@ -214,19 +179,19 @@ class TutorSession:
         state = self._require_state()
         text = (text or "")[:_MAX_INPUT_LENGTH]
         command = text.lower()
+        row = TRANSITIONS.get(state.current_state, {})
 
         if command == "back":
             self._go_back(state)
-        elif command == "retry" and self._is_feedback_state(state.current_state):
+        elif command == "retry" and row.get("retryable"):
             self._retry(state)
         else:
             self._append_user_turn(state, text)
-            if self._matches_validation(state, text):
-                new_state, accepted = self._route(state, text)
-                if accepted and new_state is not None:
-                    state.current_state = new_state
-                    if new_state != "end":
-                        self._append_assistant_turn(state)
+            new_state, accepted = self._route(state, text)
+            if accepted and new_state is not None:
+                state.current_state = new_state
+                if new_state != "end":
+                    self._append_assistant_turn(state)
 
         self._storage.save(state)
         return self._make_turn(state, state.chat_history[-1], is_current=True)
@@ -252,7 +217,7 @@ class TutorSession:
         percentage = int(count / TOTAL_STEPS * 100) if TOTAL_STEPS else 0
         badge = "not_started" if count == 0 else ("completed" if count == TOTAL_STEPS else "in_progress")
 
-        item = _state_to_item(current)
+        item = TRANSITIONS.get(current, {}).get("item")
         current_step = STEP_KEYS.index(item) + 1 if item in STEP_KEYS else 0
 
         analysis_done = sum(1 for key in ANALYSIS_STEP_KEYS if items.get(key) == "completed")
@@ -307,7 +272,7 @@ class TutorSession:
             role_tasks=[(key, ROLE_LABELS[key]) for key in ROLE_STEP_KEYS],
             opened_tasks=opened,
             level=level,
-            phase=_phase(current),
+            phase=_phase_of(current),
             user_name=ud.get("user_name"),
             session_id=state.session_id,
         )
@@ -352,145 +317,88 @@ class TutorSession:
 
     # --------------------------------------------------------------- routing
 
-    @staticmethod
-    def _is_feedback_state(state: str) -> bool:
-        return state.startswith(("analysis_feedback_", "roleplay_feedback_"))
-
-    @staticmethod
-    def _matches_validation(state: State, text: str) -> bool:
-        """Scenario validation gate (the old process_input checked this too)."""
-        pattern = state.scenario["states"].get(state.current_state, {}).get("validation")
-        return not pattern or bool(re.fullmatch(pattern, text))
-
     def _route(self, state: State, text: str) -> tuple[Optional[str], bool]:
-        """Route one input in the current state.
+        """Route one input in the current state via the transition table.
 
         Returns ``(next_state, accepted)``; ``accepted`` False means the
         input was rejected for this state (the caller emits no transition).
+        The row's ``accept`` is the single validation gate; ``next`` gives
+        the target (a plain state, or a per-input mapping); ``effects``
+        mutate the completion model / user data for the accepted input.
         """
-        current = state.current_state
-        ud = state.user_data
-        items = state.user_data["items"]
+        row = TRANSITIONS.get(state.current_state)
+        if row is None:
+            return None, False
+
         command = text.lower()
-        level = ud.get("level")
+        accept = row.get("accept")
+        if accept is not None:
+            if isinstance(accept, str):
+                if not re.fullmatch(accept, text):
+                    return None, False
+            elif command not in accept:
+                return None, False
 
-        if current == "start":
+        next_spec = row.get("next")
+        if next_spec is None:
+            return None, False
+        if isinstance(next_spec, dict):
+            target = next_spec.get(command)
+            if target is None:
+                return None, False
+        else:
+            target = next_spec
+
+        self._apply_effects(row, command, text, state)
+        return target, True
+
+    def _apply_effects(self, row: dict, command: str, text: str, state: State) -> None:
+        """Apply the row's ``effects`` for the accepted input."""
+        effects = row.get("effects")
+        if not effects:
+            return
+        if isinstance(row.get("next"), dict):
+            effects = effects.get(command)
+        if not effects:
+            return
+        ud = state.user_data
+        items = ud["items"]
+        for op, key, third in effects:
+            if op == "set-item":
+                items[key] = third
+            elif op == "set-user-data":
+                ud[key] = self._resolve_source(third, text)
+
+    def _resolve_source(self, source: str, text: str) -> object:
+        """Resolve an effect source to a concrete user-data value."""
+        if source == "sanitized-name":
             tokens = text.split()
-            ud["user_name"] = _sanitize_name(tokens[0] if tokens else text)
-            return "pretest", True
-
-        if current in ("pretest", "posttest"):
-            scores = _parse_scores(text)
-            if scores is None:
-                return None, False
-            key = "pretest" if current == "pretest" else "posttest"
-            ud[f"{key}_scores"] = scores
-            items[key] = "completed"
-            return ("level_assessment" if key == "pretest" else "data_collection"), True
-
-        if current == "level_assessment":
-            if text not in _LEVEL_BY_VALUE:
-                return None, False
-            ud["level"] = _LEVEL_BY_VALUE[text]
-            items["level_assessment"] = "completed"
-            return f"after_registration_{ud['level']}", True
-
-        if current.startswith("after_registration_"):
-            if level is None:
-                return None, False
-            if text == "1":
-                items["mode_analysis"] = "completed"
-                return f"analysis_intro_{level}", True
-            if text == "2":
-                items["mode_roleplay"] = "completed"
-                return "roleplay_intro", True
-            return None, False
-
-        if current.startswith("analysis_intro_"):
-            if command == "yes":
-                items["analysis_task_1"] = "in_progress"
-                return current.replace("intro", "task_1"), True
-            return None, False
-
-        if current.startswith("analysis_task_"):
-            number = "1" if current.startswith("analysis_task_1") else "2"
-            items[f"analysis_task_{number}"] = "completed"
-            return current.replace("task", "feedback"), True
-
-        if current.startswith("analysis_feedback_"):
-            number = "1" if "feedback_1" in current else "2"
-            if command != "next":
-                return None, False
-            items[f"analysis_task_{number}"] = "completed"
-            if number == "1":
-                items["analysis_task_2"] = "in_progress"
-                return current.replace("feedback_1", "task_2"), True
-            return "roleplay_intro", True
-
-        if current == "roleplay_intro":
-            if command == "continue":
-                return "role_menu", True
-            return None, False
-
-        if current == "role_menu":
-            if command == "finish":
-                return "reflection", True
-            if text in ROLE_BY_VALUE:
-                role = ROLE_BY_VALUE[text]
-                ud["current_role"] = role
-                items[role] = "in_progress"
-                return role, True
-            return None, False
-
-        if current.startswith("role_"):
-            role = current
-            if role not in ROLE_STEP_KEYS:
-                return None, False
-            # Completes only at roleplay_feedback next/back (old-app parity).
-            return f"roleplay_feedback_{role.replace('role_', '')}", True
-
-        if current.startswith("roleplay_feedback_"):
-            role = ud.get("current_role") or "role_mediator"
-            if command == "revise":
-                items[role] = "in_progress"
-                return role, True
-            # "back" never reaches here: submit() routes it to _go_back first,
-            # mirroring the old process_input global interception.
-            if command == "next":
-                items[role] = "completed"
-                return "role_menu", True
-            return None, False
-
-        if current == "reflection":
-            items["reflection"] = "completed"
-            return "posttest", True
-
-        if current == "data_collection":
-            if command == "exit":
-                return "end", True
-            return None, False
-
-        return None, False
+            return _sanitize_name(tokens[0] if tokens else text)
+        if source == "parsed-scores":
+            return _parse_scores(text)
+        if source == "parsed-level":
+            return _LEVEL_BY_VALUE.get(text)
+        if source == "mapped-role":
+            return ROLE_BY_VALUE.get(text)
+        if source.startswith("literal:"):
+            return source[len("literal:"):]
+        return None
 
     def _go_back(self, state: State) -> None:
         state.retry_count = 0
         current = state.current_state
-        level = state.user_data.get("level") or "beginner"
-        if current.startswith(("analysis_task_", "analysis_feedback_")):
-            target = f"analysis_intro_{level}"
-        elif current.startswith("analysis_intro_"):
-            target = f"after_registration_{level}"
-        elif current == "role_menu":
-            target = "roleplay_intro"
-        elif current == "roleplay_intro":
-            target = f"after_registration_{level}"
-        elif current.startswith("roleplay_feedback_"):
-            target = "role_menu"
-        else:
-            target = f"after_registration_{level}"
+        back = TRANSITIONS.get(current, {}).get("back")
+        if back is None:
+            # ``start`` has no back target: a typed ``back`` there is an
+            # unrecognized input (user turn only, no transition).
+            self._append_user_turn(state, "back")
+            return
+        if back.startswith("after_registration_"):
+            level = state.user_data.get("level") or "beginner"
+            back = f"after_registration_{level}"
+        state.current_state = back
         # The old handle_back re-appended the assistant turn even when the
         # state did not change (e.g. from after_registration_*).
-        state.current_state = target
         self._append_assistant_turn(state)
 
     def _retry(self, state: State) -> None:
@@ -606,24 +514,18 @@ class TutorSession:
         ``back`` is available in every state except ``start`` (there is
         nothing to go back to on the welcome turn). On a failed LLM
         message the retry option replaces the advance option (up to 3
-        tries); ``finish`` appears on the role menu. Scenario-defined
-        options win on clashes.
+        tries). Advance/finish options come from the transition row's
+        ``nav``; scenario-defined options win on clashes.
         """
-        navigation: dict[str, str] = {}
         current = state.current_state
+        row = TRANSITIONS.get(current, {})
+        if entry.get("llm_failed") and state.retry_count < 3:
+            navigation: dict[str, str] = {}
+            if current != "start":
+                navigation["back"] = _BACK_LABEL
+            navigation["retry"] = f"🔄 Retry LLM ({max(state.retry_count, 1)}/3)"
+            return navigation
+        navigation = dict(row.get("nav", {}))
         if current != "start":
             navigation["back"] = _BACK_LABEL
-        if entry.get("llm_failed") and state.retry_count < 3:
-            navigation["retry"] = f"🔄 Retry LLM ({max(state.retry_count, 1)}/3)"
-        else:
-            if self._is_feedback_state(current):
-                navigation["next"] = "Next"
-            elif current == "roleplay_intro":
-                navigation["continue"] = "Continue"
-            elif current.startswith("analysis_intro_"):
-                navigation["yes"] = "Yes"
-            elif current == "data_collection":
-                navigation["exit"] = "Exit"
-        if current == "role_menu":
-            navigation["finish"] = "Finish roles"
         return navigation

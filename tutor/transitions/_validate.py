@@ -37,7 +37,6 @@ scenario and the closed sets above.
 """
 
 from ..data import SCENARIO
-from ..tutor_session import ITEM_KEYS
 
 #: The fields every row carries, in canonical order.
 ROW_FIELDS = (
@@ -86,6 +85,8 @@ def validate_transitions(table: dict[str, dict] | None = None) -> list[str]:
     known state, every effect referencing a valid item or user-data key,
     and effects aligned with the ``next`` map.
     """
+    from ..tutor_session import ITEM_KEYS  # deferred: avoids a circular import
+
     if table is None:
         from . import TRANSITIONS  # deferred: avoids a circular import
 
