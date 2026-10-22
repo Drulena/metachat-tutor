@@ -7,7 +7,5 @@ for the assembled ``SCENARIO`` dict and
 
 STATE = {
     "message": "**📝 TASK 2: Recognizing Aggressive Formatting (Beginner)**\n\nMessage: *{message}*\n\n❓ **Question:** What makes this message feel aggressive? Identify ONE technique.\n\n💡*Hint: {hint}*\n\n⬇️**Type your answer and tap Enter:**",
-    "input_type": "text",
     "validation": ".+",
-    "next_state": "analysis_feedback_2_beginner",
 }

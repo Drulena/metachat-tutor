@@ -11,8 +11,4 @@ STATE = {
         "continue": "View Available Roles",
         "back": "Back to Main Menu",
     },
-    "next_state": {
-        "continue": "role_menu",
-        "back": "after_registration_{level}",
-    },
 }

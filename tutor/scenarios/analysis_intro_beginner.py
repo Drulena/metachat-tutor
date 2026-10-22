@@ -8,8 +8,4 @@ for the assembled ``SCENARIO`` dict and
 STATE = {
     "message": "**Step1️⃣: ANALYSIS**\n\nYou'll learn to identify basic metagrapheme functions and practice softening simple criticism using examples of online comments.\n\n👇**Click *yes* to start**",
     "options": {"yes": "Yes, proceed", "back": "Back to menu"},
-    "next_state": {
-        "yes": "analysis_task_1_beginner",
-        "back": "after_registration_beginner",
-    },
 }

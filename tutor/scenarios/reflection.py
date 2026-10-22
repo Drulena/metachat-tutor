@@ -7,7 +7,5 @@ for the assembled ``SCENARIO`` dict and
 
 STATE = {
     "message": "**💭 REFLECTION**\n\nPlease answer briefly:\n\n1️⃣ What new insight about metagraphemes did you gain?\n\n2️⃣ Which role was the most challenging for you? Why?\n\n⌨️**Type your reflection:**",
-    "input_type": "text",
     "validation": ".+",
-    "next_state": "posttest",
 }

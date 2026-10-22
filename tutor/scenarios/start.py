@@ -7,7 +7,5 @@ for the assembled ``SCENARIO`` dict and
 
 STATE = {
     "message": "Nice to meet you, {user_name}!\n\n⌨️**Type your name and group again to confirm:**",
-    "input_type": "text",
     "validation": ".+",
-    "next_state": "pretest",
 }

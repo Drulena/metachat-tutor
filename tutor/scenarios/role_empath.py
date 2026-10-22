@@ -7,7 +7,5 @@ for the assembled ``SCENARIO`` dict and
 
 STATE = {
     "message": "**🎭 ROLE: Empath**\n\n**Scenario:** {scenario}\n\n**Context:** {context}\n\n**Emotional state:** {emotional_state}\n\n**Comment section➡️** *{user1}*\n\n**Task:** {task}\n\n*You MUST:*\n 🔺use @mention to address the person\n 🔺explicitly VALIDATE their feelings\n 🔺offer support WITHOUT giving advice\n 🔺add a warm emoji (❤️, 🤗, 💗)\n\n⌨️**Type your response:**",
-    "input_type": "text",
     "validation": ".+",
-    "next_state": "roleplay_feedback_empath",
 }

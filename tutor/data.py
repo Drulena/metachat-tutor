@@ -34,7 +34,7 @@ STEP_KEYS = [
 TOTAL_STEPS = len(STEP_KEYS)
 
 # Значение кнопки в role_menu -> ключ роли (каноническое соответствие,
-# используется живым приложением; next_state role_menu в сценарии — мёртвый код)
+# используется живым приложением)
 ROLE_BY_VALUE = {
     "1": "role_mediator",
     "2": "role_logical",

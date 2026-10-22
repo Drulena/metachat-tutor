@@ -8,5 +8,4 @@ for the assembled ``SCENARIO`` dict and
 STATE = {
     "message": "📖 **Read the feedback for you, {user_name} (Beginner), carefully and make notes:**\n\nYou're right! **ALL CAPS** feels like shouting online.\n\n**📋 Model answer:** 'The message uses ALL CAPS and multiple exclamation marks, which is like shouting online.'\n\n👇**Click the button below to proceed to Step 2: Role-play**",
     "options": {"next": "Proceed to Step2️⃣", "back": "Back to menu"},
-    "next_state": {"next": "roleplay_intro", "back": "analysis_intro_beginner"},
 }

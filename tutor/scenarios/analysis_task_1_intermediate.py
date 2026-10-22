@@ -7,7 +7,5 @@ for the assembled ``SCENARIO`` dict and
 
 STATE = {
     "message": "**📝 TASK 1: Softening Criticism (Intermediate)**\n\nContext: {context}\n\nOriginal message: *{message}*\n\n❓ **Question:** Which emoji(s) would you add to signal openness to dialogue?\n\n💡*Hint: {hint}*\n\n⬇️**Type your answer and tap Enter:**",
-    "input_type": "text",
     "validation": ".+",
-    "next_state": "analysis_feedback_1_intermediate",
 }

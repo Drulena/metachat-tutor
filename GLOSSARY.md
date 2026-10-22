@@ -8,7 +8,9 @@ Canonical domain vocabulary for MetaChat Tutor. Use these terms in issues, code,
 
 - **option** — A labelled choice a learner can make from a turn: a value plus a label (a button). Options have two origins — a scenario *choice*, or *system navigation* (back / advance / finish) — but on a turn they form a single set. System navigation appears only on the current turn. _Avoid: "button"._
 
-- **state** — The machine's current position in a scenario, named by a string (e.g. `analysis_task_1_intermediate`, `role_menu`). Transitions are data-driven from the scenario's state map. `state` is internal to the session module; views and tests receive a `Turn` and a `Summary` rather than branching on the state name. _Avoid: "stage" — the README's "eight stages" is a coarser presentation grouping, not the machine's `state`._
+- **state** — The machine's current position in a scenario, named by a string (e.g. `analysis_task_1_intermediate`, `role_menu`). Transitions out of a state are driven by the **transition table** (`tutor/transitions`), not by the scenario's state entries. `state` is internal to the session module; views and tests receive a `Turn` and a `Summary` rather than branching on the state name. _Avoid: "stage" — the README's "eight stages" is a coarser presentation grouping, not the machine's `state`._
+
+- **transition table** — The flat data table (`tutor/transitions`) and single source of state-transition mechanics: one row per non-terminal scenario state recording the accepted input, the target state, the declarative effects (item / user-data updates), the navigation options, the progress item and phase, and whether the state is retryable after an LLM failure. The session module routes purely by table lookup; a scenario's state entries carry only presentation data (`message`, `options`, `validation`).
 
 - **Summary** — The derived, presentation-ready view of a session's progress: overall and per-section completion, status, completed option values, completed roles/modes, task lists, participant level, and the current menu phase. Produced by the session module; views render it without inspecting raw `state`.
 

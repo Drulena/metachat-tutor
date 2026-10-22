@@ -7,7 +7,5 @@ for the assembled ``SCENARIO`` dict and
 
 STATE = {
     "message": "**📋 POST-TEST**\n\nRate the same three messages again:\n\nA▪️*'Your idea is wrong. Fix it.'*\n\nB▪️*'I see your point, but have you considered... 🤔'*\n\nC▪️*'THIS IS TERRIBLE!!!'*\n\n⬇️**Type three numbers (e.g., '1 5 2'):**",
-    "input_type": "text",
     "validation": "^[1-5] [1-5] [1-5]$",
-    "next_state": "data_collection",
 }

@@ -8,8 +8,4 @@ for the assembled ``SCENARIO`` dict and
 STATE = {
     "message": "**Step1️⃣: ANALYSIS**\n\nYou'll work with complex, multi-layered examples of online comments and cultural comparisons.\n\n👇**Click *yes* to start**",
     "options": {"yes": "Yes, proceed", "back": "Back to menu"},
-    "next_state": {
-        "yes": "analysis_task_1_advanced",
-        "back": "after_registration_advanced",
-    },
 }

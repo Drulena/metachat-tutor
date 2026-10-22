@@ -20,22 +20,4 @@ STATE = {
         "finish": "Finish roles",
         "back": "Back to Role-Play Intro",
     },
-    "next_state": {
-        "1": "role_mediator",
-        "2": "role_logical",
-        "3": "role_advocate",
-        "4": "role_judge",
-        "5": "role_peacemaker",
-        "6": "role_idea_generator",
-        "7": "role_researcher",
-        # Quirk (preserved verbatim from the legacy single file): "8" is a
-        # typo for ``role_interpreter``. Live routing goes through
-        # ``ROLE_BY_VALUE`` (8 -> role_peacemaker), so the value is dead;
-        # the transition table (tutor/transitions/role_menu.py) uses the
-        # correct name.
-        "8": "role_interpreterer",
-        "9": "role_empath",
-        "finish": "reflection",
-        "back": "roleplay_intro",
-    },
 }

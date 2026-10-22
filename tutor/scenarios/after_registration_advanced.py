@@ -8,5 +8,4 @@ for the assembled ``SCENARIO`` dict and
 STATE = {
     "message": "Thank you, {user_name}! (Level: Advanced)\n\n**📌 IMPORTANT INSTRUCTIONS:**\n•🔙Go back anytime by typing *back*, or clicking the button below.\n•👈Track **your progress** via the **left sidebar**.\n\nChoose how to start your practice👇\n\n",
     "options": {"1": "Step1️⃣: ANALYSIS", "2": "Step2️⃣: ROLE-PLAY"},
-    "next_state": {"1": "analysis_intro_advanced", "2": "roleplay_intro"},
 }
