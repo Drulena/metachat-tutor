@@ -8,7 +8,7 @@ from dataclasses import fields
 
 from django.test import SimpleTestCase
 
-from .data import ANALYSIS_LABELS, ANALYSIS_STEP_KEYS, ROLE_LABELS, ROLE_STEP_KEYS, SCENARIO, randomize_scenario
+from .data import ANALYSIS_LABELS, ANALYSIS_STEP_KEYS, ROLE_LABELS, ROLE_STEP_KEYS, SCENARIO, STEP_KEYS, randomize_scenario
 from .session import MemoryStorage, State, Summary
 from .tutor_session import TutorSession
 
@@ -191,6 +191,44 @@ class TutorSessionTests(SimpleTestCase):
         # the user turn records the state it was submitted in
         self.assertEqual(last.state, "data_collection")
         self.assertIsNone(last.options)
+
+    def test_idea_generator_path_yields_the_feedback_turn(self):
+        """Issue #12: the Idea Generator gets a feedback turn like every other role.
+
+        The state key the routing lands on must be a state the scenario
+        defines, so the assistant turn is appended, the role's task context
+        reaches the LLM, and the options match the other feedback states.
+        """
+        llm = FakeLLM()
+        session, storage, _ = self.make_session(llm=llm)
+        self.drive_to_role_menu(session)
+        self.drive(session, "3")
+        self.assertEqual(self.state_of(storage).current_state, "role_idea_generator")
+        turn = self.drive(session, "Two ideas, **bold** and 💡").turns()[-1]
+
+        self.assertEqual(
+            self.state_of(storage).current_state, "roleplay_feedback_idea_generator"
+        )
+        # the assistant feedback turn is appended, not silently dropped
+        self.assertEqual(turn.role, "assistant")
+        self.assertEqual(turn.state, "roleplay_feedback_idea_generator")
+        # the role's answer and task context reach the LLM, and its output shows
+        self.assertEqual(llm.calls[-1][1], "idea_generator")
+        self.assertEqual(llm.calls[-1][0], "Two ideas, **bold** and 💡")
+        self.assertIn("LLM-OUT", turn.message)
+
+        # the same options as every other role's feedback state offers
+        mediator, _, _ = self.make_session()
+        self.drive_to_role_menu(mediator)
+        self.drive(mediator, "1", "I mediate")
+        self.assertEqual(turn.options, mediator.turns()[-1].options)
+
+        # the feedback state maps to the real completion-model item, not a phantom
+        summary = session.progress()
+        self.assertEqual(summary.current_step, STEP_KEYS.index("role_idea_generator") + 1)
+        self.assertEqual(summary.completed_roles, [])  # completes on "next", not here
+        self.drive(session, "next")
+        self.assertEqual(session.progress().completed_roles, ["role_idea_generator"])
 
     def test_all_items_completed_gives_full_summary(self):
         session, storage, _ = self.make_session()
@@ -588,3 +626,25 @@ class TutorSessionTests(SimpleTestCase):
         # the role answer does not complete the role (only feedback "next" does)
         self.assertEqual(saved.user_data["items"]["role_mediator"], "in_progress")
         self.assertEqual(saved.current_state, "roleplay_feedback_mediator")
+
+    def test_stored_legacy_idea_feedback_key_keeps_working(self):
+        """Issue #12: a session stored at the retired key is normalized on load.
+
+        At the retired key there is no transition row and no scenario state, so
+        every input is rejected and the learner is stranded on a stale turn;
+        the key rewrite keeps the session routable instead.
+        """
+        session, storage, _ = self.make_session()
+        self.drive_to_role_menu(session)
+        self.drive(session, "3", "Two ideas, **bold** and 💡")
+
+        state = self.state_of(storage)
+        state.current_state = "roleplay_feedback_idea"  # what a live session stored
+        storage.save(state)
+
+        fresh = TutorSession(storage)
+        self.assertEqual(fresh.turns()[-1].role, "assistant")
+        turn = fresh.submit("next")
+        self.assertEqual(self.state_of(storage).current_state, "role_menu")
+        self.assertEqual(turn.role, "assistant")
+        self.assertEqual(fresh.progress().completed_roles, ["role_idea_generator"])

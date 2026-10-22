@@ -139,6 +139,22 @@ def _migrate_items(state: State) -> None:
     state.user_data["items"] = items
 
 
+#: State keys renamed after sessions had already stored them. A session left
+#: in flight at a retired key finds no transition row and no scenario state,
+#: so every input is rejected and the learner is stuck on a stale turn; the
+#: key is rewritten on load instead.
+LEGACY_STATE_KEYS = {
+    "roleplay_feedback_idea": "roleplay_feedback_idea_generator",
+}
+
+
+def _migrate_state_key(state: State) -> None:
+    """Rewrite a stored retired state key to its normalized successor (issue #12)."""
+    target = LEGACY_STATE_KEYS.get(state.current_state)
+    if target is not None:
+        state.current_state = target
+
+
 def _task_slug(key: str, level: Optional[str]) -> str:
     """The legacy task slug for a canonical item ("" if not expressible)."""
     if key.startswith("analysis_task_"):
@@ -312,6 +328,7 @@ class TutorSession:
     def _load(self) -> Optional[State]:
         state = self._storage.load()
         if state is not None:
+            _migrate_state_key(state)
             _migrate_items(state)
         return state
 
