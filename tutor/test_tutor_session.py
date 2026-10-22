@@ -387,9 +387,9 @@ class TutorSessionTests(SimpleTestCase):
                  "Answer two", "next", "continue"],
                 {
                     "back": "Back to Role-Play Intro",
-                    "1": "Mediator", "2": "Logical Expert", "3": "Advocate",
-                    "4": "Judge", "5": "Peacemaker", "6": "Idea Generator",
-                    "7": "Researcher", "8": "Interpreter", "9": "Empath",
+                    "1": "Mediator", "2": "Logical Expert", "3": "Idea Generator",
+                    "4": "Researcher", "5": "Interpreter", "6": "Advocate",
+                    "7": "Judge", "8": "Peacemaker", "9": "Empath",
                     "finish": "Finish roles",
                 },
             ),

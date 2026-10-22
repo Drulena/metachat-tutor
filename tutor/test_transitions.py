@@ -18,7 +18,7 @@ import re
 
 from django.test import SimpleTestCase
 
-from .data import ROLE_BY_VALUE, ROLE_STEP_KEYS, SCENARIO
+from .data import ROLE_BY_VALUE, ROLE_LABELS, ROLE_STEP_KEYS, SCENARIO
 from .session import MemoryStorage, State
 from .transitions import (
     EFFECT_OPS,
@@ -360,3 +360,27 @@ class LegacyParityTests(SimpleTestCase):
                 state = self._make_state(name, row)
                 nav = self._session()._navigation_options(state, entry)
                 self.assertIn("retry", nav)
+
+
+class RoleMenuLabelAlignmentTests(SimpleTestCase):
+    """The role menu presents the canonical role mapping (issue #11).
+
+    The live routing map (``ROLE_BY_VALUE`` / the ``next`` of the
+    ``role_menu`` row) is the canonical value-to-role correspondence; the
+    scenario's option labels and message order must follow it, so a
+    button never leads to a role other than the one its label names.
+    """
+
+    def test_option_labels_match_canonical_roles(self):
+        options = SCENARIO["states"]["role_menu"]["options"]
+        for value, role_key in ROLE_BY_VALUE.items():
+            with self.subTest(value=value):
+                self.assertEqual(options[value], ROLE_LABELS[role_key])
+
+    def test_message_lists_roles_in_label_order(self):
+        message = SCENARIO["states"]["role_menu"]["message"]
+        found = re.findall(r"🔹(\d) - ([^(]+)", message)
+        expected = [
+            (value, ROLE_LABELS[ROLE_BY_VALUE[value]] + " ") for value in ROLE_BY_VALUE
+        ]
+        self.assertEqual(found, expected)
