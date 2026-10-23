@@ -156,11 +156,23 @@ class TutorSession:
         return self._make_turn(state, state.chat_history[-1], is_current=True)
 
     def turns(self) -> list[Turn]:
-        """The chat history; navigation options on the current turn only."""
+        """The chat history; navigation options on the current turn only.
+
+        Each assistant turn also carries ``used_value`` — the option the
+        learner used to answer it, read from the user entry that follows
+        (issue #14).
+        """
         state = self._require_state()
         history = state.chat_history
         return [
-            self._make_turn(state, entry, is_current=index == len(history) - 1)
+            self._make_turn(
+                state,
+                entry,
+                is_current=index == len(history) - 1,
+                used_value=self._used_value(
+                    entry, history[index + 1] if index + 1 < len(history) else None
+                ),
+            )
             for index, entry in enumerate(history)
         ]
 
@@ -183,28 +195,12 @@ class TutorSession:
         count = len(completed)
         percentage = int(count / TOTAL_STEPS * 100) if TOTAL_STEPS else 0
 
-        completed_option_values: list[str] = []
-        if current == "role_menu":
-            completed_option_values = [
-                value
-                for value in ROLE_BY_VALUE
-                if items.get(ROLE_BY_VALUE[value]) == "completed"
-            ]
-        elif current.startswith("after_registration_"):
-            if items.get("mode_analysis") == "completed":
-                completed_option_values.append("1")
-            if items.get("mode_roleplay") == "completed":
-                completed_option_values.append("2")
-        elif current == "level_assessment" and ud.get("level"):
-            completed_option_values.append(_LEVEL_BY_NAME.get(ud["level"], ""))
-
         return Summary(
             sections=self._sections(items),
             started=True,
             percentage=percentage,
             total_steps=TOTAL_STEPS,
             completed_steps_count=count,
-            completed_option_values=completed_option_values,
             finished=_phase_of(current) == "finished",
             level=ud.get("level"),
             user_name=ud.get("user_name"),
@@ -458,7 +454,13 @@ class TutorSession:
 
     # ----------------------------------------------------------------- turns
 
-    def _make_turn(self, state: State, entry: dict, is_current: bool) -> Turn:
+    def _make_turn(
+        self,
+        state: State,
+        entry: dict,
+        is_current: bool,
+        used_value: Optional[str] = None,
+    ) -> Turn:
         options = entry.get("options")
         if is_current and entry.get("role") == "assistant":
             navigation = self._navigation_options(state, entry)
@@ -469,7 +471,31 @@ class TutorSession:
             state=entry["state"],
             options=options,
             timestamp=entry["timestamp"],
+            used_value=used_value,
         )
+
+    def _used_value(self, entry: dict, following: Optional[dict]) -> Optional[str]:
+        """The option value the learner used to answer this assistant entry.
+
+        ``chat_history`` is a flat list, so the answer to an entry is the
+        entry right after it. The value counts when it matches one of the
+        scenario options stored on the entry, or one of the transition row's
+        ``nav`` values for the entry's state (navigation options are not
+        stored on entries). Free-text answers mark nothing; so does any
+        turn with no user entry after it (the newest turn).
+        """
+        if entry.get("role") != "assistant" or following is None:
+            return None
+        if following.get("role") != "user":
+            return None
+        value = following.get("content")
+        stored = entry.get("options")
+        if stored and value in stored:
+            return value
+        nav = TRANSITIONS.get(entry.get("state", ""), {}).get("nav", {})
+        if value in nav:
+            return value
+        return None
 
     def _navigation_options(self, state: State, entry: dict) -> dict[str, str]:
         """Navigation options for the current assistant turn only.

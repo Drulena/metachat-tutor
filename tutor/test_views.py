@@ -80,6 +80,17 @@ class MainMenuViewTests(TestCase):
             self.assertNotIn("badge-completed", cell, f"{path} overstates task 2")
             self.assertNotIn("badge-not-started", cell, f"{path} understates task 2")
 
+    def test_chat_marks_the_option_the_learner_used(self):
+        """Issue #14: the chat page marks an option used from the turn's own
+        used_value. Anchored per prompt: the mode the learner picked ('1')
+        shows used on the mode menu; the mode they did not pick ('2') does
+        not — value '2' alone is not unique (the level prompt offers it too)."""
+        client = self.client
+        _drive(client, ROLE_MENU_INPUTS)
+        html = client.get("/").content.decode()
+        self.assertIn('data-value="1" data-used="true">Step1️⃣: ANALYSIS', html)
+        self.assertNotIn('data-value="2" data-used="true">Step2️⃣', html)
+
 
 class ExportViewTests(TestCase):
     def test_export_composes_turns_and_progress(self):
@@ -98,7 +109,6 @@ class ExportViewTests(TestCase):
             self.assertIn("message", turn)
         # progress composed from Summary
         self.assertEqual(data["progress"]["percentage"], 26)
-        self.assertTrue(data["progress"]["started"])
         self.assertTrue(data["progress"]["started"])
         # export timestamp
         self.assertIn("export_time", data)

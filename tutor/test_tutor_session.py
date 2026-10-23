@@ -101,7 +101,6 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(summary.percentage, 0)
         self.assertEqual(summary.total_steps, 15)
         self.assertEqual(summary.completed_steps_count, 0)
-        self.assertEqual(summary.completed_option_values, [])
         self.assertFalse(summary.finished)
         self.assertIsNone(summary.level)
         self.assertIsNone(summary.user_name)
@@ -181,7 +180,7 @@ class TutorSessionTests(SimpleTestCase):
             names,
             [
                 "sections", "started", "percentage", "total_steps",
-                "completed_steps_count", "completed_option_values", "finished",
+                "completed_steps_count", "finished",
                 "level", "user_name", "session_id",
             ],
         )
@@ -669,6 +668,23 @@ class TutorSessionTests(SimpleTestCase):
         statuses = row_statuses(session.progress())
         self.assertEqual(statuses["analysis_task_1"], "completed")
         self.assertEqual(statuses["analysis_task_2"], "completed")
+
+    def test_turn_marks_the_option_the_learner_used(self):
+        """A turn knows the option the learner used to answer it (issue #14):
+        scenario picks and navigation picks both count; free text marks nothing;
+        the newest turn was never answered, so it carries nothing."""
+        session, _, _ = self.make_session()
+        self.drive(session, *ROLE_MENU_INPUTS)
+        used = {
+            turn.state: turn.used_value
+            for turn in session.turns()
+            if turn.role == "assistant"
+        }
+        self.assertEqual(used["level_assessment"], "2")
+        self.assertEqual(used["after_registration_intermediate"], "1")
+        self.assertEqual(used["analysis_intro_intermediate"], "yes")
+        self.assertIsNone(used["analysis_task_1_intermediate"])
+        self.assertIsNone(session.turns()[-1].used_value)
 
     def test_user_turns_carry_no_options(self):
         session, _, _ = self.make_session()

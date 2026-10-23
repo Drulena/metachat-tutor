@@ -55,6 +55,10 @@ class Turn:
 
     ``options`` carries the option map for assistant turns and is ``None``
     for user turns. ``state`` is the state key the turn was produced in.
+    ``used_value`` is the option value the learner used to answer this turn
+    (issue #14), or ``None`` — free-text answers, turns answered off-list, and
+    the newest (unanswered) turn all carry nothing. The chat page marks an
+    option from it; no global completed-option set exists.
     """
 
     role: str
@@ -62,6 +66,7 @@ class Turn:
     state: str
     options: Optional[dict[str, str]]
     timestamp: str
+    used_value: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -112,8 +117,6 @@ class Summary:
     percentage: int = 0
     total_steps: int = 15
     completed_steps_count: int = 0
-    # Values the learner has chosen: the chat marks those options as taken.
-    completed_option_values: list[str] = field(default_factory=list)
     # The one lifecycle question the views ask (resume, export, reset-confirm).
     finished: bool = False
     # Context (the sidebar and export header need these; the module is the only

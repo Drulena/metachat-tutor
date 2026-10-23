@@ -97,11 +97,14 @@ class StateValueTypeTest(SimpleTestCase):
 
 
 class TurnValueTypeTest(SimpleTestCase):
-    """``Turn`` = speaker's role, message text, state key, options, timestamp."""
+    """``Turn`` = speaker's role, message text, state key, options, timestamp,
+    the option value the learner used to answer it."""
 
     def test_turn_fields_match_spec(self):
         names = [f.name for f in fields(Turn)]
-        self.assertEqual(names, ["role", "message", "state", "options", "timestamp"])
+        self.assertEqual(
+            names, ["role", "message", "state", "options", "timestamp", "used_value"]
+        )
 
     def test_assistant_turn_carries_options(self):
         turn = Turn(
@@ -137,7 +140,6 @@ class SummaryValueTypeTest(SimpleTestCase):
                 "percentage",
                 "total_steps",
                 "completed_steps_count",
-                "completed_option_values",
                 "finished",
                 "level",
                 "user_name",
@@ -152,7 +154,6 @@ class SummaryValueTypeTest(SimpleTestCase):
         self.assertEqual(summary.percentage, 0)
         self.assertEqual(summary.total_steps, 15)
         self.assertEqual(summary.completed_steps_count, 0)
-        self.assertEqual(summary.completed_option_values, [])
         self.assertFalse(summary.finished)
         self.assertIsNone(summary.level)
 

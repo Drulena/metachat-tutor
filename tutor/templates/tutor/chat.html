@@ -35,7 +35,7 @@
             {% if turn.options %}
               <div class="message-options">
                 {% for key, label in turn.options.items %}
-                  <button class="option-btn{% if key in summary.completed_option_values %} used{% endif %}" type="button" data-value="{{ key }}"{% if key in summary.completed_option_values %} data-used="true"{% endif %}>{{ label }}</button>
+                  <button class="option-btn{% if key == turn.used_value %} used{% endif %}" type="button" data-value="{{ key }}"{% if key == turn.used_value %} data-used="true"{% endif %}>{{ label }}</button>
                 {% endfor %}
               </div>
             {% endif %}
