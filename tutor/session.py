@@ -97,14 +97,17 @@ class Summary:
     """Derived presentation view the menu, export and reset views read.
 
     One question per field. A progress number never answers "which row is
-    done?" — each row carries its own status (issue #14). The counts describe
-    the whole session; ``finished`` is the one lifecycle question the views
-    ask. Defaults describe an untouched session.
+    done?" — each row carries its own status (issue #14). ``started`` and
+    ``finished`` are the two lifecycle questions the views ask; progress()
+    answers them for an untouched session instead of raising. Defaults
+    describe an untouched session.
     """
 
     # Progress panel: domain groups in module-owned order, each row answering
     # for itself.
     sections: list[ProgressSection] = field(default_factory=list)
+    # The first lifecycle question: has this learner started at all?
+    started: bool = False
     # Session-wide counts, derived from the row statuses above.
     percentage: int = 0
     total_steps: int = 15

@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.http import HttpRequest, JsonResponse
 from django.shortcuts import redirect, render
 
-from .session import SessionStorage, Summary
+from .session import SessionStorage
 from .tutor_session import TutorSession
 
 logger = logging.getLogger(__name__)
@@ -18,28 +18,16 @@ def _session_for(request: HttpRequest) -> TutorSession:
     return TutorSession(SessionStorage(request.session))
 
 
-def _summary_or_none(session: TutorSession) -> Summary | None:
-    """Return the session's ``Summary``, or ``None`` if the session is unstarted.
-
-    ``TutorSession.progress()`` raises ``RuntimeError`` on an unstarted
-    session; this is the single place that translates that into ``None`` so
-    the views never spell the "is it started?" probe themselves.
-    """
-    try:
-        return session.progress()
-    except RuntimeError:
-        return None
-
-
 def _started_session(request: HttpRequest) -> TutorSession:
     """Build a TutorSession, starting one if the browser has none yet.
 
     Used by views that must render a live session (chat, menu). Views that
     only inspect or wipe state use :func:`_session_for` directly so a fresh
-    browser session is left unstarted (no side effect).
+    browser session is left unstarted (no side effect) — ``progress()``
+    answers ``started=False`` there, it never raises.
     """
     session = _session_for(request)
-    if _summary_or_none(session) is None:
+    if not session.progress().started:
         session.start()
     return session
 
@@ -89,10 +77,11 @@ def reset_confirm_view(request: HttpRequest):
     """Confirm page shown before wiping the session (GET only).
 
     Shows what a reset would wipe via the module's Summary; a session that
-    was never started renders the plain confirmation card.
+    was never started renders the plain confirmation card — progress()
+    answers the zero-state for it.
     """
     session = _session_for(request)
-    summary = _summary_or_none(session)
+    summary = session.progress()
     return render(request, "tutor/reset_confirm.html", {"summary": summary})
 
 
@@ -136,13 +125,8 @@ def export_view(request: HttpRequest):
     representation without being started (no side effect).
     """
     session = _session_for(request)
-    summary = _summary_or_none(session)
-    if summary is None:
-        # Unstarted session: export a fresh, empty representation (no side effect).
-        summary = Summary()
-        turns = []
-    else:
-        turns = session.turns()
+    summary = session.progress()
+    turns = session.turns() if summary.started else []
     data = {
         "session_id": summary.session_id,
         "turns": [asdict(turn) for turn in turns],

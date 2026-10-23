@@ -98,6 +98,8 @@ class ExportViewTests(TestCase):
             self.assertIn("message", turn)
         # progress composed from Summary
         self.assertEqual(data["progress"]["percentage"], 26)
+        self.assertTrue(data["progress"]["started"])
+        self.assertTrue(data["progress"]["started"])
         # export timestamp
         self.assertIn("export_time", data)
         # download name uses the session id
@@ -110,6 +112,7 @@ class ExportViewTests(TestCase):
         data = resp.json()
         self.assertEqual(data["turns"], [])
         self.assertEqual(data["progress"]["percentage"], 0)
+        self.assertFalse(data["progress"]["started"])
 
 
 class ResetViewTests(TestCase):

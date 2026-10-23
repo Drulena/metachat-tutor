@@ -133,6 +133,7 @@ class SummaryValueTypeTest(SimpleTestCase):
             names,
             [
                 "sections",
+                "started",
                 "percentage",
                 "total_steps",
                 "completed_steps_count",
@@ -147,6 +148,7 @@ class SummaryValueTypeTest(SimpleTestCase):
     def test_summary_defaults(self):
         summary = Summary()
         self.assertEqual(summary.sections, [])
+        self.assertFalse(summary.started)
         self.assertEqual(summary.percentage, 0)
         self.assertEqual(summary.total_steps, 15)
         self.assertEqual(summary.completed_steps_count, 0)

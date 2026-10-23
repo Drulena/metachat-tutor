@@ -105,7 +105,9 @@ class TutorSessionTests(SimpleTestCase):
         self.assertFalse(summary.finished)
         self.assertIsNone(summary.level)
         self.assertIsNone(summary.user_name)
-        self.assertTrue(summary.session_id)  # a started session always has an id
+        self.assertTrue(summary.session_id)
+        self.assertTrue(summary.started)  # a started session always has an id
+        self.assertTrue(summary.started)
         self.assertEqual(set(row_statuses(summary).values()), {"not_started"})
 
     def test_summary_task_rows_carry_their_own_status(self):
@@ -178,9 +180,9 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(
             names,
             [
-                "sections", "percentage", "total_steps", "completed_steps_count",
-                "completed_option_values", "finished", "level", "user_name",
-                "session_id",
+                "sections", "started", "percentage", "total_steps",
+                "completed_steps_count", "completed_option_values", "finished",
+                "level", "user_name", "session_id",
             ],
         )
         self.assertEqual(
@@ -205,8 +207,23 @@ class TutorSessionTests(SimpleTestCase):
             session.submit("hi")
         with self.assertRaises(RuntimeError):
             session.turns()
-        with self.assertRaises(RuntimeError):
-            session.progress()
+        # progress() is exempt: it answers the zero-state instead of raising.
+
+    def test_progress_on_untouched_session_is_zero_state(self):
+        """An untouched session answers: nothing started, nothing finished."""
+        session, _, _ = self.make_session(started=False)
+        summary = session.progress()
+        self.assertFalse(summary.started)
+        self.assertEqual(summary.session_id, "")
+        self.assertIsNone(summary.user_name)
+        self.assertIsNone(summary.level)
+        self.assertEqual(summary.completed_steps_count, 0)
+        self.assertEqual(summary.percentage, 0)
+        self.assertFalse(summary.finished)
+        self.assertEqual(
+            [section.completed for section in summary.sections], [0, 0]
+        )
+        self.assertEqual(set(row_statuses(summary).values()), {"not_started"})
 
     # -------------------------------------------------------- happy path
 

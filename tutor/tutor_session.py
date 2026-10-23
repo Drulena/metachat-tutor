@@ -165,8 +165,16 @@ class TutorSession:
         ]
 
     def progress(self) -> Summary:
-        """Every progress figure, derived from the canonical items model."""
-        state = self._require_state()
+        """Every progress figure, derived from the canonical items model.
+
+        Never raises: an untouched session answers with the zero-state
+        Summary — rows all ``not_started``, counts zero, ``started`` False —
+        instead of throwing. ``turns()`` and ``submit()`` keep their
+        start-precondition (issue #14).
+        """
+        state = self._load()
+        if state is None:
+            return Summary(sections=self._sections({}))
         items = state.user_data["items"]
         ud = state.user_data
         current = state.current_state
@@ -192,6 +200,7 @@ class TutorSession:
 
         return Summary(
             sections=self._sections(items),
+            started=True,
             percentage=percentage,
             total_steps=TOTAL_STEPS,
             completed_steps_count=count,
