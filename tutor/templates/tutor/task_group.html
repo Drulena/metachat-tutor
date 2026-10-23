@@ -1,0 +1,23 @@
+{# One progress panel group per module-owned section: heading, rows, badges.
+   Required context: summary (from TutorSession.progress()).
+   The module owns section order, heading wording and each row's status —
+   this include renders what it is told and computes nothing (issue #14). #}
+{% for section in summary.sections %}
+  <div class="task-status-section">
+    <h3>{{ section.title }}</h3>
+    <ul class="task-list">
+      {% for row in section.rows %}
+        <li class="task-item">
+          <span class="task-label">{{ row.label }}</span>
+          {% if row.status == "completed" %}
+            <span class="badge badge-completed">✅ Completed</span>
+          {% elif row.status == "in_progress" %}
+            <span class="badge badge-in-progress">🔄 In Progress</span>
+          {% else %}
+            <span class="badge badge-not-started">⬜ Not Started</span>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endfor %}

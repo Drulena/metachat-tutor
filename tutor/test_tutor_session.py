@@ -14,9 +14,7 @@ from .data import (
     ROLE_BY_VALUE,
     ROLE_LABELS,
     ROLE_STEP_KEYS,
-    SCENARIO,
     STEP_KEYS,
-    randomize_scenario,
 )
 from .session import MemoryStorage, State, Summary
 from .tutor_session import TutorSession
@@ -35,6 +33,11 @@ ROLE_MENU_INPUTS = [
     "next",             # -> roleplay_intro
     "continue",         # -> role_menu
 ]
+
+
+def row_statuses(summary: Summary) -> dict[str, str]:
+    """The ``{key: status}`` map of every section row in a Summary."""
+    return {row.key: row.status for section in summary.sections for row in section.rows}
 
 
 class FakeLLM:
@@ -95,21 +98,15 @@ class TutorSessionTests(SimpleTestCase):
     def test_progress_before_any_input_is_all_zero_summary(self):
         session, _, _ = self.make_session()
         summary = session.progress()
-        self.assertEqual(summary.status_badge, "not_started")
         self.assertEqual(summary.percentage, 0)
-        self.assertEqual(summary.current_step, 0)
         self.assertEqual(summary.total_steps, 15)
         self.assertEqual(summary.completed_steps_count, 0)
-        self.assertEqual(summary.analysis_progress, {"completed": 0, "total": 2, "percentage": 0})
-        self.assertEqual(summary.roleplay_progress, {"completed": 0, "total": 9, "percentage": 0})
         self.assertEqual(summary.completed_option_values, [])
-        self.assertEqual(summary.completed_roles, [])
-        self.assertEqual(summary.completed_modes, [])
-        self.assertEqual(summary.opened_tasks, [])
+        self.assertFalse(summary.finished)
         self.assertIsNone(summary.level)
-        self.assertEqual(summary.phase, "registration")
         self.assertIsNone(summary.user_name)
         self.assertTrue(summary.session_id)  # a started session always has an id
+        self.assertEqual(set(row_statuses(summary).values()), {"not_started"})
 
     def test_summary_task_rows_carry_their_own_status(self):
         """Every task row answers the status question from the completion model.
@@ -119,7 +116,8 @@ class TutorSessionTests(SimpleTestCase):
         item's own status (GLOSSARY "completion model": ``not_started`` /
         ``in_progress`` / ``completed``), so a page renders a badge straight from
         the row and never infers status from a completed count. Row keys are the
-        completion-model item keys; each page supplies its own heading wording.
+        completion-model item keys; the module supplies the heading wording and
+        the group order.
         """
         session, _, _ = self.make_session()
         self.drive(
@@ -130,20 +128,20 @@ class TutorSessionTests(SimpleTestCase):
         )
         sections = session.progress().sections
 
-        analysis = sections.analysis
+        self.assertEqual(sections[0].title, "📝 Analysis Tasks")
         self.assertEqual(
-            [(row.key, row.status) for row in analysis.rows],
+            [(row.key, row.status) for row in sections[0].rows],
             [
                 ("analysis_task_1", "completed"),
                 ("analysis_task_2", "in_progress"),
             ],
         )
-        self.assertEqual((analysis.completed, analysis.total), (1, 2))
+        self.assertEqual((sections[0].completed, sections[0].total), (1, 2))
 
-        roles = sections.roles
-        self.assertEqual([row.status for row in roles.rows], ["not_started"] * 9)
-        self.assertEqual((roles.completed, roles.total), (0, 9))
-        self.assertEqual(roles.rows[0].key, "role_mediator")
+        self.assertEqual(sections[1].title, "🎭 Communication Roles")
+        self.assertEqual([row.status for row in sections[1].rows], ["not_started"] * 9)
+        self.assertEqual((sections[1].completed, sections[1].total), (0, 9))
+        self.assertEqual(sections[1].rows[0].key, "role_mediator")
 
     def test_first_turn_uses_placeholder_when_name_unavailable(self):
         session, _, _ = self.make_session()
@@ -169,7 +167,10 @@ class TutorSessionTests(SimpleTestCase):
         """The interface guard: the Summary carries exactly these fields.
 
         Issue #14 put ``sections`` first — the progress panel whose rows each
-        answer the status question — so a page needs no other completion list.
+        answer the status question — and dropped the flat completion lists no
+        page reads. A page that needs a row's status reads the row; the overall
+        counters, the answered-option markers, the identity fields and the one
+        yes/no question ("is this session finished?") are all the interface is.
         """
         session, _, _ = self.make_session()
         summary = session.progress()
@@ -177,16 +178,18 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(
             names,
             [
-                "sections",
-                "status_badge", "percentage", "current_step", "total_steps",
-                "completed_steps_count", "analysis_progress", "roleplay_progress",
-                "completed_option_values", "completed_roles", "completed_modes",
-                "analysis_tasks", "role_tasks", "opened_tasks", "level", "phase",
-                "user_name", "session_id",
+                "sections", "percentage", "total_steps", "completed_steps_count",
+                "completed_option_values", "finished", "level", "user_name",
+                "session_id",
             ],
         )
-        self.assertEqual(summary.analysis_tasks, [(k, ANALYSIS_LABELS[k]) for k in ANALYSIS_STEP_KEYS])
-        self.assertEqual(summary.role_tasks, [(k, ROLE_LABELS[k]) for k in ROLE_STEP_KEYS])
+        self.assertEqual(
+            [(s.title, [(row.key, row.label) for row in s.rows]) for s in summary.sections],
+            [
+                ("📝 Analysis Tasks", [(k, ANALYSIS_LABELS[k]) for k in ANALYSIS_STEP_KEYS]),
+                ("🎭 Communication Roles", [(k, ROLE_LABELS[k]) for k in ROLE_STEP_KEYS]),
+            ],
+        )
 
     def test_reset_clears_the_stored_session(self):
         session, storage, _ = self.make_session()
@@ -226,14 +229,12 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(self.state_of(storage).current_state, "end")
 
         summary = session.progress()
-        self.assertEqual(summary.status_badge, "in_progress")
         self.assertEqual(summary.percentage, 46)  # 7 of 15 items
-        self.assertEqual(summary.current_step, 0)
-        self.assertEqual(summary.phase, "finished")
-        self.assertEqual(summary.completed_roles, ["role_mediator"])
-        self.assertEqual(summary.completed_modes, ["analysis"])  # path picks "1"
-        self.assertEqual(summary.analysis_progress, {"completed": 2, "total": 2, "percentage": 100})
-        self.assertEqual(summary.roleplay_progress, {"completed": 1, "total": 9, "percentage": 11})
+        self.assertTrue(summary.finished)
+        statuses = row_statuses(summary)
+        self.assertEqual(statuses["analysis_task_1"], "completed")
+        self.assertEqual(statuses["analysis_task_2"], "completed")
+        self.assertEqual(statuses["role_mediator"], "completed")
         # the final turn is the user's "exit" — no assistant turn at "end"
         last = session.turns()[-1]
         self.assertEqual(last.role, "user")
@@ -273,11 +274,9 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(turn.options, mediator.turns()[-1].options)
 
         # the feedback state maps to the real completion-model item, not a phantom
-        summary = session.progress()
-        self.assertEqual(summary.current_step, STEP_KEYS.index("role_idea_generator") + 1)
-        self.assertEqual(summary.completed_roles, [])  # completes on "next", not here
+        self.assertEqual(row_statuses(session.progress())["role_idea_generator"], "in_progress")
         self.drive(session, "next")
-        self.assertEqual(session.progress().completed_roles, ["role_idea_generator"])
+        self.assertEqual(row_statuses(session.progress())["role_idea_generator"], "completed")
 
     def test_all_items_completed_gives_full_summary(self):
         session, storage, _ = self.make_session()
@@ -287,10 +286,11 @@ class TutorSessionTests(SimpleTestCase):
         storage.save(state)
         fresh = TutorSession(storage)
         summary = fresh.progress()
-        self.assertEqual(summary.status_badge, "completed")
+        # `finished` is the lifecycle question, not this one — it lives in
+        # test_full_single_role_path_reaches_end.
         self.assertEqual(summary.percentage, 100)
         self.assertEqual(summary.completed_steps_count, 15)
-        self.assertEqual(len(summary.completed_roles), 9)
+        self.assertEqual(set(row_statuses(summary).values()), {"completed"})
 
     # ----------------------------------------------------------- navigation
 
@@ -369,8 +369,7 @@ class TutorSessionTests(SimpleTestCase):
                 # the button is not decorative: revise re-enters the role in progress
                 session.submit("revise")
                 self.assertEqual(self.state_of(storage).current_state, item)
-                self.assertIn(item, session.progress().opened_tasks)
-                self.assertNotIn(item, session.progress().completed_roles)
+                self.assertEqual(row_statuses(session.progress())[item], "in_progress")
 
     # ----------------------------------------------------------------- back
 
@@ -380,12 +379,12 @@ class TutorSessionTests(SimpleTestCase):
         self.drive(session, "1", "I mediate")
         self.assertEqual(self.state_of(storage).current_state, "roleplay_feedback_mediator")
         # the role is in_progress at feedback (completes only on "next")
-        self.assertEqual(session.progress().completed_roles, [])
+        self.assertEqual(row_statuses(session.progress())["role_mediator"], "in_progress")
         session.submit("back")
         self.assertEqual(self.state_of(storage).current_state, "role_menu")
         # "back" is intercepted by the global handler before routing, so the
         # role stays in_progress (old-app parity)
-        self.assertEqual(session.progress().completed_roles, [])
+        self.assertEqual(row_statuses(session.progress())["role_mediator"], "in_progress")
 
     def test_back_from_analysis_task_returns_to_analysis_intro(self):
         session, storage, _ = self.make_session()
@@ -639,14 +638,20 @@ class TutorSessionTests(SimpleTestCase):
 
     # ------------------------------------------------- canonical completion
 
-    def test_current_step_tracks_current_state(self):
+    def test_rows_track_the_task_the_learner_is_on(self):
         session, storage, _ = self.make_session()
-        self.drive(session, "Alice", "3 4 5", "2", "1")
-        self.assertEqual(session.progress().current_step, 3)  # analysis_task_1
-        self.drive(session, "yes", "Answer")
-        self.assertEqual(session.progress().current_step, 3)  # feedback_1 same item
+        self.drive(session, "Alice", "3 4 5", "2", "1", "yes")
+        self.assertEqual(
+            row_statuses(session.progress())["analysis_task_1"], "in_progress"
+        )
+        self.drive(session, "Answer")
+        self.assertEqual(
+            row_statuses(session.progress())["analysis_task_1"], "completed"
+        )
         self.drive(session, "next", "Answer two", "next", "continue")
-        self.assertEqual(session.progress().current_step, 0)   # role_menu has no item
+        statuses = row_statuses(session.progress())
+        self.assertEqual(statuses["analysis_task_1"], "completed")
+        self.assertEqual(statuses["analysis_task_2"], "completed")
 
     def test_user_turns_carry_no_options(self):
         session, _, _ = self.make_session()
@@ -684,64 +689,5 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(items["mode_analysis"], "completed")
 
         reloaded = TutorSession(storage)
-        self.assertEqual(reloaded.progress().completed_roles, ["role_mediator"])
+        self.assertEqual(row_statuses(reloaded.progress())["role_mediator"], "completed")
         self.assertEqual(reloaded.progress().percentage, 33)  # 5 of 15 steps
-
-    def test_legacy_state_migrates_to_items_model(self):
-        storage = MemoryStorage()
-        legacy = State(
-            session_id="legacy",
-            current_state="role_mediator",
-            user_data={
-                "user_name": "Alice",
-                "level": "intermediate",
-                "pretest_scores": [3, 4, 5],
-                "posttest_scores": None,
-                "current_role": "role_mediator",
-                "current_role_variant": None,
-                "completed_steps": ["pretest", "level_assessment", "analysis_task_1", "analysis_task_2"],
-                "completed_roles": [],
-                "completed_modes": ["analysis", "roleplay"],
-                "opened_tasks": ["role_mediator"],
-                "completed_tasks": ["analysis_task_1_intermediate", "analysis_task_2_intermediate"],
-            },
-            scenario=randomize_scenario(SCENARIO),
-            chat_history=[],
-        )
-        storage.save(legacy)
-
-        session = TutorSession(storage)
-        summary = session.progress()
-        self.assertEqual(summary.percentage, 26)  # 4 of 15 step items (modes excluded)
-        self.assertEqual(summary.completed_modes, ["analysis", "roleplay"])
-        self.assertEqual(summary.completed_roles, [])
-        self.assertEqual(summary.opened_tasks, ["role_mediator"])
-
-        # the migration persists on the next save; continue from the migrated state
-        session.submit("I mediate")
-        saved = self.state_of(storage)
-        # the role answer does not complete the role (only feedback "next" does)
-        self.assertEqual(saved.user_data["items"]["role_mediator"], "in_progress")
-        self.assertEqual(saved.current_state, "roleplay_feedback_mediator")
-
-    def test_stored_legacy_idea_feedback_key_keeps_working(self):
-        """Issue #12: a session stored at the retired key is normalized on load.
-
-        At the retired key there is no transition row and no scenario state, so
-        every input is rejected and the learner is stranded on a stale turn;
-        the key rewrite keeps the session routable instead.
-        """
-        session, storage, _ = self.make_session()
-        self.drive_to_role_menu(session)
-        self.drive(session, "3", "Two ideas, **bold** and 💡")
-
-        state = self.state_of(storage)
-        state.current_state = "roleplay_feedback_idea"  # what a live session stored
-        storage.save(state)
-
-        fresh = TutorSession(storage)
-        self.assertEqual(fresh.turns()[-1].role, "assistant")
-        turn = fresh.submit("next")
-        self.assertEqual(self.state_of(storage).current_state, "role_menu")
-        self.assertEqual(turn.role, "assistant")
-        self.assertEqual(fresh.progress().completed_roles, ["role_idea_generator"])

@@ -133,21 +133,12 @@ class SummaryValueTypeTest(SimpleTestCase):
             names,
             [
                 "sections",
-                "status_badge",
                 "percentage",
-                "current_step",
                 "total_steps",
                 "completed_steps_count",
-                "analysis_progress",
-                "roleplay_progress",
                 "completed_option_values",
-                "completed_roles",
-                "completed_modes",
-                "analysis_tasks",
-                "role_tasks",
-                "opened_tasks",
+                "finished",
                 "level",
-                "phase",
                 "user_name",
                 "session_id",
             ],
@@ -155,10 +146,13 @@ class SummaryValueTypeTest(SimpleTestCase):
 
     def test_summary_defaults(self):
         summary = Summary()
+        self.assertEqual(summary.sections, [])
         self.assertEqual(summary.percentage, 0)
         self.assertEqual(summary.total_steps, 15)
-        self.assertIsNone(summary.level)
+        self.assertEqual(summary.completed_steps_count, 0)
         self.assertEqual(summary.completed_option_values, [])
+        self.assertFalse(summary.finished)
+        self.assertIsNone(summary.level)
 
 
 class MemoryStorageRoundTripTest(SimpleTestCase):

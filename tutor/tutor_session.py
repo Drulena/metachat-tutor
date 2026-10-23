@@ -45,7 +45,6 @@ from .session import (
     Feedback,
     ProgressRow,
     ProgressSection,
-    ProgressSections,
     State,
     Storage,
     Summary,
@@ -106,65 +105,6 @@ def _phase_of(current: str) -> str:
     if row is not None:
         return row["phase"]
     return "finished" if current == "end" else ""
-
-
-def _migrate_items(state: State) -> None:
-    """Build the canonical items model from a legacy state's parallel lists.
-
-    Legacy states (created before this module) carry completion as three
-    separate lists; ``opened_tasks`` doubles as the in-progress signal.
-    """
-    if "items" in state.user_data:
-        return
-    items = {key: "not_started" for key in ITEM_KEYS}
-    for key in set(state.user_data.get("completed_steps", [])) | set(
-        state.user_data.get("completed_roles", [])
-    ):
-        if key in items:
-            items[key] = "completed"
-    for slug in state.user_data.get("completed_tasks", []):
-        base = "_".join(slug.split("_")[:3]) if slug.startswith("analysis_task_") else slug
-        if base in items:
-            items[base] = "completed"
-    if "analysis" in state.user_data.get("completed_modes", []):
-        items["mode_analysis"] = "completed"
-    if "roleplay" in state.user_data.get("completed_modes", []):
-        items["mode_roleplay"] = "completed"
-    for slug in state.user_data.get("opened_tasks", []):
-        base = "_".join(slug.split("_")[:3]) if slug.startswith("analysis_task_") else slug
-        if base in items and items[base] != "completed":
-            items[base] = "in_progress"
-    current = state.current_state
-    if current.startswith(("analysis_task_", "roleplay_feedback_")) or current in ROLE_STEP_KEYS:
-        item = TRANSITIONS.get(current, {}).get("item")
-        if item is not None and items.get(item) == "not_started":
-            items[item] = "in_progress"
-    state.user_data["items"] = items
-
-
-#: State keys renamed after sessions had already stored them. A session left
-#: in flight at a retired key finds no transition row and no scenario state,
-#: so every input is rejected and the learner is stuck on a stale turn; the
-#: key is rewritten on load instead.
-LEGACY_STATE_KEYS = {
-    "roleplay_feedback_idea": "roleplay_feedback_idea_generator",
-}
-
-
-def _migrate_state_key(state: State) -> None:
-    """Rewrite a stored retired state key to its normalized successor (issue #12)."""
-    target = LEGACY_STATE_KEYS.get(state.current_state)
-    if target is not None:
-        state.current_state = target
-
-
-def _task_slug(key: str, level: Optional[str]) -> str:
-    """The legacy task slug for a canonical item ("" if not expressible)."""
-    if key.startswith("analysis_task_"):
-        return f"{key}_{level}" if level else ""
-    if key in ROLE_STEP_KEYS:
-        return key
-    return ""
 
 
 class TutorSession:
@@ -234,13 +174,6 @@ class TutorSession:
         completed = [key for key in STEP_KEYS if items.get(key) == "completed"]
         count = len(completed)
         percentage = int(count / TOTAL_STEPS * 100) if TOTAL_STEPS else 0
-        badge = "not_started" if count == 0 else ("completed" if count == TOTAL_STEPS else "in_progress")
-
-        item = TRANSITIONS.get(current, {}).get("item")
-        current_step = STEP_KEYS.index(item) + 1 if item in STEP_KEYS else 0
-
-        analysis_done = sum(1 for key in ANALYSIS_STEP_KEYS if items.get(key) == "completed")
-        roleplay_done = sum(1 for key in ROLE_STEP_KEYS if items.get(key) == "completed")
 
         completed_option_values: list[str] = []
         if current == "role_menu":
@@ -257,54 +190,26 @@ class TutorSession:
         elif current == "level_assessment" and ud.get("level"):
             completed_option_values.append(_LEVEL_BY_NAME.get(ud["level"], ""))
 
-        level = ud.get("level")
-        opened = [
-            slug
-            for key in ITEM_KEYS
-            if items.get(key) == "in_progress" and (slug := _task_slug(key, level))
-        ]
-
         return Summary(
             sections=self._sections(items),
-            status_badge=badge,
             percentage=percentage,
-            current_step=current_step,
             total_steps=TOTAL_STEPS,
             completed_steps_count=count,
-            analysis_progress={
-                "completed": analysis_done,
-                "total": len(ANALYSIS_STEP_KEYS),
-                "percentage": int(analysis_done / len(ANALYSIS_STEP_KEYS) * 100),
-            },
-            roleplay_progress={
-                "completed": roleplay_done,
-                "total": len(ROLE_STEP_KEYS),
-                "percentage": int(roleplay_done / len(ROLE_STEP_KEYS) * 100),
-            },
             completed_option_values=completed_option_values,
-            completed_roles=[key for key in ROLE_STEP_KEYS if items.get(key) == "completed"],
-            completed_modes=[
-                name
-                for name, key in (("analysis", "mode_analysis"), ("roleplay", "mode_roleplay"))
-                if items.get(key) == "completed"
-            ],
-            analysis_tasks=[(key, ANALYSIS_LABELS[key]) for key in ANALYSIS_STEP_KEYS],
-            role_tasks=[(key, ROLE_LABELS[key]) for key in ROLE_STEP_KEYS],
-            opened_tasks=opened,
-            level=level,
-            phase=_phase_of(current),
+            finished=_phase_of(current) == "finished",
+            level=ud.get("level"),
             user_name=ud.get("user_name"),
             session_id=state.session_id,
         )
 
-    def _sections(self, items: dict[str, str]) -> ProgressSections:
-        """Group the completion model into the rows the pages render.
+    def _sections(self, items: dict[str, str]) -> list[ProgressSection]:
+        """Group the completion model into the sections the pages render.
 
-        Every row carries its own status, so a page renders a badge straight
-        from the row and never re-derives status from a completed count — the
-        two pages cannot disagree (issue #14, GLOSSARY "completion model").
-        Row keys are the completion-model item keys; each page supplies its own
-        heading wording.
+        The module owns the section order and the heading wording; every row
+        carries its own status, so a page renders a badge straight from the
+        row and never re-derives status from a completed count — the two pages
+        cannot disagree (issue #14, GLOSSARY "completion model"). Row keys are
+        the completion-model item keys.
         """
         analysis_rows = [
             ProgressRow(key, ANALYSIS_LABELS[key], items.get(key, "not_started"))
@@ -314,20 +219,20 @@ class TutorSession:
             ProgressRow(key, ROLE_LABELS[key], items.get(key, "not_started"))
             for key in ROLE_STEP_KEYS
         ]
-        return ProgressSections(
-            analysis=ProgressSection(
-                "Analysis Tasks",
+        return [
+            ProgressSection(
+                "📝 Analysis Tasks",
                 analysis_rows,
                 sum(1 for row in analysis_rows if row.status == "completed"),
                 len(analysis_rows),
             ),
-            roles=ProgressSection(
-                "Roles",
+            ProgressSection(
+                "🎭 Communication Roles",
                 role_rows,
                 sum(1 for row in role_rows if row.status == "completed"),
                 len(role_rows),
             ),
-        )
+        ]
 
     def reset(self) -> None:
         """Clear the stored session."""
@@ -362,11 +267,7 @@ class TutorSession:
         return self._state
 
     def _load(self) -> Optional[State]:
-        state = self._storage.load()
-        if state is not None:
-            _migrate_state_key(state)
-            _migrate_items(state)
-        return state
+        return self._storage.load()
 
     # --------------------------------------------------------------- routing
 

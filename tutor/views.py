@@ -67,7 +67,7 @@ def chat_view(request: HttpRequest):
         request.method == "POST"
         and turns
         and turns[-1].role == "user"
-        and summary.phase != "finished"
+        and not summary.finished
     ):
         messages.warning(
             request, "⚠️ Your input was not recognized — please choose one of the options below."
@@ -79,7 +79,7 @@ def chat_view(request: HttpRequest):
         {
             "turns": turns,
             "summary": summary,
-            "is_end": summary.phase == "finished",
+            "is_end": summary.finished,
             "debug": settings.DEBUG,
         },
     )

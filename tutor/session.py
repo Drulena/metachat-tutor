@@ -80,7 +80,11 @@ class ProgressRow:
 
 @dataclass(frozen=True)
 class ProgressSection:
-    """One titled group of :class:`ProgressRow` s, with its own economics."""
+    """One titled group of :class:`ProgressRow` s, with its own economics.
+
+    The module owns the heading wording (``title``) and the group order —
+    the pages render what they are told and supply nothing.
+    """
 
     title: str
     rows: list[ProgressRow]
@@ -88,51 +92,30 @@ class ProgressSection:
     total: int
 
 
-@dataclass(frozen=True)
-class ProgressSections:
-    """The two progress groups the pages render, named by the domain.
-
-    Each page supplies its own heading ("Roles" in the sidebar, "Communication
-    Roles" on the overview) — the module names the group, never the wording.
-    """
-
-    analysis: ProgressSection = field(default_factory=lambda: ProgressSection("", [], 0, 0))
-    roles: ProgressSection = field(default_factory=lambda: ProgressSection("", [], 0, 0))
-
-
 @dataclass
 class Summary:
-    """Derived presentation view the menu and export views will read.
+    """Derived presentation view the menu, export and reset views read.
 
-    Carries the progress metrics and completion data the views currently
-    recompute, so ``TutorSession.progress()`` (issue #3) can return it and the
-    views stop branching on ``current_state``. Defaults describe an untouched
-    session.
+    One question per field. A progress number never answers "which row is
+    done?" — each row carries its own status (issue #14). The counts describe
+    the whole session; ``finished`` is the one lifecycle question the views
+    ask. Defaults describe an untouched session.
     """
 
-    # Progress panel: every task row answers its own status (issue #14). Keyed
-    # by the domain group, so a page names the group it renders.
-    sections: dict[str, ProgressSection] = field(default_factory=dict)
-    # Progress metrics.
-    status_badge: str = "not_started"
+    # Progress panel: domain groups in module-owned order, each row answering
+    # for itself.
+    sections: list[ProgressSection] = field(default_factory=list)
+    # Session-wide counts, derived from the row statuses above.
     percentage: int = 0
-    current_step: int = 0
     total_steps: int = 15
     completed_steps_count: int = 0
-    analysis_progress: dict[str, Any] = field(default_factory=dict)
-    roleplay_progress: dict[str, Any] = field(default_factory=dict)
-    # Completion / presentation data the views read.
+    # Values the learner has chosen: the chat marks those options as taken.
     completed_option_values: list[str] = field(default_factory=list)
-    completed_roles: list[str] = field(default_factory=list)
-    completed_modes: list[str] = field(default_factory=list)
-    analysis_tasks: list[tuple[str, str]] = field(default_factory=list)
-    role_tasks: list[tuple[str, str]] = field(default_factory=list)
-    opened_tasks: list[str] = field(default_factory=list)
-    # Context.
+    # The one lifecycle question the views ask (resume, export, reset-confirm).
+    finished: bool = False
+    # Context (the sidebar and export header need these; the module is the only
+    # place that knows them, so the Summary carries them out).
     level: Optional[str] = None
-    phase: str = ""
-    # Identity (the chat sidebar and export link need these; the module is the
-    # only place that knows them, so the Summary carries them out).
     user_name: Optional[str] = None
     session_id: str = ""
 

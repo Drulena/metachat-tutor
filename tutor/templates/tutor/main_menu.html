@@ -63,10 +63,10 @@
     font-size: 0.85rem;
     color: #666;
   }
-  .task-group {
+  .task-status-section {
     margin-bottom: 24px;
   }
-  .task-group h2 {
+  .task-status-section h3 {
     font-size: 1.1rem;
     margin-bottom: 12px;
     padding-bottom: 8px;
@@ -157,43 +157,8 @@
     <p class="steps-info">{{ summary.completed_steps_count }} / {{ summary.total_steps }} steps completed</p>
   </div>
 
-  {# Analysis Tasks — each row answers its own status (issue #14). #}
-  <div class="task-group">
-    <h2>📝 Analysis Tasks</h2>
-    <ul class="task-list">
-      {% for row in summary.sections.analysis.rows %}
-        <li class="task-item">
-          <span class="task-label">{{ row.label }}</span>
-          {% if row.status == "completed" %}
-            <span class="badge badge-completed">✅ Completed</span>
-          {% elif row.status == "in_progress" %}
-            <span class="badge badge-in-progress">🔄 In Progress</span>
-          {% else %}
-            <span class="badge badge-not-started">⬜ Not Started</span>
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
-  </div>
-
-  {# Role-Play Tasks #}
-  <div class="task-group">
-    <h2>🎭 Communication Roles</h2>
-    <ul class="task-list">
-      {% for row in summary.sections.roles.rows %}
-        <li class="task-item">
-          <span class="task-label">{{ row.label }}</span>
-          {% if row.status == "completed" %}
-            <span class="badge badge-completed">✅ Completed</span>
-          {% elif row.status == "in_progress" %}
-            <span class="badge badge-in-progress">🔄 In Progress</span>
-          {% else %}
-            <span class="badge badge-not-started">⬜ Not Started</span>
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
-  </div>
+  {# Progress groups: one include, module-owned sections (issue #14). #}
+  {% include "tutor/task_group.html" %}
 
   <a href="{% url 'chat' %}" class="back-link">💬 Back to Chat</a>
   {% include "tutor/nav_buttons.html" with nav_use_form_submit=False %}

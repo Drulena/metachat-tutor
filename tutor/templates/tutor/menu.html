@@ -24,43 +24,8 @@
       <p class="progress-detail">{{ summary.completed_steps_count }} / {{ summary.total_steps }} steps completed</p>
     </div>
 
-    {# Analysis Tasks — each row answers its own status (issue #14). #}
-    <div class="task-status-section">
-      <h3>📝 Analysis Tasks</h3>
-      <ul class="task-list">
-        {% for row in summary.sections.analysis.rows %}
-          <li class="task-item">
-            <span class="task-label">{{ row.label }}</span>
-            {% if row.status == "completed" %}
-              <span class="badge badge-completed">✅ Completed</span>
-            {% elif row.status == "in_progress" %}
-              <span class="badge badge-in-progress">🔄 In Progress</span>
-            {% else %}
-              <span class="badge badge-not-started">⬜ Not Started</span>
-            {% endif %}
-          </li>
-        {% endfor %}
-      </ul>
-    </div>
-
-    {# Role-Play Progress #}
-    <div class="task-status-section">
-      <h3>🎭 Roles</h3>
-      <ul class="task-list">
-        {% for row in summary.sections.roles.rows %}
-          <li class="task-item">
-            <span class="task-label">{{ row.label }}</span>
-            {% if row.status == "completed" %}
-              <span class="badge badge-completed">✅ Completed</span>
-            {% elif row.status == "in_progress" %}
-              <span class="badge badge-in-progress">🔄 In Progress</span>
-            {% else %}
-              <span class="badge badge-not-started">⬜ Not Started</span>
-            {% endif %}
-          </li>
-        {% endfor %}
-      </ul>
-    </div>
+    {# Progress groups: one include, module-owned sections (issue #14). #}
+    {% include "tutor/task_group.html" %}
   {% endif %}
 
   <hr>
