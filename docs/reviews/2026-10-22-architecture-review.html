@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture review — metachat-tutor</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "neutral", themeVariables: { fontSize: "14px" } });
+</script>
+<style>
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86em; }
+  .deep { background: linear-gradient(to bottom right, #1e293b, #334155); }
+  .band { border-left-width: 3px; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased">
+<main class="max-w-5xl mx-auto px-6 py-14 space-y-12">
+
+  <header class="space-y-4">
+    <h1 class="text-4xl font-semibold tracking-tight">Architecture review — metachat-tutor</h1>
+    <p class="text-slate-600">Deepening opportunities in the Django tutor app: a conversation machine over a 44-row transition table, 44 scenario modules and a Storage seam. 60 commits, 2026-09-02 → 2026-10-22. Every number below was measured against the tree.</p>
+    <div class="flex flex-wrap gap-2 text-xs">
+      <span class="px-2 py-1 rounded bg-slate-900 text-white">Strong</span>
+      <span class="px-2 py-1 rounded bg-slate-200 text-slate-700">Worth exploring</span>
+      <span class="px-2 py-1 rounded bg-slate-100 text-slate-500">Speculative</span>
+      <span class="px-2 py-1 rounded bg-emerald-100 text-emerald-800">in-process</span>
+      <span class="px-2 py-1 rounded bg-amber-100 text-amber-800">needs your answer</span>
+    </div>
+    <p class="text-sm text-slate-500"><span class="mono">deep module</span> = lots of behaviour behind a small interface · <span class="mono">seam</span> = the boundary where a module's shape is chosen · <span class="mono">depth</span> = leverage per call site · <span class="mono">depth is locality</span> — complexity lives in one place, not scattered across callers.</p>
+  </header>
+
+  <section class="space-y-4">
+    <h2 class="text-2xl font-semibold tracking-tight">Where the friction is</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <div class="text-3xl font-semibold">44</div>
+        <div class="text-sm text-slate-600 mt-1">row modules, 2,307 lines in <span class="mono">tutor/transitions/</span> — 18 of them are level triplets of 6 bases</div>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <div class="text-3xl font-semibold">55%</div>
+        <div class="text-sm text-slate-600 mt-1">of that package is the 44 test fixture dicts (1,276 lines, ~29 each)</div>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <div class="text-3xl font-semibold">4</div>
+        <div class="text-sm text-slate-600 mt-1">places where the level axis is spelled inside <span class="mono">tutor_session.py</span> (:135, :158, :249, :413)</div>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <div class="text-3xl font-semibold">9–10</div>
+        <div class="text-sm text-slate-600 mt-1">files changed for one intent: a feedback-turn option label (2d1e88f)</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="space-y-4">
+    <h2 class="text-2xl font-semibold tracking-tight">The topology today</h2>
+    <p class="text-slate-600">One deep module already exists — <span class="mono">TutorSession</span>, five verbs over the Storage seam, no view touching a session key (ADR-0001 is real and complete at the view layer). The friction is in the data the module reads, and in the shape of the one view it returns.</p>
+    <div class="bg-white rounded-lg border border-slate-200 p-4">
+      <pre class="mermaid">
+flowchart TD
+  V["views.py<br/>6 views, 158 lines"] --> TS["TutorSession<br/>start · submit · back · progress · turns"]
+  TS --> SCN["scenarios/<br/>44 modules"]
+  TS --> TR["transitions/<br/>44 rows + 44 fixtures"]
+  TS --> ST["Storage seam<br/>2 adapters"]
+  TS --> FB["Feedback<br/>LLM seam, 2 adapters"]
+  V --> TPL["11 templates<br/>chat.html 156 · main_menu.html 199"]
+  TS -. "progress() raises on unstarted session" .-> V
+  TS -. "17-field Summary: 4 fields are consumed only by tests" .-> TPL
+  TR -. "level axis baked into state names" .-> SCN
+  classDef leak stroke:#dc2626,stroke-width:1.5px,stroke-dasharray:4 3;
+  class V,TPL,TR,SCN leak;
+      </pre>
+    </div>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-2xl font-semibold tracking-tight">One intent, measured in files</h2>
+    <p class="text-slate-600">Three commits, all in October, all the same kind of change: <em>make an option available / rename an option</em>.</p>
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700">
+          <tr><th class="text-left px-3 py-2">Commit</th><th class="text-left px-3 py-2">Intent</th><th class="px-3 py-2 text-right">Files</th><th class="px-3 py-2 text-right">Lines</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr><td class="px-3 py-2 mono">2d1e88f</td><td class="px-3 py-2">offer revise on every role-play feedback turn</td><td class="px-3 py-2 text-right font-semibold">10</td><td class="px-3 py-2 text-right">+530</td></tr>
+          <tr><td class="px-3 py-2 mono">8eb899c</td><td class="px-3 py-2">add back navigation to the role-play loop</td><td class="px-3 py-2 text-right font-semibold">8</td><td class="px-3 py-2 text-right">+165</td></tr>
+          <tr><td class="px-3 py-2 mono">4931690</td><td class="px-3 py-2">align role menu labels with canonical routing</td><td class="px-3 py-2 text-right font-semibold">3</td><td class="px-3 py-2 text-right">+35 / −11</td></tr>
+          <tr><td class="px-3 py-2 mono">e00b500</td><td class="px-3 py-2">route role-play feedback back to the role menu</td><td class="px-3 py-2 text-right font-semibold">6</td><td class="px-3 py-2 text-right">+18</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-sm text-slate-500">The churn lines up with the same surface: <span class="mono">chat.html</span> 23 commits, <span class="mono">views.py</span> 19, <span class="mono">style.css</span> 14 — the presentation seam, not the machine.</p>
+  </section>
+
+  <section id="c1" class="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+    <div class="flex items-start justify-between gap-4">
+      <h3 class="text-xl font-semibold">1 · Give the transition table its axes as parameters</h3>
+      <div class="flex gap-2 shrink-0">
+        <span class="px-2 py-1 rounded text-xs bg-slate-900 text-white">Strong</span>
+        <span class="px-2 py-1 rounded text-xs bg-emerald-100 text-emerald-800">in-process</span>
+      </div>
+    </div>
+    <div class="band border-slate-900 pl-3 text-sm text-slate-700">The level axis (beginner / intermediate / advanced) exists only inside state names, so every consumer re-derives it — and 18 rows plus 18 scenario modules are the same module written three times.</div>
+    <p><span class="font-semibold">Problem.</span> 18 of 44 row files and 18 of 44 scenario modules are level triplets of just 6 bases — the analysis row triplets differ in 8 of 46 lines, the scenario triplets in 4 of 11. 18 row files name <span class="mono">"after_registration_beginner"</span> as a literal back target (21 occurrences) — rows every level walks through, so the beginner target is spelled into the data for all three levels. The module repairs that at runtime, in four places: prefix matching at <span class="mono">tutor_session.py:413-415</span>, state-name formatting at :135-138, and the level re-derived at :158-164 and :249.</p>
+    <p><span class="font-semibold">Solution.</span> Keep one row per state, and make <span class="mono">level</span> a parameter of resolution instead of part of the name: <span class="mono">row_for(state, level)</span> resolves <span class="mono">next</span> / <span class="mono">back</span> targets and the <span class="mono">item</span> key from the learner's level. 44 rows collapse to 32, the level rule lives once in the module that owns routing, and the 44 fixture dicts become one generated table reached through the seam.</p>
+    <div class="grid md:grid-cols-2 gap-6">
+      <pre class="mermaid">
+flowchart LR
+  subgraph today["Today — level inside the name"]
+    A1["analysis_task_1_beginner"] --> A2["analysis_task_1_intermediate"]
+    A2 --> A3["analysis_task_1_advanced"]
+    A1 -. "text swap, 8 of 46 lines" .- A2
+  end
+  classDef dup stroke:#dc2626,stroke-width:1.5px,stroke-dasharray:4 3;
+  class A2,A3 dup;
+      </pre>
+      <pre class="mermaid">
+flowchart LR
+  S["analysis_task_1"] --> R["row_for(state, level)"]
+  L["level"] --> R
+  R --> N["next: analysis_feedback_1.&lt;level&gt;"]
+  R --> B["back: after_registration.&lt;level&gt;"]
+  R --> I["item: analysis_1_&lt;level&gt;"]
+      </pre>
+    </div>
+    <div class="grid md:grid-cols-2 gap-6 text-sm">
+      <div>
+        <div class="font-semibold text-slate-800 mb-1">Wins</div>
+        <ul class="space-y-1 list-disc list-inside text-slate-600">
+          <li><span class="font-semibold text-slate-800">Locality:</span> the level rule in one place, not four</li>
+          <li><span class="font-semibold text-slate-800">Leverage:</span> a new level costs data, not 6 rows + 6 scenario modules</li>
+          <li>12 rows, 12 scenario modules, 12 fixture dicts (~350 lines) deleted</li>
+          <li>No magic-string surgery inside the module</li>
+          <li>Interface unchanged — callers of TutorSession never see it</li>
+        </ul>
+      </div>
+      <div class="space-y-1 text-slate-600">
+        <div><span class="font-semibold text-slate-800">Cost:</span> M. Mechanical but high-touch: 12 row modules collapsed into 6, their 12 scenario twins, the table's assembly, and the item-name path in <span class="mono">tutor_session.py</span>.</div>
+        <div><span class="font-semibold text-slate-800">Test first:</span> a traversal of all three level paths through <span class="mono">TutorSession.submit</span>, asserting which row each state reaches. The 22 transition tests and 38 machine traversals already exist, so the net is real.</div>
+      </div>
+    </div>
+    <div class="text-xs text-slate-500 border-t border-slate-100 pt-3">ADR note: ADR-0002 chose one-module-per-state deliberately, and this keeps that — it only removes the level suffix. The 44 fixture dicts move with this candidate: they exist to drive rows from the row's own file, so they are only deletable once the row becomes a function of (state, level).</div>
+  </section>
+
+  <section id="c2" class="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+    <div class="flex items-start justify-between gap-4">
+      <h3 class="text-xl font-semibold">2 · Make the Summary answer the status question</h3>
+      <div class="flex gap-2 shrink-0">
+        <span class="px-2 py-1 rounded text-xs bg-slate-900 text-white">Strong</span>
+        <span class="px-2 py-1 rounded text-xs bg-amber-100 text-amber-800">fixes a live bug</span>
+      </div>
+    </div>
+    <div class="band border-slate-900 pl-3 text-sm text-slate-700">The deep module returns a bag of 17 numbers, so the templates derive task status themselves — and they disagree, live, on the same learner state.</div>
+    <p><span class="font-semibold">Problem.</span> <span class="mono">Summary</span> (<span class="mono">session.py:68-98</span>) has 17 flat fields: 12 are read by templates, 2 by <span class="mono">views.py</span> (<span class="mono">phase</span>, <span class="mono">session_id</span>), and 4 — <span class="mono">status_badge</span>, <span class="mono">current_step</span>, <span class="mono">roleplay_progress</span>, <span class="mono">completed_modes</span> — are consumed only by tests. The two task lists show the cost of a shallow view: <span class="mono">main_menu.html:167-171</span> asks <span class="mono">key in completed_option_values</span> and renders Completed / Not Started; <span class="mono">menu.html:34-37</span> asks the same, then adds a positional fallback — <span class="mono">forloop.counter &lt;= analysis_progress.completed</span> — that stamps ✅ Completed on tasks the learner has not opened. With one analysis task in progress the sidebar says task 2 ✅ Completed and the main menu says ⬜ Not Started, for the same session. The status vocabulary lives in 11 templates, not in the module.</p>
+    <p><span class="font-semibold">Solution.</span> Deepen the view: <span class="mono">progress()</span> returns sections of rows that already carry their state — <span class="mono">sections: [{title, rows: [{key, label, status}], completed, total, percentage}]</span> with <span class="mono">status ∈ not_started | in_progress | completed</span>, plus <span class="mono">finished</span> / <span class="mono">started</span>. The slug rule at <span class="mono">tutor_session.py:158-164</span> stays behind the seam. Interface 17 fields → ~8, and the templates stop computing anything.</p>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="bg-slate-100 rounded-lg p-4 text-sm">
+        <div class="font-semibold mb-2">Today — the same key, two pages</div>
+        <div class="mono text-xs leading-relaxed">main_menu.html:167<br/>&nbsp;&nbsp;key in completed_option_values → ✅ / ⬜<br/><br/>menu.html:34-37<br/>&nbsp;&nbsp;key in completed_option_values → ✅<br/>&nbsp;&nbsp;elif forloop.counter &lt;= analysis_progress.completed → ✅<br/><br/>→ task_2: ✅ Completed  /  ⬜ Not Started</div>
+      </div>
+      <div class="deep text-white rounded-lg p-4 text-sm">
+        <div class="font-semibold mb-2">Deepened — one vocabulary, computed once</div>
+        <div class="mono text-xs leading-relaxed">progress() →<br/>&nbsp;&nbsp;sections = [{title: "Analysis Tasks",<br/>&nbsp;&nbsp;&nbsp;&nbsp;rows: [{key, label, status: "in_progress"}],<br/>&nbsp;&nbsp;&nbsp;&nbsp;completed: 0, total: 2, percentage: 0}, …]<br/><br/>{% for row in section.rows %} → badge(row.status)</div>
+      </div>
+    </div>
+    <div class="grid md:grid-cols-2 gap-6 text-sm">
+      <div>
+        <div class="font-semibold text-slate-800 mb-1">Wins</div>
+        <ul class="space-y-1 list-disc list-inside text-slate-600">
+          <li><span class="font-semibold text-slate-800">Locality:</span> status in the module, not in two templates</li>
+          <li><span class="font-semibold text-slate-800">Leverage:</span> one rule, every page agrees by construction</li>
+          <li>The live sidebar contradiction disappears with it</li>
+          <li>4 test-only fields and the positional fallback deleted</li>
+        </ul>
+      </div>
+      <div class="space-y-1 text-slate-600">
+        <div><span class="font-semibold text-slate-800">Cost:</span> M. The Summary's producers/consumers: <span class="mono">tutor_session.py:198-294</span>, <span class="mono">menu.html</span>, <span class="mono">main_menu.html</span>, <span class="mono">export.html</span>, <span class="mono">views.py</span>.</div>
+        <div><span class="font-semibold text-slate-800">Test first:</span> one badge per task in both pages, driven through TutorSession with <span class="mono">analysis_task_1 = in_progress</span> — red today, green after.</div>
+      </div>
+    </div>
+    <div class="text-xs text-slate-500 border-t border-slate-100 pt-3">ADR note: ADR-0001 forbids the view reaching past the module into session state — the Summary shipping raw option values (<span class="mono">completed_option_values</span>) is that leak surviving into the new interface. Deepening the view closes it. The module already branches on state at :243-255, so the vocabulary is there; it is the returned shape that is shallow.</div>
+  </section>
+
+  <section id="c3" class="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+    <div class="flex items-start justify-between gap-4">
+      <h3 class="text-xl font-semibold">3 · One seam for the option protocol</h3>
+      <div class="flex gap-2 shrink-0">
+        <span class="px-2 py-1 rounded text-xs bg-slate-900 text-white">Strong</span>
+      </div>
+    </div>
+    <div class="band border-slate-900 pl-3 text-sm text-slate-700">An <em>option</em> is one concept, but its label comes from three places that merge into a flat dict — and its rejection copy is written in the view, not the row that defines the rejection.</div>
+    <p><span class="font-semibold">Problem.</span> <span class="mono">_make_turn</span> flattens three label sources into one value→label dict: scenario <span class="mono">options</span>, the row's <span class="mono">nav</span> map, and back / retry synthesised by <span class="mono">_navigation_options</span> (<span class="mono">tutor_session.py:515-548</span>). Its own docstring states the tie-break — "scenario-defined options win on clashes" (:535) — so a row's nav label silently loses; <span class="mono">4931690</span> "align role menu labels with canonical routing" (3 files, +35/−11) is one such realignment. The origin of an option is then gone: the template gets a flat dict (<span class="mono">chat.html:36-42</span>) and cannot tell a nav affordance from a role choice, so <span class="mono">.system-options</span> / <span class="mono">.system-btn</span> in <span class="mono">style.css:439-462</span> has no consumer at all. Rejection is worse: every row carries a <span class="mono">rejected</span> copy the module drops, and <span class="mono">views.py:64-74</span> infers rejection from the turn count (<span class="mono">turns[-1].role == "user" and summary.phase != "finished"</span>) with a copy hardcoded in the view at :73. The three sources of "revise is possible here" — the scenario's <span class="mono">options</span>, the row's <span class="mono">accept</span>, the row's <span class="mono">next</span>/<span class="mono">effects</span> — must be kept in step by hand: 9 scenario modules + 9 row files carry the revise trio, and <span class="mono">2d1e88f</span> paid 10 files for it.</p>
+    <p><span class="font-semibold">Solution.</span> Give the seam one vocabulary: the module returns options as typed records — <span class="mono">{value, label, kind: choice | nav | retry}</span> — and surfaces the row's own <span class="mono">rejected</span> copy as a field on the turn. The template styles by kind, the view renders the rejection the row wrote, and a clash between a nav label and a choice label becomes a construction the table can state instead of a merge order.</p>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="bg-slate-100 rounded-lg p-4 text-sm">
+        <div class="font-semibold mb-2">Today — three sources, one flat dict</div>
+        <div class="mono text-xs leading-relaxed">tutor_session.py:519<br/>options = {**navigation, **(options or {})}<br/>&nbsp;&nbsp;↑ row nav (44 maps) &nbsp; ↑ scenario options<br/>&nbsp;&nbsp;label = {**navigation, **(options or {})}.get(value)<br/><br/>views.py:73 — copy the row never supplied<br/>"⚠️ Your input was not recognized …"</div>
+      </div>
+      <div class="deep text-white rounded-lg p-4 text-sm">
+        <div class="font-semibold mb-2">Deepened — kind is in the protocol</div>
+        <div class="mono text-xs leading-relaxed">Turn.options = [<br/>&nbsp;&nbsp;{value: "3", label: "Advocate", kind: "choice"},<br/>&nbsp;&nbsp;{value: "revise", label: "✏️ Revise", kind: "choice"},<br/>&nbsp;&nbsp;{value: "back", label: "⬅️ Back", kind: "nav"},<br/>&nbsp;&nbsp;]<br/>Turn.rejected = row["rejected"]</div>
+      </div>
+    </div>
+    <div class="grid md:grid-cols-2 gap-6 text-sm">
+      <div>
+        <div class="font-semibold text-slate-800 mb-1">Wins</div>
+        <ul class="space-y-1 list-disc list-inside text-slate-600">
+          <li><span class="font-semibold text-slate-800">Depth:</span> the merge rule is the module's, not the template's</li>
+          <li><span class="font-semibold text-slate-800">Locality:</span> rejection copy lives with the row that rejects</li>
+          <li>The shadowing class of label bugs becomes unrepresentable</li>
+          <li><span class="mono">.system-options</span> CSS gets a real consumer, or goes</li>
+        </ul>
+      </div>
+      <div class="space-y-1 text-slate-600">
+        <div><span class="font-semibold text-slate-800">Cost:</span> S–M. <span class="mono">_make_turn</span> / <span class="mono">_navigation_options</span>, <span class="mono">chat.html</span>, <span class="mono">views.py</span>, the option assertions in <span class="mono">test_tutor_session.py</span> and <span class="mono">test_views.py</span>.</div>
+        <div><span class="font-semibold text-slate-800">Test first:</span> assert the current turn's options carry kind, and that a rejected input surfaces the row's <span class="mono">rejected</span> text through TutorSession — both red today.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="c4" class="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+    <div class="flex items-start justify-between gap-4">
+      <h3 class="text-xl font-semibold">4 · Assemble the registries from the modules that exist</h3>
+      <div class="flex gap-2 shrink-0">
+        <span class="px-2 py-1 rounded text-xs bg-slate-200 text-slate-700">Worth exploring</span>
+      </div>
+    </div>
+    <div class="band border-slate-400 pl-3 text-sm text-slate-700">Two hand-maintained mirrors of 44 modules each: 257 lines whose only job is to say the same thing the package already knows.</div>
+    <p><span class="font-semibold">Problem.</span> <span class="mono">tutor/scenarios/__init__.py</span> (132 lines) and <span class="mono">tutor/transitions/__init__.py</span> (125 lines) import every module and restate it as a dict entry — 44 + 44 pairs. <span class="mono">SCENARIO["states"]</span> is append history: <span class="mono">analysis_task_2</span> sits between data_collection and roleplay_idea, so the flow order is a side effect of the order someone pasted the entries. A module that exists but is not registered is invisible: the graph checks in <span class="mono">_validate.py</span> only see registered rows, so an orphan state module cannot fail validation.</p>
+    <p><span class="font-semibold">Solution.</span> Derive the maps from the package — walk <span class="mono">tutor/scenarios</span> and <span class="mono">tutor/transitions</span>, take each module's declared <span class="mono">STATE</span> / row, and keep one small <span class="mono">STATE_ORDER</span> list as the flow declaration (the one thing the filesystem cannot state). Registration stops being a thing a contributor can forget, and the validation sweep can cover modules that forgot to register.</p>
+    <div class="grid md:grid-cols-2 gap-6 text-sm">
+      <div>
+        <div class="font-semibold text-slate-800 mb-1">Wins</div>
+        <ul class="space-y-1 list-disc list-inside text-slate-600">
+          <li><span class="font-semibold text-slate-800">Depth:</span> the package is the registry</li>
+          <li><span class="font-semibold text-slate-800">Locality:</span> flow order declared in one list</li>
+          <li>~250 lines of mirror deleted</li>
+          <li>Unregistered modules become a validation failure</li>
+        </ul>
+      </div>
+      <div class="space-y-1 text-slate-600">
+        <div><span class="font-semibold text-slate-800">Cost:</span> M, and it has a sharp edge.</div>
+        <div><span class="font-semibold text-slate-800">Spike first:</span> a package walk inside Django app loading. The import cycle is already worked around by two deferred imports (<span class="mono">tutor_session.py:88, 91</span>); a filesystem walk must not re-open it. Half a day, throwaway.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="c5" class="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+    <div class="flex items-start justify-between gap-4">
+      <h3 class="text-xl font-semibold">5 · Put "has this learner started?" in the interface</h3>
+      <div class="flex gap-2 shrink-0">
+        <span class="px-2 py-1 rounded text-xs bg-slate-200 text-slate-700">Worth exploring</span>
+      </div>
+    </div>
+    <div class="band border-slate-400 pl-3 text-sm text-slate-700">A fact every caller needs is only available by catching an exception — so the callers spell the probe themselves, twice without a catch.</div>
+    <p><span class="font-semibold">Problem.</span> <span class="mono">progress()</span> raises <span class="mono">RuntimeError("Session not started")</span> (<span class="mono">tutor_session.py:198-201</span>). <span class="mono">views.py:21-31</span> translates that into <span class="mono">None</span> — "the single place that translates that into None so the views never spell the 'is it started?' probe themselves" — and three sites honour it (:42, :95, :139), but <span class="mono">:61</span> (chat) and <span class="mono">:122</span> call <span class="mono">session.progress()</span> bare. The template proxy is a third spelling: <span class="mono">summary.user_name is None</span> as a start test (<span class="mono">main_menu.html:143-145, 176-181</span>). "Not started yet" is a real state of a language lesson, so it travels as a crash.</p>
+    <p><span class="font-semibold">Solution.</span> Let the interface answer the question: <span class="mono">started()</span> / <span class="mono">finished()</span> booleans, and <span class="mono">progress()</span> that returns a zero-state Summary for an untouched session instead of raising. The view helper, the bare calls and the <span class="mono">user_name</span> proxy all collapse into one call.</p>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="bg-slate-100 rounded-lg p-4 text-sm">
+        <div class="font-semibold mb-2">Today — the question is asked as an exception</div>
+        <pre class="mermaid">
+sequenceDiagram
+  participant V as views.py
+  participant TS as TutorSession
+  V->>TS: progress()
+  TS--xV: RuntimeError("Session not started")
+  V->>V: _summary_or_none() catch (:29)
+  V->>TS: progress() :61, :122 (no catch)
+  Note over V: template proxy —<br/>summary.user_name is None
+        </pre>
+      </div>
+      <div class="deep text-white rounded-lg p-4 text-sm">
+        <div class="font-semibold mb-2">Deepened — the question is in the interface</div>
+        <pre class="mermaid">
+sequenceDiagram
+  participant V as views.py
+  participant TS as TutorSession
+  V->>TS: started()
+  TS-->>V: False
+  V->>TS: progress()
+  TS-->>V: Summary(phase: "not_started")
+  Note over V: one spelling, no catch,<br/>no proxy
+        </pre>
+      </div>
+    </div>
+    <div class="grid md:grid-cols-2 gap-6 text-sm">
+      <div>
+        <div class="font-semibold text-slate-800 mb-1">Wins</div>
+        <ul class="space-y-1 list-disc list-inside text-slate-600">
+          <li><span class="font-semibold text-slate-800">Depth:</span> an exceptional fact becomes a value</li>
+          <li><span class="font-semibold text-slate-800">Locality:</span> one spelling, in the module</li>
+          <li>The two unguarded call sites stop being latent crashes</li>
+          <li>The template's <span class="mono">user_name</span> proxy goes away</li>
+        </ul>
+      </div>
+      <div class="space-y-1 text-slate-600">
+        <div><span class="font-semibold text-slate-800">Cost:</span> S–M. <span class="mono">progress()</span>, <span class="mono">_summary_or_none</span>, 6 view sites, 5 template guards.</div>
+        <div><span class="font-semibold text-slate-800">Test first:</span> the three "before any input" tests (<span class="mono">test_tutor_session.py:95</span>) become interface calls; a GET on every view with a fresh session is one assertion each.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="c6" class="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+    <div class="flex items-start justify-between gap-4">
+      <h3 class="text-xl font-semibold">6 · Delete the mass that answers no question</h3>
+      <div class="flex gap-2 shrink-0">
+        <span class="px-2 py-1 rounded text-xs bg-slate-100 text-slate-500">Speculative</span>
+        <span class="px-2 py-1 rounded text-xs bg-amber-100 text-amber-800">needs your answer</span>
+      </div>
+    </div>
+    <div class="band border-slate-400 pl-3 text-sm text-slate-700">A shallow module is one you can delete without effect. Several pieces of this codebase already are that.</div>
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700">
+          <tr><th class="text-left px-3 py-2">What</th><th class="text-left px-3 py-2">Where</th><th class="px-3 py-2 text-right">Lines</th><th class="text-left px-3 py-2">Evidence</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 text-slate-600">
+          <tr><td class="px-3 py-2">Unused model</td><td class="px-3 py-2 mono">tutor/models.py:13-61</td><td class="px-3 py-2 text-right">49</td><td class="px-3 py-2">zero references, no migration</td></tr>
+          <tr><td class="px-3 py-2">Unused template</td><td class="px-3 py-2 mono">templates/tutor/nav_buttons.html</td><td class="px-3 py-2 text-right">24</td><td class="px-3 py-2">no include, no view</td></tr>
+          <tr><td class="px-3 py-2">Unused CSS</td><td class="px-3 py-2 mono">static/tutor/style.css:439-462</td><td class="px-3 py-2 text-right">24</td><td class="px-3 py-2"><span class="mono">.system-options</span> / <span class="mono">.system-btn</span>: zero consumers</td></tr>
+          <tr><td class="px-3 py-2">Re-export shim</td><td class="px-3 py-2 mono">tutor/data.py</td><td class="px-3 py-2 text-right">14</td><td class="px-3 py-2">one importer: <span class="mono">test_tutor_session.py:257</span></td></tr>
+          <tr><td class="px-3 py-2">Duplicated doc</td><td class="px-3 py-2 mono">docs/adr/0002 ↔ the two <span class="mono">__init__</span> docstrings</td><td class="px-3 py-2 text-right">13</td><td class="px-3 py-2">same text, two homes</td></tr>
+          <tr><td class="px-3 py-2">Stale README</td><td class="px-3 py-2 mono">README.md:21-27</td><td class="px-3 py-2 text-right">7</td><td class="px-3 py-2">describes pre-ADR-0001 flow</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-sm text-slate-600">The interface also leaks in one place: <span class="mono">menu.html:71-73</span> reaches past the module for Django's <span class="mono">debug</span> flag. And <span class="mono">_migrate_items</span> (<span class="mono">tutor_session.py:108-139</span>), <span class="mono">LEGACY_STATE_KEYS</span> :146-148, <span class="mono">_migrate_state_key</span> :151-155 and <span class="mono">_task_slug</span> :158-164 carry the pre-2026-10-20 key format — ~90 lines whose need depends on one question only you can answer.</p>
+    <div class="grid md:grid-cols-2 gap-6 text-sm">
+      <div>
+        <div class="font-semibold text-slate-800 mb-1">Wins</div>
+        <ul class="space-y-1 list-disc list-inside text-slate-600">
+          <li><span class="font-semibold text-slate-800">Depth:</span> deleting is the cheapest deepening</li>
+          <li>~130 lines of surface with no consumer, gone</li>
+          <li>The migration trio is ~90 more, if history allows</li>
+        </ul>
+      </div>
+      <div class="space-y-1 text-slate-600">
+        <div><span class="font-semibold text-slate-800">Cost:</span> S. Deletions plus a README and docstring tidy.</div>
+        <div><span class="font-semibold text-slate-800">Needs your answer:</span> are sessions created before 2026-10-20 worth keeping? If not, the legacy key migration, <span class="mono">_task_slug</span>, <span class="mono">opened_tasks</span> and the template slug formatting leave with it.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="deep text-white rounded-xl p-6 space-y-3">
+    <h2 class="text-2xl font-semibold tracking-tight">What I'd build first</h2>
+    <p class="text-slate-200"><span class="font-semibold text-white">Candidate 2 — the Summary that answers the status question.</span> It is the only candidate that removes a bug a learner can see (the sidebar stamping ✅ Completed on a task they never opened, <span class="mono">menu.html:36-37</span>), it deletes 4 test-only fields and 2 template derivations, and it makes the ADR-0001 seam deeper rather than wider: status vocabulary behind <span class="mono">progress()</span>, templates that render what they are told.</p>
+    <p class="text-slate-200"><span class="font-semibold text-white">Then candidate 1 — the axis parameters.</span> It is the structural win: 12 rows, 12 scenario modules and their 12 fixture dicts deleted, and the level rule in one place. It deserves its own session because it is wide, mechanical, and ADR-0002 adjacent.</p>
+    <p class="text-slate-300 text-sm">Run each as <span class="mono">/tdd</span> against the red test named on its card. Use the <span class="mono">/codebase-design</span> vocabulary in the grilling: the seam that changes here is the Summary's shape and the row's resolution, not the interface of TutorSession.</p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-2xl font-semibold tracking-tight">What I'd leave alone</h2>
+    <ul class="space-y-1 list-disc list-inside text-slate-600 text-sm">
+      <li><span class="mono">TutorSession</span>'s five verbs — <span class="mono">start · submit · back · progress · turns</span> is a genuinely deep module (548 lines behind a call surface you can drive end to end), and ADR-0001's cutover is complete at the view layer.</li>
+      <li>The <span class="mono">Storage</span> and <span class="mono">Feedback</span> seams — two adapters each, tests run on <span class="mono">MemoryStorage</span> with no Django, the LLM behind one function. This is the shape the other candidates are reaching for.</li>
+      <li>ADR-0002's one-module-per-state — the cost above is the level suffix, not the module count.</li>
+      <li>The graph checks in <span class="mono">tutor/transitions/_validate.py</span> — reachability, back symmetry, nav coverage. They are the reason the table is trustworthy at 44 rows.</li>
+      <li><span class="mono">chat.html</span> is data-driven (option loop, message list, inline JS filling the input) — the presentation problem is the protocol above it, not the template itself.</li>
+    </ul>
+  </section>
+
+</main>
+</body>
+</html>
