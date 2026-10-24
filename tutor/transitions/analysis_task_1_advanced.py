@@ -14,6 +14,7 @@ ROW = {
     "phase": "analysis",
     "accept": None,
     "effects": [("set-item", "analysis_task_1", "completed")],
+    "rejected": None,
     "fixture": {
         "user_data": {
             "user_name": "Test Learner",

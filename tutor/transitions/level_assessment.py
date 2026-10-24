@@ -31,6 +31,7 @@ ROW = {
             ("set-item", "level_assessment", "completed"),
         ],
     },
+    "rejected": "Choose a level by number, or type 'back'.",
     "fixture": {
         "user_data": {
             "user_name": "Test Learner",

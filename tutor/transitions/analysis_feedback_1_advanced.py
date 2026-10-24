@@ -17,6 +17,7 @@ ROW = {
         ("set-item", "analysis_task_1", "completed"),
         ("set-item", "analysis_task_2", "in_progress"),
     ],
+    "rejected": None,
     "fixture": {
         "user_data": {
             "user_name": "Test Learner",

@@ -14,6 +14,7 @@ ROW = {
     "phase": "data_collection",
     "accept": ["exit"],
     "effects": [],
+    "rejected": "Tell me your name: type 'name <your name>', then pick a level, or type 'back'.",
     "fixture": {
         "user_data": {
             "user_name": "Test Learner",

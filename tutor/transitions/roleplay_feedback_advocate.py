@@ -17,6 +17,7 @@ ROW = {
         "revise": [("set-item", "role_advocate", "in_progress")],
         "next": [("set-item", "role_advocate", "completed")],
     },
+    "rejected": None,
     "fixture": {
         "user_data": {
             "user_name": "Test Learner",

@@ -14,6 +14,7 @@ ROW = {
     "phase": "analysis",
     "accept": ["yes"],
     "effects": [("set-item", "analysis_task_1", "in_progress")],
+    "rejected": "Please confirm you want to proceed with the analysis.",
     "fixture": {
         "user_data": {
             "user_name": "Test Learner",

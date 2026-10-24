@@ -49,6 +49,7 @@ from .session import (
     Storage,
     Summary,
     Turn,
+    TurnOption,
     default_feedback,
 )
 from .transitions import TRANSITIONS
@@ -73,6 +74,18 @@ _ANALYSIS_MARKERS = ("\n\n**📋 Model answer:**", "\n\n▶️")
 _ROLEPLAY_MARKERS = ("\n\n▶️",)
 
 _BACK_LABEL = "⬅️ Back"
+
+#: The module's fallback copy for rows that declare ``rejected: None``
+#: (ADR-0005: rejection is the module's question, so the fallback string
+#: lives here, not in the view).
+_GENERIC_REJECTION = (
+    "That answer is not recognized: choose one of the offered options, type "
+    "'back', 'finish', 'restart' (to erase and start over), 'export' (to "
+    "download the transcript), 'help' (for a summary of the rules), 'idea' "
+    "(to generate an idea for the assignments, when the task asks for one), "
+    "or 'next' (to advance one page). In data collection, type 'name <your "
+    "name>'. The task's own options are shown beneath the question."
+)
 
 
 def _sanitize_name(raw: str) -> str:
@@ -151,6 +164,11 @@ class TutorSession:
                 state.current_state = new_state
                 if new_state != "end":
                     self._append_assistant_turn(state)
+            else:
+                # The routing dropped the input: flag the unanswered user
+                # entry so ``turns()`` can pair it with the row's rejection
+                # copy (issue #15) — the view never infers rejection.
+                state.chat_history[-1]["rejected"] = True
 
         self._storage.save(state)
         return self._make_turn(state, state.chat_history[-1], is_current=True)
@@ -160,7 +178,8 @@ class TutorSession:
 
         Each assistant turn also carries ``used_value`` — the option the
         learner used to answer it, read from the user entry that follows
-        (issue #14).
+        (issue #14). A user turn whose input the routing dropped carries
+        ``rejection`` — the row's own copy (issue #15).
         """
         state = self._require_state()
         history = state.chat_history
@@ -172,6 +191,7 @@ class TutorSession:
                 used_value=self._used_value(
                     entry, history[index + 1] if index + 1 < len(history) else None
                 ),
+                rejection=self._rejection_copy(entry),
             )
             for index, entry in enumerate(history)
         ]
@@ -460,11 +480,22 @@ class TutorSession:
         entry: dict,
         is_current: bool,
         used_value: Optional[str] = None,
+        rejection: Optional[str] = None,
     ) -> Turn:
         options = entry.get("options")
         if is_current and entry.get("role") == "assistant":
-            navigation = self._navigation_options(state, entry)
-            options = {**navigation, **(options or {})}
+            # The single set (ADR-0005): nav offers first, scenario options
+            # after. On a clash the scenario-defined label wins (presentation)
+            # and the kind stays the nav offer's (routing origin). Anything
+            # not offered by the nav map / synthesised edges is a scenario
+            # choice — the row's nav map is the origin test (ratified Q3).
+            offers: dict[str, tuple[str, str]] = dict(self._navigation_options(state, entry))
+            for value, label in (options or {}).items():
+                kind = offers[value][1] if value in offers else "choice"
+                offers[value] = (label, kind)
+            options = [TurnOption(value, label, kind) for value, (label, kind) in offers.items()]
+        elif options:
+            options = [TurnOption(value, label, "choice") for value, label in options.items()]
         return Turn(
             role=entry["role"],
             message=entry["content"],
@@ -472,7 +503,20 @@ class TutorSession:
             options=options,
             timestamp=entry["timestamp"],
             used_value=used_value,
+            rejection=rejection,
         )
+
+    def _rejection_copy(self, entry: dict) -> Optional[str]:
+        """The row-owned copy for an unanswered, rejected user entry.
+
+        The flag rides on the chat entry (``submit()`` sets it when routing
+        drops the input). The row's ``rejected`` copy wins; rows that declare
+        ``None`` get the module's generic fallback (ADR-0005, issue #15).
+        """
+        if entry.get("role") != "user" or not entry.get("rejected"):
+            return None
+        row_copy = TRANSITIONS.get(entry.get("state", ""), {}).get("rejected")
+        return row_copy if row_copy is not None else _GENERIC_REJECTION
 
     def _used_value(self, entry: dict, following: Optional[dict]) -> Optional[str]:
         """The option value the learner used to answer this assistant entry.
@@ -497,24 +541,26 @@ class TutorSession:
             return value
         return None
 
-    def _navigation_options(self, state: State, entry: dict) -> dict[str, str]:
-        """Navigation options for the current assistant turn only.
+    def _navigation_options(self, state: State, entry: dict) -> dict[str, tuple[str, str]]:
+        """Navigation offers for the current assistant turn, with kinds.
 
-        ``back`` is available in every state except ``start`` (there is
-        nothing to go back to on the welcome turn). On a failed LLM
-        message the retry option replaces the advance option (up to 3
-        tries). Advance/finish options come from the transition row's
-        ``nav``; scenario-defined options win on clashes.
+        Every offer from the transition row's ``nav`` map and the synthesised
+        ``back`` edge is kind ``nav`` (GLOSSARY "option kind" — the routing
+        origin). On a failed LLM message the retry offer (kind ``retry``)
+        replaces the advance options (up to 3 tries). ``back`` is absent at
+        ``start`` — there is nothing to go back to on the welcome turn.
         """
         current = state.current_state
         row = TRANSITIONS.get(current, {})
         if entry.get("llm_failed") and state.retry_count < 3:
-            navigation: dict[str, str] = {}
+            navigation: dict[str, tuple[str, str]] = {}
             if current != "start":
-                navigation["back"] = _BACK_LABEL
-            navigation["retry"] = f"🔄 Retry LLM ({max(state.retry_count, 1)}/3)"
+                navigation["back"] = (_BACK_LABEL, "nav")
+            navigation["retry"] = (f"🔄 Retry LLM ({max(state.retry_count, 1)}/3)", "retry")
             return navigation
-        navigation = dict(row.get("nav", {}))
+        navigation = {
+            value: (label, "nav") for value, label in row.get("nav", {}).items()
+        }
         if current != "start":
-            navigation["back"] = _BACK_LABEL
+            navigation["back"] = (_BACK_LABEL, "nav")
         return navigation

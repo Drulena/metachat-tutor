@@ -63,6 +63,7 @@ ROW = {
         ],
         "finish": [],
     },
+    "rejected": "Choose one of the numbered roles, finish, or back.",
     "fixture": {
         "user_data": {
             "user_name": "Test Learner",

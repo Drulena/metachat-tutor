@@ -27,6 +27,9 @@ Each row is a plain mapping with the fields in :data:`ROW_FIELDS`:
   :data:`EFFECT_OPS`: ``("set-item", key, status)`` and
   ``("set-user-data", key, source)`` where source is one of
   :data:`USER_DATA_SOURCES` or ``"literal:<value>"``.
+- ``rejected`` — the copy this state shows when the learner's input is
+  rejected, or ``None`` to fall back to the module's generic copy (ADR-0005:
+  views and templates never infer or author rejection copy).
 - ``fixture`` — test-only: the user data and completion-model statuses
   required to be coherently in this state
   (``{"user_data": {...}, "items": {...}}``).
@@ -48,6 +51,7 @@ ROW_FIELDS = (
     "phase",
     "accept",
     "effects",
+    "rejected",
     "fixture",
 )
 
@@ -120,6 +124,10 @@ def validate_transitions(table: dict[str, dict] | None = None) -> list[str]:
                 violations.append(f"{state}: back must be None")
         elif back not in states:
             violations.append(f"{state}: back target {back!r} is not a scenario state")
+
+        rejected = row.get("rejected")
+        if not (rejected is None or isinstance(rejected, str)):
+            violations.append(f"{state}: rejected copy {rejected!r} is not str or None")
 
         effects = row.get("effects")
         lists = effects.values() if isinstance(effects, dict) else [effects]

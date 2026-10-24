@@ -17,6 +17,7 @@ ROW = {
         "1": [("set-item", "mode_analysis", "completed")],
         "2": [("set-item", "mode_roleplay", "completed")],
     },
+    "rejected": "Choose the level to continue with, or type 'back'.",
     "fixture": {
         "user_data": {
             "user_name": "Test Learner",

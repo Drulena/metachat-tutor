@@ -9,6 +9,7 @@ Seam: the Django HTTP views (menu, export, reset, reset_confirm) -- the
 public HTTP boundary. The module itself is tested in ``test_tutor_session.py``.
 """
 
+import html as html_module
 from dataclasses import asdict
 
 from django.test import TestCase
@@ -172,7 +173,7 @@ class ChatRejectionTests(TestCase):
         client.post("/", {"user_input": "not a role"})
         html = client.get("/").content.decode()
         self.assertIn(self.ROLE_MENU_COPY, html)
-        self.assertLess(html.index(">not a role<"), html.index(self.ROLE_MENU_COPY))
+        self.assertLess(html.index("not a role"), html.index(self.ROLE_MENU_COPY))
 
     def test_chat_generic_never_inferred(self):
         client = self.client
@@ -200,7 +201,25 @@ class ChatRejectionTests(TestCase):
 
     def test_chat_nav_state_falls_back_to_generic_copy(self):
         client = self.client
-        _drive(client, ROLE_MENU_INPUTS + ["1"])  # analysis_plan: nav-only, no copy
-        client.post("/", {"user_input": "no such plan"})
-        html = client.get("/").content.decode()
+        # Ends at an analysis-feedback state: nav-only accept, row has no copy.
+        _drive(client, ROLE_MENU_INPUTS[:8])
+        client.post("/", {"user_input": "no such task"})
+        html = html_module.unescape(client.get("/").content.decode())
         self.assertIn(self.GENERIC, html)
+
+
+class ChatSidebarGateTests(TestCase):
+    """Grill Q6 (#15): the sidebar progress panel gates on started, not on
+    registration — a session that exists shows the zero-state rows, agreeing
+    with the main menu; the export link stays gated on registration."""
+
+    def test_chat_shows_the_panel_before_registration(self):
+        client = self.client
+        html = client.get("/").content.decode()  # auto-start, unregistered
+        self.assertIn("Overall Progress", html)
+        self.assertNotIn("Export Chat History", html)
+
+    def test_registered_chat_offers_export(self):
+        client = self.client
+        _drive(client, ["Alice"])
+        self.assertIn("Export Chat History", client.get("/").content.decode())

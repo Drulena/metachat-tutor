@@ -17,6 +17,7 @@ ROW = {
         ("set-user-data", "posttest_scores", "parsed-scores"),
         ("set-item", "posttest", "completed"),
     ],
+    "rejected": "Type your answer to the posttest task, or type 'back'.",
     "fixture": {
         "user_data": {
             "user_name": "Test Learner",

@@ -17,6 +17,7 @@ ROW = {
         ("set-user-data", "pretest_scores", "parsed-scores"),
         ("set-item", "pretest", "completed"),
     ],
+    "rejected": "Type your answer to the pretest task, then choose a level to register, or type 'back'.",
     "fixture": {
         "user_data": {
             "user_name": "Test Learner",

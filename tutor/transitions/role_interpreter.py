@@ -14,6 +14,7 @@ ROW = {
     "phase": "roleplay",
     "accept": None,
     "effects": [],
+    "rejected": None,
     "fixture": {
         "user_data": {
             "user_name": "Test Learner",

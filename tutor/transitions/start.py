@@ -14,6 +14,7 @@ ROW = {
     "phase": "registration",
     "accept": None,
     "effects": [("set-user-data", "user_name", "sanitized-name")],
+    "rejected": None,
     "fixture": {
         "user_data": {
             "user_name": None,

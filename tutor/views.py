@@ -3,7 +3,6 @@ from dataclasses import asdict
 from datetime import datetime
 
 from django.conf import settings
-from django.contrib import messages
 from django.http import HttpRequest, JsonResponse
 from django.shortcuts import redirect, render
 
@@ -38,6 +37,8 @@ def chat_view(request: HttpRequest):
     The view never branches on the current state: the module decides which
     navigation options are available and attaches them to the current
     assistant turn; the template renders exactly one option list per turn.
+    A rejected input is surfaced by the module too — the unanswered user
+    turn carries its ``rejection`` copy and the template renders it.
     """
     session = _started_session(request)
 
@@ -48,18 +49,6 @@ def chat_view(request: HttpRequest):
 
     summary = session.progress()
     turns = session.turns()
-
-    # The module silently drops a rejected input (the user turn stays
-    # unanswered) — surface it as a warning so the message does not hang.
-    if (
-        request.method == "POST"
-        and turns
-        and turns[-1].role == "user"
-        and not summary.finished
-    ):
-        messages.warning(
-            request, "⚠️ Your input was not recognized — please choose one of the options below."
-        )
 
     return render(
         request,

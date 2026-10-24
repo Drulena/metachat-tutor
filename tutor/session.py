@@ -49,24 +49,51 @@ class State:
     retry_count: int = 0
 
 
+#: The kinds an option can be (ADR-0005, GLOSSARY "option kind"): the
+#: scenario's own choice, system navigation, or the LLM-failure retry.
+OPTION_KINDS = ("choice", "nav", "retry")
+
+
+@dataclass(frozen=True)
+class TurnOption:
+    """One option the learner is offered (ADR-0005, GLOSSARY "option").
+
+    ``value`` is what a click sends, ``label`` the text shown (presentation —
+    the scenario's label wins when it clashes with a navigation label), and
+    ``kind`` the option's ROUTING ORIGIN: ``"choice"`` from the scenario's
+    option map, ``"nav"`` from the row's navigation (including the universal
+    back), ``"retry"`` offered after an LLM failure. The kind is independent
+    of which map the label came from.
+    """
+
+    value: str
+    label: str
+    kind: str
+
+
 @dataclass
 class Turn:
     """One speaker turn in the chat history.
 
-    ``options`` carries the option map for assistant turns and is ``None``
+    ``options`` carries the ONE SET of options offered on an assistant turn
+    (a list of :class:`TurnOption`, GLOSSARY "single set") and is ``None``
     for user turns. ``state`` is the state key the turn was produced in.
     ``used_value`` is the option value the learner used to answer this turn
     (issue #14), or ``None`` — free-text answers, turns answered off-list, and
     the newest (unanswered) turn all carry nothing. The chat page marks an
     option from it; no global completed-option set exists.
+    ``rejection`` is the row-owned copy shown when THIS input was rejected
+    (ADR-0005, GLOSSARY "rejection copy") — the copy string itself, so pages
+    render it as told; ``None`` on every other turn.
     """
 
     role: str
     message: str
     state: str
-    options: Optional[dict[str, str]]
+    options: Optional[list[TurnOption]]
     timestamp: str
     used_value: Optional[str] = None
+    rejection: Optional[str] = None
 
 
 @dataclass(frozen=True)

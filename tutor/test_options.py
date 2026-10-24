@@ -103,6 +103,7 @@ class TurnRejectionTests(SimpleTestCase):
         self.assertEqual(session.turns()[-1].rejection, ROLE_MENU_COPY)
 
     def test_nav_row_rejection_falls_back_to_generic(self):
-        session = _drive(_session(), *ROLE_MENU_INPUTS, "1")  # analysis_plan: nav-only row
-        session.submit("no such plan")
+        # analysis_feedback_2: closed accept (next/back), no bespoke copy
+        session = _drive(_session(), *ROLE_MENU_INPUTS[:8])
+        session.submit("no such task")
         self.assertEqual(session.turns()[-1].rejection, GENERIC)

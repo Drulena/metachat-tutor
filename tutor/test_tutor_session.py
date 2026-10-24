@@ -40,6 +40,11 @@ def row_statuses(summary: Summary) -> dict[str, str]:
     return {row.key: row.status for section in summary.sections for row in section.rows}
 
 
+def offers(turn) -> dict:
+    """Flat ``{value: (label, kind)}`` map over a turn's typed options (#15)."""
+    return {opt.value: (opt.label, opt.kind) for opt in (turn.options or [])}
+
+
 class FakeLLM:
     """Deterministic feedback callable matching the Feedback protocol."""
 
@@ -317,19 +322,26 @@ class TutorSessionTests(SimpleTestCase):
 
         intro_turn = next(t for t in turns if t.state == "roleplay_intro" and t.role == "assistant")
         # no navigation options on earlier assistant turns
-        self.assertNotIn("finish", intro_turn.options)
-        self.assertNotIn("retry", intro_turn.options)
-        self.assertNotIn("next", intro_turn.options)
-        # scenario options from that state are preserved
-        self.assertEqual(intro_turn.options, {"continue": "View Available Roles", "back": "Back to Main Menu"})
+        intro = offers(intro_turn)
+        self.assertNotIn("finish", intro)
+        self.assertNotIn("retry", intro)
+        self.assertNotIn("next", intro)
+        # scenario options from that state are preserved; continue/back are
+        # not nav-map values here, so by the ratified rule their kind is
+        # "choice" (the row's nav map is the origin test)
+        self.assertEqual(
+            intro,
+            {"continue": ("View Available Roles", "choice"), "back": ("Back to Main Menu", "choice")},
+        )
 
         current = turns[-1]
         self.assertEqual(current.state, "role_menu")
-        self.assertIn("finish", current.options)
-        self.assertEqual(current.options["finish"], "Finish roles")
-        # scenario label wins on the clash
-        self.assertEqual(current.options["back"], "Back to Role-Play Intro")
-        self.assertIn("1", current.options)
+        current_offers = offers(current)
+        self.assertIn("finish", current_offers)
+        self.assertEqual(current_offers["finish"], ("Finish roles", "nav"))
+        # scenario label wins on the clash; kind follows the routing origin
+        self.assertEqual(current_offers["back"], ("Back to Role-Play Intro", "nav"))
+        self.assertEqual(offers(current)["1"][1], "choice")
 
     def test_advance_option_matches_current_state(self):
         paths = {
@@ -354,7 +366,7 @@ class TutorSessionTests(SimpleTestCase):
                 session, storage, _ = self.make_session()
                 self.drive(session, *path)
                 self.assertEqual(self.state_of(storage).current_state, target)
-                options = session.turns()[-1].options
+                options = {opt.value for opt in session.turns()[-1].options}
                 self.assertIn(keys[target], options, f"missing {keys[target]!r} on {target}")
 
     def test_every_roleplay_feedback_turn_offers_revise(self):
@@ -373,13 +385,16 @@ class TutorSessionTests(SimpleTestCase):
                 self.assertEqual(
                     self.state_of(storage).current_state, f"roleplay_feedback_{role}"
                 )
-                # the offer matches the routed commands: revise, next, back
+                # the offer matches the routed commands: revise, next, back.
+                # next is the row's nav edge (advance), back synthesised —
+                # kind "nav"; revise is scenario-declared (not in the nav
+                # map) — kind "choice"
                 self.assertEqual(
-                    session.turns()[-1].options,
+                    offers(session.turns()[-1]),
                     {
-                        "revise": "✏️ Revise",
-                        "next": "➡️ Next Role",
-                        "back": "⬅️ Back to Menu",
+                        "revise": ("✏️ Revise", "choice"),
+                        "next": ("➡️ Next Role", "nav"),
+                        "back": ("⬅️ Back to Menu", "nav"),
                     },
                 )
                 # the button is not decorative: revise re-enters the role in progress
@@ -454,8 +469,9 @@ class TutorSessionTests(SimpleTestCase):
 
     def test_nav_row_rejection_falls_back_to_the_generic_copy(self):
         session, storage, _ = self.make_session()
-        self.drive(session, *ROLE_MENU_INPUTS, "1")  # analysis_plan: nav-only row
-        session.submit("no such plan")
+        # analysis_feedback_2: closed accept (next/back), no bespoke copy
+        self.drive(session, *ROLE_MENU_INPUTS[:8])
+        session.submit("no such task")
         self.assertEqual(
             session.turns()[-1].rejection,
             "That answer is not recognized: choose one of the offered options, type "
@@ -476,18 +492,18 @@ class TutorSessionTests(SimpleTestCase):
 
         current = session.turns()[-1]
         self.assertEqual(current.state, "roleplay_feedback_mediator")
-        self.assertEqual(current.options["retry"], "🔄 Retry LLM (1/3)")
+        self.assertEqual(offers(current)["retry"], ("🔄 Retry LLM (1/3)", "retry"))
 
         user_count_before = sum(1 for t in session.turns() if t.role == "user")
         session.submit("retry")
         # no user turn appended for retry
         self.assertEqual(sum(1 for t in session.turns() if t.role == "user"), user_count_before)
-        self.assertEqual(session.turns()[-1].options["retry"], "🔄 Retry LLM (1/3)")
+        self.assertEqual(offers(session.turns()[-1])["retry"], ("🔄 Retry LLM (1/3)", "retry"))
 
         session.submit("retry")
         current = session.turns()[-1]
-        self.assertNotIn("retry", current.options)
-        self.assertIn("next", current.options)
+        self.assertNotIn("retry", offers(current))
+        self.assertIn("next", offers(current))
         self.assertIn("LLM-OUT", current.message)
 
     def test_retry_is_ignored_outside_feedback_states(self):
@@ -584,22 +600,36 @@ class TutorSessionTests(SimpleTestCase):
                 self.assertEqual(self.state_of(storage).current_state, state)
                 current = session.turns()[-1]
                 self.assertEqual(current.role, "assistant")
-                self.assertEqual(current.options, expected)
+                self.assertEqual(
+                    {opt.value: opt.label for opt in current.options},
+                    expected,
+                )
 
     def test_cutover_feedback_llm_success_options(self):
         session, _, _ = self.make_session()
         self.drive(session, "Alice", "3 4 5", "2", "1", "yes", "Answer one")
         current = session.turns()[-1]
-        self.assertEqual(current.options, {"back": "Back to menu", "next": "Next Task"})
+        self.assertEqual(
+            offers(current),
+            # at the llm-success feedback row "next" is in the row's nav map
+            # (advance offer) — kind "nav"
+            {"back": ("Back to menu", "nav"), "next": ("Next Task", "nav")},
+        )
 
     def test_cutover_feedback_llm_failure_options(self):
         session, _, _ = self.make_session(llm=FakeLLM(fail_times=1))
         self.drive(session, "Alice", "3 4 5", "2", "1", "yes", "Answer one")
         current = session.turns()[-1]
-        # retry replaces the advance option; the scenario's next survives the merge.
+        # retry replaces the advance option; the scenario's next survives the
+        # merge. "retry" is the injected retry offer, "next" a scenario value
+        # (not the row's nav map) — kinds retry / choice.
         self.assertEqual(
-            current.options,
-            {"back": "Back to menu", "retry": "🔄 Retry LLM (1/3)", "next": "Next Task"},
+            offers(current),
+            {
+                "back": ("Back to menu", "nav"),
+                "retry": ("🔄 Retry LLM (1/3)", "retry"),
+                "next": ("Next Task", "choice"),
+            },
         )
 
     def test_cutover_roleplay_feedback_llm_failure_options(self):
@@ -610,13 +640,14 @@ class TutorSessionTests(SimpleTestCase):
         # Issue #13: the feedback states now carry scenario options, so the
         # llm_failed merge keeps them (retry added, the scenario's back label
         # winning the clash with the always-available navigation back).
+        # revise/next are scenario values — kind "choice".
         self.assertEqual(
-            current.options,
+            offers(current),
             {
-                "revise": "✏️ Revise",
-                "next": "➡️ Next Role",
-                "back": "⬅️ Back to Menu",
-                "retry": "🔄 Retry LLM (1/3)",
+                "revise": ("✏️ Revise", "choice"),
+                "next": ("➡️ Next Role", "choice"),
+                "back": ("⬅️ Back to Menu", "nav"),
+                "retry": ("🔄 Retry LLM (1/3)", "retry"),
             },
         )
 

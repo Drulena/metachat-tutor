@@ -14,8 +14,9 @@
     <p><strong>Level:</strong> {{ summary.level|title }}</p>
   {% endif %}
 
-  {# Overall Progress #}
-  {% if summary.user_name %}
+  {# Overall Progress: gated on started, not registered — a session that #}
+  {# exists shows the zero-state rows (main_menu does the same, #15 grill Q6). #}
+  {% if summary.started %}
     <div class="progress-display">
       <p><strong>Overall Progress:</strong> <span class="progress-text">{{ summary.percentage }}%</span></p>
       <div class="progress-bar">

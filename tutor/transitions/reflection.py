@@ -14,6 +14,7 @@ ROW = {
     "phase": "reflection",
     "accept": None,
     "effects": [("set-item", "reflection", "completed")],
+    "rejected": "Type your reflection, then choose an offered option, or type 'back'.",
     "fixture": {
         "user_data": {
             "user_name": "Test Learner",
