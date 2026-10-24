@@ -434,6 +434,38 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(turns[-1].role, "user")
         self.assertEqual(self.state_of(storage).current_state, "start")
 
+    def test_rejection_pairs_the_row_copy_with_the_unanswered_user_turn(self):
+        session, storage, _ = self.make_session()
+        self.drive(session, *ROLE_MENU_INPUTS)
+        session.submit("not a role")
+        turns = session.turns()
+        self.assertEqual(turns[-1].role, "user")
+        self.assertEqual(turns[-1].message, "not a role")
+        self.assertEqual(
+            turns[-1].rejection,
+            "Choose one of the numbered roles, finish, or back.",
+        )
+
+    def test_rejection_is_none_when_the_answer_lands(self):
+        session, storage, _ = self.make_session()
+        self.drive(session, *ROLE_MENU_INPUTS)
+        session.submit("1")
+        self.assertTrue(all(turn.rejection is None for turn in session.turns()))
+
+    def test_nav_row_rejection_falls_back_to_the_generic_copy(self):
+        session, storage, _ = self.make_session()
+        self.drive(session, *ROLE_MENU_INPUTS, "1")  # analysis_plan: nav-only row
+        session.submit("no such plan")
+        self.assertEqual(
+            session.turns()[-1].rejection,
+            "That answer is not recognized: choose one of the offered options, type "
+            "'back', 'finish', 'restart' (to erase and start over), 'export' (to "
+            "download the transcript), 'help' (for a summary of the rules), 'idea' "
+            "(to generate an idea for the assignments, when the task asks for one), "
+            "or 'next' (to advance one page). In data collection, type 'name <your "
+            "name>'. The task's own options are shown beneath the question.",
+        )
+
     # --------------------------------------------------------------- retry
 
     def test_retry_flow_updates_last_assistant_turn_in_place(self):

@@ -28,6 +28,7 @@ from .session import (
     SessionStorage,
     MemoryStorage,
     State,
+    TurnOption,
     Storage,
     Summary,
     Turn,
@@ -103,7 +104,8 @@ class TurnValueTypeTest(SimpleTestCase):
     def test_turn_fields_match_spec(self):
         names = [f.name for f in fields(Turn)]
         self.assertEqual(
-            names, ["role", "message", "state", "options", "timestamp", "used_value"]
+            names,
+            ["role", "message", "state", "options", "timestamp", "used_value", "rejection"],
         )
 
     def test_assistant_turn_carries_options(self):
@@ -111,10 +113,10 @@ class TurnValueTypeTest(SimpleTestCase):
             role="assistant",
             message="Hello",
             state="start",
-            options={"1": "Beginner"},
+            options=[TurnOption("1", "Beginner", "choice")],
             timestamp="2026-01-01T00:00:00",
         )
-        self.assertEqual(turn.options, {"1": "Beginner"})
+        self.assertEqual(turn.options, [TurnOption("1", "Beginner", "choice")])
 
     def test_user_turn_has_no_options(self):
         turn = Turn(

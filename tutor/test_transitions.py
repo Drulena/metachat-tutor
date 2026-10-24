@@ -364,9 +364,11 @@ class LegacyParityTests(SimpleTestCase):
             with self.subTest(state=name):
                 state = self._make_state(name, row)
                 nav = self._session()._navigation_options(state, entry)
-                expected = dict(row["nav"])
+                # Typed contract (ADR-0005): every nav offer carries its kind;
+                # the synthesised back edge is nav too.
+                expected = {value: (label, "nav") for value, label in row["nav"].items()}
                 if name != "start":
-                    expected["back"] = _BACK_LABEL
+                    expected["back"] = (_BACK_LABEL, "nav")
                 self.assertEqual(nav, expected)
 
     def test_nav_offers_retry_at_every_state_after_llm_failure(self):
@@ -403,3 +405,35 @@ class RoleMenuLabelAlignmentTests(SimpleTestCase):
             (value, ROLE_LABELS[ROLE_BY_VALUE[value]] + " ") for value in ROLE_BY_VALUE
         ]
         self.assertEqual(found, expected)
+
+
+class RejectionCopyTests(SimpleTestCase):
+    """Rows own their rejection copy; the validator checks its type (#15).
+
+    A row declares ``rejected``: its copy for a rejected input, or ``None``
+    to take the module's generic fallback. The field-set and table-shape
+    tests above already pin the closed schema and the validator's acceptance
+    of the real table.
+    """
+
+    def test_every_row_declares_rejected(self):
+        self.assertIn("rejected", ROW_FIELDS)
+        for state, row in TRANSITIONS.items():
+            with self.subTest(state=state):
+                self.assertIn("rejected", row)
+                self.assertTrue(row["rejected"] is None or isinstance(row["rejected"], str))
+
+    def test_validator_rejects_a_non_string_copy(self):
+        table = copy.deepcopy(TRANSITIONS)
+        table["role_menu"]["rejected"] = 123
+        violations = validate_transitions(table)
+        self.assertTrue(any("rejected" in v for v in violations), violations)
+
+    def test_bespoke_rows_carry_their_copy(self):
+        expected = {
+            "role_menu": "Choose one of the numbered roles, finish, or back.",
+            "analysis_intro_beginner": "Please confirm you want to proceed with the analysis.",
+        }
+        for state, copy_text in expected.items():
+            with self.subTest(state=state):
+                self.assertEqual(TRANSITIONS[state]["rejected"], copy_text)

@@ -22,11 +22,6 @@
       </button>
       <h1>🎓 MetaChat Tutor - Research Edition</h1>
     </header>
-    {% if messages %}
-      {% for message in messages %}
-        <div class="warning">{{ message }}</div>
-      {% endfor %}
-    {% endif %}
     <div class="chat-messages" id="chat-messages">
       {% for turn in turns %}
         <div class="message {{ turn.role }}">
@@ -34,13 +29,14 @@
             {{ turn.message|markdown }}
             {% if turn.options %}
               <div class="message-options">
-                {% for key, label in turn.options.items %}
-                  <button class="option-btn{% if key == turn.used_value %} used{% endif %}" type="button" data-value="{{ key }}"{% if key == turn.used_value %} data-used="true"{% endif %}>{{ label }}</button>
+                {% for opt in turn.options %}
+                  <button class="option-btn{% if opt.value == turn.used_value %} used{% endif %}" type="button" data-value="{{ opt.value }}"{% if opt.value == turn.used_value %} data-used="true"{% endif %}>{{ opt.label }}</button>
                 {% endfor %}
               </div>
             {% endif %}
           {% else %}
             {{ turn.message|linebreaksbr }}
+            {% if turn.rejection %}<div class="rejection-note">{{ turn.rejection }}</div>{% endif %}
           {% endif %}
         </div>
       {% endfor %}

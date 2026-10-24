@@ -151,3 +151,56 @@ class ResetViewTests(TestCase):
         resp = client.get("/")
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, "Alice")
+
+
+class ChatRejectionTests(TestCase):
+    """A rejected input answers with the row's own copy (ticket #15)."""
+
+    ROLE_MENU_COPY = "Choose one of the numbered roles, finish, or back."
+    GENERIC = (
+        "That answer is not recognized: choose one of the offered options, type "
+        "'back', 'finish', 'restart' (to erase and start over), 'export' (to "
+        "download the transcript), 'help' (for a summary of the rules), 'idea' "
+        "(to generate an idea for the assignments, when the task asks for one), "
+        "or 'next' (to advance one page). In data collection, type 'name <your "
+        "name>'. The task's own options are shown beneath the question."
+    )
+
+    def test_chat_shows_bespoke_copy_beneath_the_input(self):
+        client = self.client
+        _drive(client, ROLE_MENU_INPUTS)  # ends at role_menu
+        client.post("/", {"user_input": "not a role"})
+        html = client.get("/").content.decode()
+        self.assertIn(self.ROLE_MENU_COPY, html)
+        self.assertLess(html.index(">not a role<"), html.index(self.ROLE_MENU_COPY))
+
+    def test_chat_generic_never_inferred(self):
+        client = self.client
+        _drive(client, ROLE_MENU_INPUTS)
+        client.post("/", {"user_input": "not a role"})
+        html = client.get("/").content.decode()
+        self.assertNotIn(self.GENERIC, html)
+        self.assertEqual(html.count(self.ROLE_MENU_COPY), 1)
+
+    def test_chat_pre_registration_has_no_rejection(self):
+        client = self.client
+        client.get("/")  # auto-start: data_collection, unregistered
+        client.post("/", {"user_input": "asdasd"})  # a bare name is accepted as a name
+        html = client.get("/").content.decode()
+        self.assertNotIn(self.GENERIC, html)
+        self.assertNotIn(self.ROLE_MENU_COPY, html)
+
+    def test_chat_no_rejection_when_the_answer_lands(self):
+        client = self.client
+        _drive(client, ROLE_MENU_INPUTS)
+        client.post("/", {"user_input": "1"})  # a role menu choice lands
+        html = client.get("/").content.decode()
+        self.assertNotIn(self.ROLE_MENU_COPY, html)
+        self.assertNotIn(self.GENERIC, html)
+
+    def test_chat_nav_state_falls_back_to_generic_copy(self):
+        client = self.client
+        _drive(client, ROLE_MENU_INPUTS + ["1"])  # analysis_plan: nav-only, no copy
+        client.post("/", {"user_input": "no such plan"})
+        html = client.get("/").content.decode()
+        self.assertIn(self.GENERIC, html)
