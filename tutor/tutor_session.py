@@ -156,17 +156,15 @@ class TutorSession:
         elif command == "retry" and row.get("retryable"):
             self._retry(state)
         else:
-            self._append_user_turn(state, text)
             new_state, accepted = self._route(state, text)
+            # Routing decides the flag: an input it drops is flagged as
+            # unanswered so turns() can pair it with the row's rejection
+            # copy (issue #15) — the view never infers rejection.
+            self._append_user_turn(state, text, rejected=not accepted)
             if accepted and new_state is not None:
                 state.current_state = new_state
                 if new_state != "end":
                     self._append_assistant_turn(state)
-            else:
-                # The routing dropped the input: flag the unanswered user
-                # entry so ``turns()`` can pair it with the row's rejection
-                # copy (issue #15) — the view never infers rejection.
-                state.chat_history[-1]["rejected"] = True
 
         self._storage.save(state)
         current = state.chat_history[-1]
@@ -373,8 +371,9 @@ class TutorSession:
         back = TRANSITIONS.get(current, {}).get("back")
         if back is None:
             # ``start`` has no back target: a typed ``back`` there is an
-            # unrecognized input (user turn only, no transition).
-            self._append_user_turn(state, "back")
+            # unrecognized input — flagged, so the turn carries the row's
+            # rejection copy (d5).
+            self._append_user_turn(state, "back", rejected=True)
             return
         if back.startswith("after_registration_"):
             level = state.user_data.get("level") or "beginner"
@@ -473,15 +472,18 @@ class TutorSession:
             }
         )
 
-    def _append_user_turn(self, state: State, text: str) -> None:
-        state.chat_history.append(
-            {
-                "role": "user",
-                "content": text,
-                "state": state.current_state,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
+    def _append_user_turn(self, state: State, text: str, rejected: bool = False) -> None:
+        entry = {
+            "role": "user",
+            "content": text,
+            "state": state.current_state,
+            "timestamp": datetime.now().isoformat(),
+        }
+        if rejected:
+            # Routing dropped the input: flag it so the turn carries the
+            # row's rejection copy (ADR-0005 d5).
+            entry["rejected"] = True
+        state.chat_history.append(entry)
 
     # ----------------------------------------------------------------- turns
 
@@ -504,18 +506,29 @@ class TutorSession:
         # no user entry follows them, so the stamp is the marking.
         used_value = used_value or entry.get("used_value")
         options = entry.get("options")
-        if is_current and entry.get("role") == "assistant":
-            # The single set (ADR-0005): nav offers first, scenario options
-            # after. On a clash the scenario-defined label wins (presentation)
-            # and the kind stays the nav offer's (routing origin). Anything
-            # not offered by the nav map / synthesised edges is a scenario
-            # choice — the row's nav map is the origin test (ratified Q3).
-            nav_offers = {
-                value: pair for value, pair in self._navigation_options(state, entry).items()
-            }
+        if entry.get("role") == "assistant" and (is_current or options):
+            # One typed set for every rendered turn (ADR-0005): kind is
+            # tested against the transition row at render time, so a
+            # rendered answer keeps the routing origin that made it.
+            nav_offers: dict[str, tuple[str, str]] = {}
+            if is_current:
+                # Nav offers first: the row's nav map plus the synthesised
+                # back/retry edges; scenario options come after.
+                nav_offers = dict(self._navigation_options(state, entry))
+                nav_values = set(nav_offers)
+            else:
+                # The row's nav map and declared back/retry edges are the
+                # values routing treats as navigation (ratified Q3).
+                nav_values = self._nav_values(TRANSITIONS.get(entry["state"], {}))
             merged: dict[str, tuple[str, str]] = dict(nav_offers)
             for value, label in (options or {}).items():
-                kind = nav_offers[value][1] if value in nav_offers else "choice"
+                # On a clash the scenario-defined label wins (presentation)
+                # and the kind stays the nav offer's (routing origin).
+                kind = (
+                    nav_offers[value][1] if value in nav_offers
+                    else "nav" if value in nav_values
+                    else "choice"
+                )
                 merged[value] = (label, kind)
             # A content option whose step is in the ledger is completed —
             # the pages render the mark, they never compute it (issue #15).
@@ -537,8 +550,6 @@ class TutorSession:
                 for value, (label, kind) in merged.items()
                 if kind == "choice"
             ]
-        elif options:
-            options = [TurnOption(value, label, "choice") for value, label in options.items()]
         return Turn(
             role=entry["role"],
             message=entry["content"],
@@ -546,7 +557,10 @@ class TutorSession:
             options=options,
             timestamp=entry["timestamp"],
             used_value=used_value,
-            rejection=rejection,
+            # An unanswered user entry carries its own rejection flag (d5):
+            # submit() stamps it when routing drops the input; in turns()
+            # the flag rides on the stored entry, so derive the copy there.
+            rejection=rejection if rejection is not None else self._rejection_copy(entry),
         )
 
     def _rejection_copy(self, entry: dict) -> Optional[str]:
@@ -558,12 +572,11 @@ class TutorSession:
         """
         if entry.get("role") != "user" or not entry.get("rejected"):
             return None
-        if entry.get("state") == "end":
-            # After the completion there is no composer — no banner copy.
-            return None
         row = TRANSITIONS.get(entry.get("state", ""))
         if row is None:
-            return _GENERIC_REJECTION
+            # The structural "no row" case (the ``end`` state after the
+            # completion): no composer, so no banner copy (ADR-0005 d5).
+            return None
         return row.get("rejected") if row.get("rejected") is not None else _GENERIC_REJECTION
 
     def _used_value(self, entry: dict, following: Optional[dict]) -> Optional[str]:
@@ -618,3 +631,18 @@ class TutorSession:
         if current != "start":
             navigation["back"] = (_BACK_LABEL, "nav")
         return navigation
+
+    @staticmethod
+    def _nav_values(row: dict) -> set[str]:
+        """Returns the values the transition row treats as navigation.
+
+        Its ``nav`` map plus a declared ``back`` edge — the values the
+        current turn synthesises as nav offers; a scenario option is
+        ``choice`` only when routing never treats it as navigation
+        (ADR-0005 d2, ratified Q3). ``retry`` is not here: it is only
+        ever synthesised for a failed LLM message, never stored.
+        """
+        values = set(row.get("nav", {}))
+        if row.get("back") is not None:
+            values.add("back")
+        return values

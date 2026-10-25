@@ -342,12 +342,13 @@ class TutorSessionTests(SimpleTestCase):
         self.assertNotIn("finish", intro)
         self.assertNotIn("retry", intro)
         self.assertNotIn("next", intro)
-        # scenario options from that state are preserved; continue/back are
-        # not nav-map values here, so by the ratified rule their kind is
-        # "choice" (the row's nav map is the origin test)
+        # scenario options from that state are preserved; the row's nav
+        # map covers "continue" and the row declares "back", so routing
+        # treats them as navigation on EVERY rendered turn (ADR-0005 d2 —
+        # kind is tested against the row at render time, history included)
         self.assertEqual(
             intro,
-            {"continue": ("View Available Roles", "choice"), "back": ("Back to Main Menu", "choice")},
+            {"continue": ("View Available Roles", "nav"), "back": ("Back to Main Menu", "nav")},
         )
 
         current = turns[-1]
@@ -490,15 +491,16 @@ class TutorSessionTests(SimpleTestCase):
         session.submit("no such task")
         self.assertEqual(session.turns()[-1].rejection, GENERIC_REJECTION)
 
-    def test_generic_copy_is_the_fallback_at_states_without_a_row(self):
-        """The generic copy is the fallback for every state whose row declares
-        no copy — exercised by ``test_nav_row_rejection_falls_back_to_the_
-        generic_copy`` (issue #15).
+    def test_states_without_a_row_carry_no_copy(self):
+        """A state with no transition row — the ``end`` after the completion,
+        stored legacy data, an unknown string — carries no banner copy at
+        all (the structural case, ADR-0005 d5). The generic fallback is only
+        for rows that declare ``rejected: None`` — exercised by
+        ``test_nav_row_rejection_falls_back_to_the_generic_copy`` (#15).
 
         ``start`` accepts any input (the welcome answers free text), so a
-        dropped input never occurs there; the no-row fallback exists for
-        stored legacy data, and ``end`` is the copy-free exception — pinned
-        by ``test_end_state_pairs_no_rejection_copy``.
+        dropped input never occurs there; ``end`` is pinned by
+        ``test_end_state_pairs_no_rejection_copy``.
         """
         session, _, _ = self.make_session()
         turn = session.submit("gibberish")

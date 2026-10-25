@@ -11,7 +11,8 @@ no copy fall back to the module's generic string.
 
 from django.test import SimpleTestCase
 
-from .data import ROLE_BY_VALUE
+from .data import ROLE_BY_VALUE, ROLE_LABELS
+from .scenarios.role_menu import STATE as ROLE_MENU_STATE
 from .session import MemoryStorage, TurnOption
 from .test_tutor_session import (
     FakeLLM,
@@ -35,6 +36,21 @@ def _drive(session, *inputs):
     for text in inputs:
         session.submit(text)
     return session
+
+
+# ROLE_MENU_INPUTS, then one full mediator round: pick 1, roleplay to the
+# end — the completion lands the session at analysis_intro.
+_MEDIATOR_ROUND = list(ROLE_MENU_INPUTS) + [
+    "1", "continue", "Answer one", "next", "Answer two", "next", "continue",
+]
+
+
+def _role_menu_turns(session):
+    """The assistant role_menu turns — user turns share the state name."""
+    return [
+        t for t in session.turns()
+        if t.state == "role_menu" and t.role == "assistant"
+    ]
 
 
 class OptionKindTests(SimpleTestCase):
@@ -97,4 +113,47 @@ class TurnRejectionTests(SimpleTestCase):
         # analysis_feedback_2: closed accept (next/back), no bespoke copy
         session = _drive(_session(), *ROLE_MENU_INPUTS[:8])
         session.submit("no such task")
+        self.assertEqual(session.turns()[-1].rejection, GENERIC_REJECTION)
+
+
+class HistoryTurnKindTests(SimpleTestCase):
+    """Kind is tested against the transition row at render time — for every
+    rendered turn, not only the current one (ADR-0005 d2)."""
+
+    def test_history_turn_types_nav_values_by_the_row(self):
+        # A finished role-menu turn: the row's nav map covers "finish"
+        # and the row declares "back" — routing origin decides the kind,
+        # and the scenario labels survive untouched on a history turn.
+        history = _role_menu_turns(_drive(_session(), *_MEDIATOR_ROUND))[0]
+        kinds = {o.value: o.kind for o in history.options}
+        self.assertEqual(
+            kinds,
+            {str(n): "choice" for n in range(1, 10)}
+            | {"finish": "nav", "back": "nav"},
+        )
+        self.assertEqual(
+            {o.value: o.label for o in history.options},
+            ROLE_MENU_STATE["options"],
+        )
+
+    def test_history_turn_marks_completed_choices(self):
+        # Role options carry ROLE_BY_VALUE; map to the ledger key so the
+        # completed role shows finished on every turn that offers it.
+        history = _role_menu_turns(_drive(_session(), *_MEDIATOR_ROUND))[-1]
+        marks = {(o.label, o.completed) for o in history.options if o.kind == "choice"}
+        mediator = ROLE_LABELS[ROLE_BY_VALUE["1"]]
+        advocate = ROLE_LABELS[ROLE_BY_VALUE["6"]]
+        self.assertEqual({o.value: o.label for o in history.options}["1"], mediator)
+        self.assertIn((mediator, True), marks)
+        self.assertIn((advocate, False), marks)
+
+
+class BackAtStartTests(SimpleTestCase):
+    """A dropped input is flagged; the turn carries the row's copy (d5)."""
+
+    def test_back_at_start_is_surfaced_as_rejected(self):
+        # start has no back target: routing drops it; the user turn carries
+        # the rejection flag; the start row declares no copy, so generic.
+        session = _session()
+        session.submit("back")
         self.assertEqual(session.turns()[-1].rejection, GENERIC_REJECTION)
