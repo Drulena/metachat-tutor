@@ -359,3 +359,16 @@ class ChatSidebarGateTests(TestCase):
         client = self.client
         _drive(client, ["Alice"])
         self.assertIn("Export Chat History", client.get("/").content.decode())
+
+    def test_main_menu_shows_the_same_zero_state_panel_as_chat(self):
+        # The pages cannot disagree (Q6 #15): the main menu gates its
+        # progress block on started like the chat sidebar — an
+        # auto-started, unregistered session shows the zero-state panel
+        # on both, export stays gated on registration on both.
+        client = self.client
+        menu = client.get("/menu/").content.decode()
+        chat = client.get("/").content.decode()
+        self.assertIn("steps completed", menu)
+        self.assertIn("Overall Progress", chat)
+        self.assertNotIn("Export Chat History", menu)
+        self.assertNotIn("Export Chat History", chat)

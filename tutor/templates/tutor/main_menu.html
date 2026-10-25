@@ -149,16 +149,20 @@
     </div>
   {% endif %}
 
-  <div class="overall-progress">
-    <span class="percentage-big">{{ summary.percentage }}%</span>
-    <div class="progress-bar-large">
-      <div class="progress-fill-large" style="width: {{ summary.percentage }}%"></div>
+  {# Template contract with menu.html: the progress block gates on #}
+  {# summary.started — the pages cannot disagree (#15 grill Q6). #}
+  {% if summary.started %}
+    <div class="overall-progress">
+      <span class="percentage-big">{{ summary.percentage }}%</span>
+      <div class="progress-bar-large">
+        <div class="progress-fill-large" style="width: {{ summary.percentage }}%"></div>
+      </div>
+      <p class="steps-info">{{ summary.completed_steps_count }} / {{ summary.total_steps }} steps completed</p>
     </div>
-    <p class="steps-info">{{ summary.completed_steps_count }} / {{ summary.total_steps }} steps completed</p>
-  </div>
 
-  {# Progress groups: one include, module-owned sections (issue #14). #}
-  {% include "tutor/task_group.html" %}
+    {# Progress groups: one include, module-owned sections (issue #14). #}
+    {% include "tutor/task_group.html" %}
+  {% endif %}
 
   <a href="{% url 'chat' %}" class="back-link">💬 Back to Chat</a>
   {% include "tutor/nav_buttons.html" with nav_use_form_submit=False %}
