@@ -57,5 +57,8 @@ row-owned rejection copy (ADR-0005). Branch `refactor/summary-status-rows`,
 ### Next time
 
 - Run the hook smoke test in the user's shell before wiring it into the trail.
-- Decide the untracked-file policy (`.gitignore` rework dropped `.env` /
-  `db.sqlite3` rules) before the next commit batch.
+- Untracked-file policy: resolved in-session — the gitignore rework had
+  dropped `.env` / `*.sqlite3` / `.hive` (owner: secrets and research data
+  must never be visible to `add -A`); restored in `cbddcaf`, verified never
+  committed. Keep the protection set when editing `.gitignore` — add, don't
+  subtract.
