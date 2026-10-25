@@ -1,9 +1,24 @@
+# Local environment (secrets)
+.env
+
+# DSH harness workspace state (automation records, IM archive)
+.hive
+
 # Agent scratch space (repro scripts, commit-msg bodies, split tools)
 .scratch/
 
 # Python
 __pycache__/
 *.pyc
+.ruff_cache/
 
 # Local virtualenv
 venv/
+
+# Local databases (dev server + research data)
+*.sqlite3
+
+# OS / logs / collected static
+.DS_Store
+*.log
+staticfiles/
