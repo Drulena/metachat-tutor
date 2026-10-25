@@ -33,7 +33,9 @@ row-owned rejection copy (ADR-0005). Branch `refactor/summary-status-rows`,
   `couldn't create signal pipe, Win32 error 5` — a raw spawn fails too, so the
   harness's MSYS runtime collides with Git's. Hook commits from the harness
   need `--no-verify` plus verification in the user's own shell. Note written
-  to the global guide. Confidence: high (mechanism not root-caused).
+  to the global guide. **Resolved:** the owner confirmed in their own shell
+  (2026-10-25) that the hook fires. Confidence: high (mechanism not
+  root-caused).
 - **`git reset --hard HEAD~1` as hook-cleanup wiped an uncommitted doc batch**
   (my own edits, recovered by re-application, now in the amended commit).
   Lesson: never reset with work in flight — test a hook with
