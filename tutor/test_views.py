@@ -11,6 +11,7 @@ public HTTP boundary. The module itself is tested in ``test_tutor_session.py``.
 
 import html as html_module
 from dataclasses import asdict
+from unittest import mock
 
 from django.test import TestCase
 
@@ -46,6 +47,11 @@ def _task_cell(html: str, label: str) -> str:
     begin = html.rindex('<li class="task-item">', 0, start)
     end = html.index("</li>", start)
     return html[begin:end]
+
+
+def _fake_feedback(*args, **kwargs):
+    """Stand-in for the LLM feedback callable on HTTP-built sessions."""
+    return "Feedback.", False
 
 
 class MainMenuViewTests(TestCase):
@@ -96,6 +102,92 @@ class MainMenuViewTests(TestCase):
         html = client.get("/").content.decode()
         self.assertIn('data-value="1" data-used="true">Step1️⃣: ANALYSIS', html)
         self.assertNotIn('data-value="2" data-used="true">Step2️⃣', html)
+
+    def test_menu_has_no_leaked_template_comment(self):
+        """Django's {# ... #} comments are single-line; the multi-line header
+        in task_group.html rendered as literal text on both pages."""
+        client = self.client
+        _drive(client, ROLE_MENU_INPUTS)
+        for path in ("/menu/", "/"):
+            page = html_module.unescape(client.get(path).content.decode())
+            self.assertNotIn("computes nothing", page, f"{path} leaked the template comment")
+
+
+class ChatOptionRenderingTests(TestCase):
+    """Owner review pass (issue #15): utility offers sit in their own row
+    after the choices, choices keep the scenario's order, and a finished
+    role's option is marked completed."""
+
+    def _last_block(self, html):
+        """The current offer's markup: from the last option block to </main>.
+
+        The chat page keeps older turns' option markup on screen, so option
+        assertions must be anchored to the current offer only.
+        """
+        start = html.rindex('<div class="message-options">')
+        return html[start:html.index("</main>", start)]
+
+    def _button_markup(self, html):
+        """The HTML of every option button in the current offer, in render order."""
+        block = self._last_block(html)
+        start = 0
+        markup = []
+        while True:
+            i = block.find('class="option-btn', start)
+            if i < 0:
+                return markup
+            j = block.find("</button>", i)
+            markup.append(block[i:j])
+            start = j + 1
+
+    def _choice_labels(self, html):
+        return [m.split(">", 1)[1] for m in self._button_markup(html)
+                if "system-btn" not in m and "option-completed" not in m]
+
+    def test_chat_offers_utilities_in_a_separate_row_after_choices(self):
+        client = self.client
+        _drive(client, ROLE_MENU_INPUTS)
+        html = client.get("/").content.decode()
+        block = self._last_block(html)
+        choices_div = block.index('<div class="message-options">')
+        system_div = block.index('<div class="system-options">')
+        self.assertLess(choices_div, system_div, "the utility row must render after the choices")
+        between = block[choices_div:system_div]
+        self.assertNotIn("Back to Menu", between, "nav buttons must not sit among the choices")
+
+    def test_chat_choices_render_in_scenario_order(self):
+        client = self.client
+        _drive(client, ROLE_MENU_INPUTS)
+        html = client.get("/").content.decode()
+        self.assertEqual(
+            self._choice_labels(html)[:4],
+            ["Mediator", "Logical Expert", "Idea Generator", "Researcher"],
+        )
+
+    def test_finished_role_option_is_marked_completed(self):
+        client = self.client
+        # Finish role 1 (the feedback accepts 'next'), landing back on the
+        # role menu with role_mediator recorded in the ledger. HTTP submits
+        # build their own session, so the module's feedback callable is
+        # pinned for the request window.
+        with mock.patch("tutor.llm.get_llm_feedback", _fake_feedback):
+            _drive(client, ROLE_MENU_INPUTS)
+            client.post("/", {"user_input": "1"})
+            client.post("/", {"user_input": "I mediate the conflict"})
+            client.post("/", {"user_input": "next"})
+        html = client.get("/").content.decode()
+        buttons = self._button_markup(html)
+        done = [m for m in buttons if "option-completed" in m]
+        self.assertEqual(len(done), 1, f"exactly one completed option, got {len(done)}")
+        self.assertIn("Mediator", done[0])
+        self.assertNotIn("system-btn", done[0], "a utility offer is never option-completed")
+        self.assertNotIn('data-value="2"', done[0], "the untouched role 2 stays open")
+
+    def test_chat_has_no_leaked_template_comment(self):
+        client = self.client
+        _drive(client, ROLE_MENU_INPUTS)
+        page = html_module.unescape(client.get("/").content.decode())
+        self.assertNotIn("computes nothing", page)
 
 
 class ExportViewTests(TestCase):

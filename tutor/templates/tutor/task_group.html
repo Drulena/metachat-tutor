@@ -1,7 +1,10 @@
-{# One progress panel group per module-owned section: heading, rows, badges.
-   Required context: summary (from TutorSession.progress()).
-   The module owns section order, heading wording and each row's status —
-   this include renders what it is told and computes nothing (issue #14). #}
+{% comment %}
+One progress panel group per module-owned section: heading, rows, badges.
+Required context: summary (from TutorSession.progress()).
+The module owns section order, heading wording and each row's status —
+this include renders what it is told and computes nothing (issue #14).
+Django's {# ... #} comments are single-line only; this block spans lines.
+{% endcomment %}
 {% for section in summary.sections %}
   <div class="task-status-section">
     <h3>{{ section.title }}</h3>
