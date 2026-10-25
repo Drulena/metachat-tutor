@@ -20,7 +20,20 @@ unstyled element the learner sees plain (`.rejection-note` rode the template
 for a commit before its rule landed). When a template gains a class, the CSS
 rule lands in the same change.
 
-## Shared test constants live once
+## Design follows Material Design 3
+
+All UI styling respects MD3 (owner standing rule, 2026-10-25). Colors, corner
+radii, control shapes and state treatments come from the tonal token set in
+`:root` of `tutor/static/tutor/style.css` (baseline purple scheme:
+`--md-primary`, `--md-primary-container`, `--md-surface*`, `--md-outline*`,
+`--md-error*`, …) — not from ad-hoc hex. Component roles: learner choices use
+filled tonal buttons (primary-container); system/utility offers use the
+secondary-container pill; destructive notes use error-container; state marks
+(used, completed) are muted tonal states, never `pointer-events` removal —
+visual disability is a color decision, functional disability is a routing
+decision, and the two stay separate. A new component picks its colors from
+the tokens; a new token joins `:root`, never a literal in a rule.
+
 
 Module strings pinned by tests — the generic rejection copy
 (`GENERIC_REJECTION`), the role-menu copy (`ROLE_MENU_COPY`), the drive
