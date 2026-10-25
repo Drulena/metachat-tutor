@@ -189,6 +189,51 @@ class ChatOptionRenderingTests(TestCase):
         page = html_module.unescape(client.get("/").content.decode())
         self.assertNotIn("computes nothing", page)
 
+    def test_chat_has_no_leaked_offer_comment(self):
+        client = self.client
+        _drive(client, ROLE_MENU_INPUTS)
+        page = html_module.unescape(client.get("/").content.decode())
+        self.assertNotIn("Choices first in the scenario", page)
+        self.assertNotIn("own row after them", page)
+
+    def test_options_block_has_a_single_separator(self):
+        client = self.client
+        _drive(client, ROLE_MENU_INPUTS)
+        html = client.get("/").content.decode()
+        block = self._last_block(html)
+        between = block[block.index('<div class="message-options">'):
+                        block.index('<div class="system-options">')]
+        self.assertNotIn("style=", between, "one separator: the utility row adds none")
+
+    def test_back_renders_before_the_advancing_offer(self):
+        client = self.client
+        # The template's system row renders back/retry first, advancing nav
+        # after. role_menu's nav map carries "finish" (✅ Finish) and the
+        # synthesised back lands in the same row — back must precede finish.
+        # (Feedback rows' "next" is a scenario-loop value → choices row.)
+        _drive(client, ROLE_MENU_INPUTS)
+        html = client.get("/").content.decode()
+        system = self._last_block(html).split('<div class="system-options">', 1)[1]
+        self.assertLess(system.index("data-value=\"back\""), system.index("data-value=\"finish\""))
+
+    def test_completed_role_stays_clickable_but_marked(self):
+        """A finished role's offer is marked, not dead (issue #15 owner pass):
+        the markup stays an enabled button, and clicking it re-opens the role -
+        rehearsal is allowed; the role is not de facto inaccessible."""
+        client = self.client
+        with mock.patch("tutor.llm.get_llm_feedback", _fake_feedback):
+            _drive(client, ROLE_MENU_INPUTS)
+            client.post("/", {"user_input": "1"})
+            client.post("/", {"user_input": "I mediate the conflict"})
+            client.post("/", {"user_input": "next"})
+            html = client.get("/").content.decode()
+            done = [m for m in self._button_markup(html) if "option-completed" in m]
+            self.assertEqual(len(done), 1)
+            self.assertIn('data-value="1"', done[0], "the finished role stays clickable markup")
+            page = client.post("/", {"user_input": "1"}).content.decode()
+        self.assertIn("ROLE: Mediator", page, "the finished role re-opens on click")
+        self.assertNotIn(ROLE_MENU_COPY, page)
+
 
 class ExportViewTests(TestCase):
     def test_export_composes_turns_and_progress(self):
