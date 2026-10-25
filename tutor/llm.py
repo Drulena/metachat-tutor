@@ -13,20 +13,59 @@ from .scenarios import ROLEPLAY_ERROR_TEMPLATES, ROLEPLAY_ERROR_DEFAULT
 logger = logging.getLogger(__name__)
 
 _MAX_ANSWER_LENGTH = 2000
+_MAX_OUTPUT_TOKENS = 150
 _PRIMARY_TIMEOUT = 15
 _FALLBACK_TIMEOUT = 10
 
+# Two wire protocols, not one SDK per vendor: "openai" covers every
+# OpenAI-compatible endpoint (OpenAI, Mistral, OpenRouter, Cerebras,
+# DeepSeek, local servers); "anthropic" answers the vendor's own
+# protocol (x-api-key, /v1/messages, content blocks).
+_PROVIDER_ANTHROPIC = "anthropic"
+_ANTHROPIC_VERSION = "2023-06-01"
+# Endpoints owners paste from provider docs; the API base is recovered
+# from any of them (issue #15: a Mistral /v1/conversations URL shipped
+# in .env and every attempt 404'd behind it).
+_URL_SUFFIXES = ("/chat/completions", "/completions", "/messages",
+                 "/conversations")
 
-def _response_text(result: object) -> Optional[str]:
+
+def _api_base(llm_url: str) -> str:
+    """Return the provider's API base from any docs-pasted endpoint URL."""
+    base = llm_url.rstrip("/")
+    for suffix in _URL_SUFFIXES:
+        if base.endswith(suffix):
+            base = base[: -len(suffix)]
+            break
+    return base
+
+
+def _anthropic_text(result: dict) -> Optional[str]:
+    """Concatenate the text blocks of an anthropic message; thinking is not surfaced."""
+    blocks = result.get("content")
+    if not isinstance(blocks, list):
+        return None
+    texts = [block.get("text", "") for block in blocks
+             if isinstance(block, dict) and block.get("type") == "text"]
+    joined = "\n".join(text for text in texts if text.strip())
+    if not joined.strip():
+        return None
+    return html_mod.unescape(joined.strip())
+
+
+def _response_text(result: object, provider: str = "openai") -> Optional[str]:
     """Extract the student-facing text from a completions response.
 
-    Only ``text``/``content`` are surfaced. A provider's ``reasoning`` field
-    is the model's chain of thought — showing it to the learner is a defect
-    (owner report, issue #15), so a reasoning-only choice is a miss: the
-    caller falls through to the demo-failure path.
+    Only ``text``/``content`` are surfaced. A provider's ``reasoning``
+    (openai-compatible) and ``thinking`` (anthropic) fields are the
+    model's chain of thought — showing it to the learner is a defect
+    (owner report, issue #15), so a reasoning-only answer is a miss:
+    the caller falls through to the demo-failure path.
     """
     if not isinstance(result, dict):
         return None
+    if provider == _PROVIDER_ANTHROPIC:
+        return _anthropic_text(result)
     choices = result.get("choices")
     if not choices:
         return None
@@ -100,41 +139,51 @@ def get_llm_feedback(
 
     llm_url = os.getenv("LLM_URL", "https://vedai.by/api/v1")
     llm_model = os.getenv("LLM_MODEL", "gpt-4o-mini")
+    provider = os.getenv("LLM_PROVIDER", "openai").strip().lower()
 
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-
-    base = llm_url.rstrip("/")
-    for suffix in ("/chat/completions", "/completions"):
-        if base.endswith(suffix):
-            base = base[: -len(suffix)]
-            break
-    chat_url = base + "/chat/completions"
-    legacy_url = base + "/completions"
-
-    attempts = [
-        (
-            "chat",
-            chat_url,
-            {
-                "model": llm_model,
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 150,
-            },
-            _PRIMARY_TIMEOUT,
-        ),
-        (
-            "legacy",
-            legacy_url,
-            {"prompt": prompt, "max_tokens": 150},
-            _FALLBACK_TIMEOUT,
-        ),
-    ]
+    base = _api_base(llm_url)
+    bearer = {"Authorization": f"Bearer {api_key}",
+              "Content-Type": "application/json"}
+    if provider == _PROVIDER_ANTHROPIC:
+        attempts = [
+            (
+                "anthropic",
+                base + "/messages",
+                {"x-api-key": api_key,
+                 "anthropic-version": _ANTHROPIC_VERSION,
+                 "Content-Type": "application/json"},
+                {
+                    "model": llm_model,
+                    "max_tokens": _MAX_OUTPUT_TOKENS,
+                    "messages": [{"role": "user", "content": prompt}],
+                },
+                _PRIMARY_TIMEOUT,
+            ),
+        ]
+    else:
+        attempts = [
+            (
+                "chat",
+                base + "/chat/completions",
+                bearer,
+                {
+                    "model": llm_model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": _MAX_OUTPUT_TOKENS,
+                },
+                _PRIMARY_TIMEOUT,
+            ),
+            (
+                "legacy",
+                base + "/completions",
+                bearer,
+                {"prompt": prompt, "max_tokens": _MAX_OUTPUT_TOKENS},
+                _FALLBACK_TIMEOUT,
+            ),
+        ]
 
     errors: list[str] = []
-    for label, url, payload, timeout in attempts:
+    for label, url, headers, payload, timeout in attempts:
         try:
             resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
             logger.debug("LLM %s at %s -> status=%d", label, url, resp.status_code)
@@ -144,7 +193,7 @@ def get_llm_feedback(
                 continue
 
             result = resp.json()
-            text = _response_text(result)
+            text = _response_text(result, provider)
             if text:
                 return text, False
 
@@ -155,8 +204,6 @@ def get_llm_feedback(
                 list(result.keys()),
                 str(result)[:300],
             )
-            if choices is not None:
-                logger.debug("LLM %s choices=%s", label, choices)
 
         except Exception as exc:
             errors.append(f"{label}: {exc}")
