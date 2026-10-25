@@ -1,8 +1,9 @@
-# ADR-0005 — Typed options with kind; row-owned rejection copy
+# 0005. Typed options with kind; row-owned rejection copy
 
-- Status: Accepted
+- **Status:** accepted
 - Date: 2026-10-24
-- Issue: #15 (supersedes the options clause of ADR-0001; builds on ADR-0003)
+- Issue: #15
+- **Supersedes:** 0001 (`Turn.options` shape clause), 0003 (`Summary.phase` field; the `completed_*` raw-value fields; their export clause) — ADR-0003's section-row statuses and export schema-shift precedent stand.
 
 ## Context
 
@@ -13,13 +14,13 @@ Rejection was the same shape problem in the view: the module silently drops an i
 ## Decision
 
 1. `Turn.options: Optional[list[TurnOption]]`. `TurnOption` is a frozen dataclass `{value, label, kind}` in `tutor/session.py`. The kind vocabulary is `OPTION_KINDS = ("choice", "nav", "retry")`.
-2. Kind is the routing origin, tested at rendering time against the row's `nav` map (plus the synthesised `back`/`retry` edges): an offered nav edge is `nav`, the LLM-failure retry is `retry`, everything else — the scenario's learner values (numbers, free text, yes, and scenario-declared loop values like `revise`, `continue`) — is `choice`. The scenario map is presentation; the nav map is routing, so it is the origin test.
+2. Kind is the routing origin, tested at rendering time against the transition row: `back` and the row's `nav`-map values are `nav`; the synthesised `retry` edge on a failed-LLM offer is `retry`; a value the row declares in its `choices` list is `choice`; anything unclassified falls back to `nav` — the conservative default (the nav offer is the one that routes). So scenario-declared loop values (`revise`, `continue`) are `choice`: the learner's answers, not the module's edges. The scenario map is presentation; the nav map plus the row's declared choices are the origin test.
 3. Labels keep the existing presentation precedence, unchanged: on a clash the scenario-defined label wins and the kind stays `nav`. Rendered labels are byte-identical to before; the list keeps today's merge order (nav offers first).
 4. Transition rows gain `rejected: Optional[str]` in the closed field set: the row's copy shown when its input is rejected; `None` takes the module's generic fallback (`_GENERIC_REJECTION`). The validator checks the type.
 5. `Turn.rejection: Optional[str]`: the module pairs the row's copy with the unanswered user turn (the chat entry is flagged at `submit()` time when routing drops it). `chat_view`'s rejection inference, its hardcoded copy, and the `messages` block in `chat.html` are retired.
 6. The export payload inherits the shape shift (`turn.options` dict → list of `{value, label, kind}`) — no external consumer, per the ADR-0003 precedent.
 
-## Options considered
+## Alternatives considered
 
 - Parallel kind map (`options: dict[str,str]` + `kinds: dict[str,str]`) — two shapes to keep in sync, primitive obsession.
 - Separate lists per kind — the template must reassemble the single set; the glossary defines options as one set.
@@ -31,5 +32,5 @@ Rejection was the same shape problem in the view: the module silently drops an i
 - Templates render what they are told: `opt.kind` is a styling/behaviour hook, `turn.rejection` is one line under the user bubble; no page infers option origins or rejections.
 - Rejection copy becomes per-state where useful (`role_menu`: "Choose one of the numbered roles, finish, or back.") while nav-only and prose rows take the generic fallback.
 - The export payload shifts shape (schema-shift precedent of ADR-0003).
-- All 45 transition rows carry the `rejected` key (closed schema, validator-enforced).
+- All 44 transition rows carry the `rejected` key (closed schema, validator-enforced).
 - `TurnOption` is the repo's first frozen dataclass — session value types are now immutable by default.

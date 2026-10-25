@@ -1,10 +1,9 @@
-.env
-.hive
+# Agent scratch space (repro scripts, commit-msg bodies, split tools)
+.scratch/
+
+# Python
 __pycache__/
 *.pyc
-.DS_Store
-*.log
-.ruff_cache/
-venv
-*.sqlite3
-staticfiles/
+
+# Local virtualenv
+venv/

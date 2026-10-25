@@ -44,6 +44,15 @@ When your output names a domain concept (in an issue title, a refactor proposal,
 
 If the concept you need isn't in the glossary yet, that's a signal: either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/domain-modeling`).
 
+## ADR file conventions
+
+- File name: `docs/adr/NNNN-slug.md`, numbers in sequence (`0001`, `0002`, …).
+- Title line: `# 000N. Title` — the number is part of the title.
+- Header metadata as bold list lines: `**Status:** accepted` (one of `proposed` / `accepted` / `deprecated`), and when the decision replaces an earlier one, `**Supersedes:** NNNN`.
+- The section listing rejected shapes is `**Alternatives considered:**` (a bold list line introducing the bullets).
+
+New ADRs follow this shape; older files that predate it drift — fix the drifted lines when the ADR is next touched. Example of the drift: ADR-0005 (2026-10-24) uses `- Status:` / `## Options considered` and has no number in the title; its next touch normalises them.
+
 ## Flag ADR conflicts
 
 If your output contradicts an existing ADR, surface it explicitly rather than silently overriding:

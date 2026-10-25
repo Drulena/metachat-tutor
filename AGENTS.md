@@ -16,3 +16,7 @@ The five default triage labels are used as-is. See `docs/agents/triage-labels.md
 ### Domain docs
 
 Single-context layout: `GLOSSARY.md` at the root, ADRs in `docs/adr/`. See `docs/agents/domain.md`.
+
+### Coding standards
+
+Docstring bar, template/CSS pairing, shared test constants, test commands. See `docs/agents/coding-standards.md`.
