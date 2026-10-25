@@ -461,6 +461,20 @@ html, body {
   background: linear-gradient(135deg, #c8c8c8 0%, #b0b0b0 100%);
 }
 
+/* A finished role's offer: muted with a check (issue #15 owner pass). */
+.option-btn.option-completed {
+  background: linear-gradient(135deg, #b8c4c4 0%, #9fb0b0 100%);
+  color: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.option-btn.option-completed::after {
+  content: ' ✅';
+  font-size: 0.8em;
+}
+
 .session-complete {
   text-align: center;
   padding: 20px;

@@ -510,11 +510,33 @@ class TutorSession:
             # and the kind stays the nav offer's (routing origin). Anything
             # not offered by the nav map / synthesised edges is a scenario
             # choice — the row's nav map is the origin test (ratified Q3).
-            offers: dict[str, tuple[str, str]] = dict(self._navigation_options(state, entry))
+            nav_offers = {
+                value: pair for value, pair in self._navigation_options(state, entry).items()
+            }
+            merged: dict[str, tuple[str, str]] = dict(nav_offers)
             for value, label in (options or {}).items():
-                kind = offers[value][1] if value in offers else "choice"
-                offers[value] = (label, kind)
-            options = [TurnOption(value, label, kind) for value, (label, kind) in offers.items()]
+                kind = nav_offers[value][1] if value in nav_offers else "choice"
+                merged[value] = (label, kind)
+            # A content option whose step is in the ledger is completed —
+            # the pages render the mark, they never compute it (issue #15).
+            # Role options carry the ROLE_BY_VALUE value; map to ledger keys.
+            offered_choices = {value for value, pair in merged.items() if pair[1] == "choice"}
+            items = state.user_data.get("items", {})
+            completed = {
+                value
+                for value in offered_choices
+                if ROLE_BY_VALUE.get(value)
+                and items.get(ROLE_BY_VALUE[value]) == "completed"
+            }
+            options = [
+                TurnOption(value, label, kind)
+                for value, (label, kind) in merged.items()
+                if kind != "choice"
+            ] + [
+                TurnOption(value, label, "choice", value in completed)
+                for value, (label, kind) in merged.items()
+                if kind == "choice"
+            ]
         elif options:
             options = [TurnOption(value, label, "choice") for value, label in options.items()]
         return Turn(

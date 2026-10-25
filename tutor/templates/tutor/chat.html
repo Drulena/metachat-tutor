@@ -28,9 +28,20 @@
           {% if turn.role == 'assistant' %}
             {{ turn.message|markdown }}
             {% if turn.options %}
+              {# Choices first in the scenario's order; the module's nav/retry
+                 offers get their own row after them (issue #15 owner pass). #}
               <div class="message-options">
                 {% for opt in turn.options %}
-                  <button class="option-btn{% if opt.value == turn.used_value %} used{% endif %}" type="button" data-value="{{ opt.value }}"{% if opt.value == turn.used_value %} data-used="true"{% endif %}>{{ opt.label }}</button>
+                  {% if opt.kind != "nav" and opt.kind != "retry" %}
+                    <button class="option-btn{% if opt.value == turn.used_value %} used{% endif %}{% if opt.completed %} option-completed{% endif %}" type="button" data-value="{{ opt.value }}"{% if opt.value == turn.used_value %} data-used="true"{% endif %}>{{ opt.label }}</button>
+                  {% endif %}
+                {% endfor %}
+              </div>
+              <div class="system-options">
+                {% for opt in turn.options %}
+                  {% if opt.kind == "nav" or opt.kind == "retry" %}
+                    <button class="option-btn system-btn{% if opt.value == turn.used_value %} used{% endif %}" type="button" data-value="{{ opt.value }}"{% if opt.value == turn.used_value %} data-used="true"{% endif %}>{{ opt.label }}</button>
+                  {% endif %}
                 {% endfor %}
               </div>
             {% endif %}

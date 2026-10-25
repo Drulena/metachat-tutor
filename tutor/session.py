@@ -63,12 +63,16 @@ class TurnOption:
     ``kind`` the option's ROUTING ORIGIN: ``"choice"`` from the scenario's
     option map, ``"nav"`` from the row's navigation (including the universal
     back), ``"retry"`` offered after an LLM failure. The kind is independent
-    of which map the label came from.
+    of which map the label came from. ``completed`` marks a learner-content
+    option whose step is recorded in the ledger — a finished role's option
+    renders muted with a check (issue #15 owner pass); nav/retry offers never
+    carry it.
     """
 
     value: str
     label: str
     kind: str
+    completed: bool = False
 
 
 @dataclass
