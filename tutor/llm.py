@@ -17,6 +17,27 @@ _PRIMARY_TIMEOUT = 15
 _FALLBACK_TIMEOUT = 10
 
 
+def _response_text(result: object) -> Optional[str]:
+    """Extract the student-facing text from a completions response.
+
+    Only ``text``/``content`` are surfaced. A provider's ``reasoning`` field
+    is the model's chain of thought — showing it to the learner is a defect
+    (owner report, issue #15), so a reasoning-only choice is a miss: the
+    caller falls through to the demo-failure path.
+    """
+    if not isinstance(result, dict):
+        return None
+    choices = result.get("choices")
+    if not choices:
+        return None
+    choice = choices[0]
+    msg = choice.get("message") or {}
+    text = choice.get("text") or msg.get("content") or ""
+    if text.strip():
+        return html_mod.unescape(text.strip())
+    return None
+
+
 def get_roleplay_fallback(level: str, role_name: str, detail: str) -> str:
     """Build a role-aware fallback message for role-play mode."""
     normalized = role_name if role_name.startswith("role_") else f"role_{role_name}"
@@ -72,7 +93,9 @@ def get_llm_feedback(
         "Evaluate the student's answer based on the theoretical framework above. "
         "Check whether they identified/applied metagrapheme tools correctly for their level. "
         "Give brief constructive feedback (max 500 characters). "
-        "Be supportive and specific."
+        "Be supportive and specific. "
+        "Return only the feedback text the student should read. "
+        "No reasoning, no analysis notes, no preamble."
     )
 
     llm_url = os.getenv("LLM_URL", "https://vedai.by/api/v1")
@@ -121,20 +144,11 @@ def get_llm_feedback(
                 continue
 
             result = resp.json()
-            choices = result.get("choices")
-            if choices and len(choices) > 0:
-                choice = choices[0]
-                msg = choice.get("message") or {}
-                text = (
-                    choice.get("text")
-                    or msg.get("content")
-                    or msg.get("reasoning")
-                    or ""
-                )
-                if text.strip():
-                    return html_mod.unescape(text.strip()), False
+            text = _response_text(result)
+            if text:
+                return text, False
 
-            errors.append(f"{label}: no valid choices in response")
+            errors.append(f"{label}: no student-facing text in response")
             logger.debug(
                 "LLM %s response keys=%s preview=%s",
                 label,
