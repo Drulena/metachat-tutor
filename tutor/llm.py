@@ -17,11 +17,14 @@ _MAX_OUTPUT_TOKENS = 150
 _PRIMARY_TIMEOUT = 15
 _FALLBACK_TIMEOUT = 10
 
-# Two wire protocols, not one SDK per vendor: "openai" covers every
+# Three wire protocols, not one SDK per vendor: "openai" covers every
 # OpenAI-compatible endpoint (OpenAI, Mistral, OpenRouter, Cerebras,
 # DeepSeek, local servers); "anthropic" answers the vendor's own
-# protocol (x-api-key, /v1/messages, content blocks).
+# protocol (x-api-key, /v1/messages, content blocks); "mistral"
+# answers Mistral's native Conversations API (inputs/outputs) — the
+# owner's key answers there while chat/completions 429s.
 _PROVIDER_ANTHROPIC = "anthropic"
+_PROVIDER_MISTRAL = "mistral"
 _ANTHROPIC_VERSION = "2023-06-01"
 # Endpoints owners paste from provider docs; the API base is recovered
 # from any of them (issue #15: a Mistral /v1/conversations URL shipped
@@ -53,6 +56,22 @@ def _anthropic_text(result: dict) -> Optional[str]:
     return html_mod.unescape(joined.strip())
 
 
+def _mistral_text(result: dict) -> Optional[str]:
+    """Concatenate the assistant outputs of a conversations response."""
+    entries = result.get("outputs")
+    if not isinstance(entries, list):
+        return None
+    texts = [entry.get("content", "") for entry in entries
+             if isinstance(entry, dict)
+             and entry.get("type") == "message.output"
+             and entry.get("role") == "assistant"
+             and isinstance(entry.get("content"), str)]
+    joined = "\n".join(text for text in texts if text.strip())
+    if not joined.strip():
+        return None
+    return html_mod.unescape(joined.strip())
+
+
 def _response_text(result: object, provider: str = "openai") -> Optional[str]:
     """Extract the student-facing text from a completions response.
 
@@ -66,6 +85,8 @@ def _response_text(result: object, provider: str = "openai") -> Optional[str]:
         return None
     if provider == _PROVIDER_ANTHROPIC:
         return _anthropic_text(result)
+    if provider == _PROVIDER_MISTRAL:
+        return _mistral_text(result)
     choices = result.get("choices")
     if not choices:
         return None
@@ -156,6 +177,22 @@ def get_llm_feedback(
                     "model": llm_model,
                     "max_tokens": _MAX_OUTPUT_TOKENS,
                     "messages": [{"role": "user", "content": prompt}],
+                },
+                _PRIMARY_TIMEOUT,
+            ),
+        ]
+    elif provider == _PROVIDER_MISTRAL:
+        attempts = [
+            (
+                "mistral",
+                base + "/conversations",
+                bearer,
+                {
+                    "model": llm_model,
+                    "inputs": [{"role": "user", "content": prompt}],
+                    "tools": [],
+                    "completion_args": {"max_tokens": _MAX_OUTPUT_TOKENS},
+                    "instructions": "",
                 },
                 _PRIMARY_TIMEOUT,
             ),

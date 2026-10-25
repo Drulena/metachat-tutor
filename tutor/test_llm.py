@@ -78,6 +78,26 @@ class ResponseTextProviderTests(unittest.TestCase):
         self.assertEqual(_response_text(result, "anthropic"), "A & B")
 
 
+class ResponseTextMistralTests(unittest.TestCase):
+    def test_assistant_outputs_are_surfaced(self):
+        result = {"outputs": [
+            {"type": "message.output", "role": "assistant", "content": "Part one."},
+            {"type": "message.output", "role": "assistant", "content": "Part two."},
+        ]}
+        self.assertEqual(_response_text(result, "mistral"), "Part one.\nPart two.")
+
+    def test_non_output_entries_are_skipped(self):
+        result = {"outputs": [{"type": "entry", "role": "tool", "content": "n/a"},
+                              {"type": "message.output", "role": "assistant",
+                               "content": "Real answer."}]}
+        self.assertEqual(_response_text(result, "mistral"), "Real answer.")
+
+    def test_html_entities_are_unescaped(self):
+        result = {"outputs": [{"type": "message.output", "role": "assistant",
+                               "content": "A &amp; B"}]}
+        self.assertEqual(_response_text(result, "mistral"), "A & B")
+
+
 class PromptContractTests(unittest.TestCase):
     """The prompt must demand student-facing output only — the owner's rule."""
 
@@ -213,6 +233,39 @@ class ProviderShapeTests(unittest.TestCase):
         self.assertTrue(failed)
         self.assertIn("no student-facing text", text)
         self.assertNotIn("name 'choices'", text)
+
+    def test_mistral_conversations_protocol_shape(self):
+        # The owner's key answers on the CONVERSATIONS endpoint while
+        # chat/completions 429s — the native shape (inputs,
+        # completion_args, outputs) is its own protocol.
+        text, failed, calls = self._run(
+            {"LLM_API_KEY": "key", "LLM_PROVIDER": "mistral",
+             "LLM_URL": "https://api.mistral.ai/v1/conversations",
+             "LLM_MODEL": "mistral-small-2506"},
+            {"object": "conversation.response",
+             "outputs": [{"type": "message.output", "role": "assistant",
+                          "content": "Mistral answers."}]},
+        )
+        self.assertEqual([c["url"] for c in calls["calls"]],
+                         ["https://api.mistral.ai/v1/conversations"])
+        headers = calls["calls"][0]["headers"]
+        self.assertEqual(headers["Authorization"], "Bearer key")
+        payload = calls["calls"][0]["payload"]
+        self.assertEqual(payload["model"], "mistral-small-2506")
+        self.assertEqual(payload["inputs"][0]["role"], "user")
+        self.assertEqual(payload["completion_args"]["max_tokens"], 150)
+        self.assertEqual(text, "Mistral answers.")
+        self.assertFalse(failed)
+
+    def test_mistral_empty_outputs_is_a_miss(self):
+        text, failed, _ = self._run(
+            {"LLM_API_KEY": "key", "LLM_PROVIDER": "mistral",
+             "LLM_URL": "https://api.mistral.ai/v1",
+             "LLM_MODEL": "mistral-small-2506"},
+            {"object": "conversation.response", "outputs": []},
+        )
+        self.assertTrue(failed)
+        self.assertIn("no student-facing text", text)
 
 
 def _boom(*args, **kwargs):  # pragma: no cover - must never run
