@@ -20,3 +20,7 @@ Single-context layout: `GLOSSARY.md` at the root, ADRs in `docs/adr/`. See `docs
 ### Coding standards
 
 Docstring bar, template/CSS pairing, shared test constants, test commands. See `docs/agents/coding-standards.md`.
+
+### Retro
+
+Append-only session retrospectives, newest section first. See `docs/agents/retro.md`.
