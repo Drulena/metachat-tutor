@@ -15,7 +15,12 @@ from dataclasses import asdict
 from django.test import TestCase
 
 from .session import SessionStorage
-from .test_tutor_session import FakeLLM, ROLE_MENU_INPUTS
+from .test_tutor_session import (
+    FakeLLM,
+    GENERIC_REJECTION,
+    ROLE_MENU_COPY,
+    ROLE_MENU_INPUTS,
+)
 from .tutor_session import TutorSession
 
 
@@ -155,49 +160,43 @@ class ResetViewTests(TestCase):
 
 
 class ChatRejectionTests(TestCase):
-    """A rejected input answers with the row's own copy (ticket #15)."""
+    """A rejected input answers with the row's own copy (ticket #15).
 
-    ROLE_MENU_COPY = "Choose one of the numbered roles, finish, or back."
-    GENERIC = (
-        "That answer is not recognized: choose one of the offered options, type "
-        "'back', 'finish', 'restart' (to erase and start over), 'export' (to "
-        "download the transcript), 'help' (for a summary of the rules), 'idea' "
-        "(to generate an idea for the assignments, when the task asks for one), "
-        "or 'next' (to advance one page). In data collection, type 'name <your "
-        "name>'. The task's own options are shown beneath the question."
-    )
+    The copy constants are shared from :mod:`tutor.test_tutor_session` —
+    every pinning of the module's strings lives there, once.
+    """
 
     def test_chat_shows_bespoke_copy_beneath_the_input(self):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)  # ends at role_menu
         client.post("/", {"user_input": "not a role"})
         html = client.get("/").content.decode()
-        self.assertIn(self.ROLE_MENU_COPY, html)
-        self.assertLess(html.index("not a role"), html.index(self.ROLE_MENU_COPY))
+        self.assertIn(ROLE_MENU_COPY, html)
+        self.assertLess(html.index("not a role"), html.index(ROLE_MENU_COPY))
 
     def test_chat_generic_never_inferred(self):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
         client.post("/", {"user_input": "not a role"})
         html = client.get("/").content.decode()
-        self.assertNotIn(self.GENERIC, html)
-        self.assertEqual(html.count(self.ROLE_MENU_COPY), 1)
+        self.assertNotIn(GENERIC_REJECTION, html)
+        self.assertEqual(html.count(ROLE_MENU_COPY), 1)
 
     def test_chat_pre_registration_has_no_rejection(self):
         client = self.client
         client.get("/")  # auto-start: data_collection, unregistered
         client.post("/", {"user_input": "asdasd"})  # a bare name is accepted as a name
         html = client.get("/").content.decode()
-        self.assertNotIn(self.GENERIC, html)
-        self.assertNotIn(self.ROLE_MENU_COPY, html)
+        self.assertNotIn(GENERIC_REJECTION, html)
+        self.assertNotIn(ROLE_MENU_COPY, html)
 
     def test_chat_no_rejection_when_the_answer_lands(self):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
         client.post("/", {"user_input": "1"})  # a role menu choice lands
         html = client.get("/").content.decode()
-        self.assertNotIn(self.ROLE_MENU_COPY, html)
-        self.assertNotIn(self.GENERIC, html)
+        self.assertNotIn(ROLE_MENU_COPY, html)
+        self.assertNotIn(GENERIC_REJECTION, html)
 
     def test_chat_nav_state_falls_back_to_generic_copy(self):
         client = self.client
@@ -205,7 +204,7 @@ class ChatRejectionTests(TestCase):
         _drive(client, ROLE_MENU_INPUTS[:8])
         client.post("/", {"user_input": "no such task"})
         html = html_module.unescape(client.get("/").content.decode())
-        self.assertIn(self.GENERIC, html)
+        self.assertIn(GENERIC_REJECTION, html)
 
 
 class ChatSidebarGateTests(TestCase):

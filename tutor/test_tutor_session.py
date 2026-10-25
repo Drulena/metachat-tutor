@@ -45,6 +45,22 @@ def offers(turn) -> dict:
     return {opt.value: (opt.label, opt.kind) for opt in (turn.options or [])}
 
 
+#: The module's generic rejection copy (``tutor_session._GENERIC_REJECTION``).
+#: Shared with :mod:`tutor.test_options` / :mod:`tutor.test_views`: every
+#: pinning of the copy lives here, once (code-review #15, duplication).
+GENERIC_REJECTION = (
+    "That answer is not recognized: choose one of the offered options, type "
+    "'back', 'finish', 'restart' (to erase and start over), 'export' (to "
+    "download the transcript), 'help' (for a summary of the rules), 'idea' "
+    "(to generate an idea for the assignments, when the task asks for one), "
+    "or 'next' (to advance one page). In data collection, type 'name <your "
+    "name>'. The task's own options are shown beneath the question."
+)
+
+#: The role-menu row's bespoke rejection copy (rows/role_menu.py).
+ROLE_MENU_COPY = "Choose one of the numbered roles, finish, or back."
+
+
 class FakeLLM:
     """Deterministic feedback callable matching the Feedback protocol."""
 
@@ -458,7 +474,7 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(turns[-1].message, "not a role")
         self.assertEqual(
             turns[-1].rejection,
-            "Choose one of the numbered roles, finish, or back.",
+            ROLE_MENU_COPY,
         )
 
     def test_rejection_is_none_when_the_answer_lands(self):
@@ -472,15 +488,69 @@ class TutorSessionTests(SimpleTestCase):
         # analysis_feedback_2: closed accept (next/back), no bespoke copy
         self.drive(session, *ROLE_MENU_INPUTS[:8])
         session.submit("no such task")
-        self.assertEqual(
-            session.turns()[-1].rejection,
-            "That answer is not recognized: choose one of the offered options, type "
-            "'back', 'finish', 'restart' (to erase and start over), 'export' (to "
-            "download the transcript), 'help' (for a summary of the rules), 'idea' "
-            "(to generate an idea for the assignments, when the task asks for one), "
-            "or 'next' (to advance one page). In data collection, type 'name <your "
-            "name>'. The task's own options are shown beneath the question.",
+        self.assertEqual(session.turns()[-1].rejection, GENERIC_REJECTION)
+
+    def test_generic_copy_is_the_fallback_at_states_without_a_row(self):
+        """The generic copy is the fallback for every state whose row declares
+        no copy — exercised by ``test_nav_row_rejection_falls_back_to_the_
+        generic_copy`` (issue #15).
+
+        ``start`` accepts any input (the welcome answers free text), so a
+        dropped input never occurs there; the no-row fallback exists for
+        stored legacy data, and ``end`` is the copy-free exception — pinned
+        by ``test_end_state_pairs_no_rejection_copy``.
+        """
+        session, _, _ = self.make_session()
+        turn = session.submit("gibberish")
+        self.assertIsNotNone(turn)  # accepted: the welcome answers free text
+        self.assertIsNone(session.turns()[-1].rejection)
+
+    def test_end_state_pairs_no_rejection_copy(self):
+        """After the completion the UI offers no composer, and the structural
+        AC holds: at ``end`` a stray input carries no banner copy at all."""
+        session, storage, _ = self.make_session()
+        self.drive_to_role_menu(session)
+        self.drive(
+            session,
+            "1", "I mediate the conflict", "next",
+            "finish", "A long reflection", "4 4 4", "exit",
         )
+        self.assertEqual(self.state_of(storage).current_state, "end")
+        session.submit("gibberish")
+        self.assertEqual(session.turns()[-1].role, "user")
+        self.assertIsNone(session.turns()[-1].rejection)
+
+    def test_submit_returns_the_paired_turn(self):
+        """The Turn ``submit()`` hands back is the same object ``turns()``
+        reports — rejection pairing lives in one place (code-review #15)."""
+        session, _, _ = self.make_session()
+        self.drive(session, *ROLE_MENU_INPUTS)
+        returned = session.submit("not a role")
+        self.assertEqual(returned, session.turns()[-1])
+        self.assertEqual(returned.rejection, ROLE_MENU_COPY)
+
+    def test_synthesised_back_marks_used_value(self):
+        """``back`` is a synthesised edge, not a row-nav value — marking it
+        keeps the newest-answer rule uniform for every offered option."""
+        session, _, _ = self.make_session()
+        self.drive(session, *ROLE_MENU_INPUTS)
+        session.submit("back")
+        turns = session.turns()
+        # back appends no user turn — the OLD offer it answered is marked
+        self.assertEqual(turns[-1].role, "assistant")
+        self.assertEqual(turns[-2].used_value, "back")
+
+    def test_retry_marks_used_value(self):
+        """``retry`` is a synthesised edge on a failed-LLM turn: answering it
+        marks that turn like every other offer."""
+        llm = FakeLLM(fail_times=4, text="LLM-OUT")
+        session, _, _ = self.make_session(llm=llm)
+        self.drive_to_role_menu(session)
+        self.drive(session, "1", "I mediate")
+        self.assertIn("retry", offers(session.turns()[-1]))
+        session.submit("retry")
+        # retry appends no user turn — the failed turn is refreshed in place
+        self.assertEqual(session.turns()[-1].used_value, "retry")
 
     # --------------------------------------------------------------- retry
 

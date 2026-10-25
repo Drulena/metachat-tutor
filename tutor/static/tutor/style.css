@@ -258,14 +258,14 @@ html, body {
   font-weight: 600;
 }
 
-.warning {
-  background: #fff3cd;
-  border: 1px solid #ffc107;
-  color: #856404;
-  padding: 10px 16px;
+.rejection-note {
+  background: #f8d7da;
+  border: 1px solid #f5c2c7;
+  color: #842029;
+  padding: 8px 14px;
   border-radius: 8px;
-  margin-bottom: 12px;
-  font-size: 0.9rem;
+  margin-top: 8px;
+  font-size: 0.88rem;
 }
 
 .input-area {

@@ -16,10 +16,8 @@ adapter and receives LLM feedback as an injected callable
 (:func:`tutor.llm.get_llm_feedback` by default). Completion is stored as
 ``user_data["items"]`` — a mapping of every assessable item to
 ``not_started`` / ``in_progress`` / ``completed`` — and every figure the
-view shows (percentage, step counters, task lists, completed value sets)
-is derived from that single model. Legacy states saved before this module
-(parallel ``completed_*`` / ``opened_tasks`` lists) are migrated to the
-items model on load.
+views show (percentage, step counters, section rows with their status) is
+derived from that single model; the templates branch on nothing.
 """
 
 from __future__ import annotations
@@ -171,7 +169,13 @@ class TutorSession:
                 state.chat_history[-1]["rejected"] = True
 
         self._storage.save(state)
-        return self._make_turn(state, state.chat_history[-1], is_current=True)
+        current = state.chat_history[-1]
+        return self._make_turn(
+            state,
+            current,
+            is_current=True,
+            rejection=self._rejection_copy(current),
+        )
 
     def turns(self) -> list[Turn]:
         """The chat history; navigation options on the current turn only.
@@ -375,6 +379,10 @@ class TutorSession:
         if back.startswith("after_registration_"):
             level = state.user_data.get("level") or "beginner"
             back = f"after_registration_{level}"
+        # The typed ``back`` answers the current offer — mark it (synthesised
+        # edge, no user entry follows; the stamp is the marking).
+        if state.chat_history:
+            state.chat_history[-1]["used_value"] = "back"
         state.current_state = back
         # The old handle_back re-appended the assistant turn even when the
         # state did not change (e.g. from after_registration_*).
@@ -386,6 +394,9 @@ class TutorSession:
         entry = state.chat_history[-1]
         entry["content"] = message
         entry["timestamp"] = datetime.now().isoformat()
+        # ``retry`` answers the failed offer in place — mark it (no user
+        # entry follows; the stamp is the marking).
+        entry["used_value"] = "retry"
         entry["llm_failed"] = failed
         if not failed:
             state.retry_count = 0
@@ -482,6 +493,16 @@ class TutorSession:
         used_value: Optional[str] = None,
         rejection: Optional[str] = None,
     ) -> Turn:
+        """Project a chat-history entry into a Turn for the views.
+
+        Options carry their kind by routing origin (GLOSSARY "option kind",
+        ADR-0005); on a clash the scenario label wins and the nav kind stays.
+        ``used_value`` / ``rejection`` are paired by the caller — the caller
+        knows the history adjacency; this method does not.
+        """
+        # Synthesised edges (back/retry) stamp the answered entry directly —
+        # no user entry follows them, so the stamp is the marking.
+        used_value = used_value or entry.get("used_value")
         options = entry.get("options")
         if is_current and entry.get("role") == "assistant":
             # The single set (ADR-0005): nav offers first, scenario options
@@ -515,18 +536,25 @@ class TutorSession:
         """
         if entry.get("role") != "user" or not entry.get("rejected"):
             return None
-        row_copy = TRANSITIONS.get(entry.get("state", ""), {}).get("rejected")
-        return row_copy if row_copy is not None else _GENERIC_REJECTION
+        if entry.get("state") == "end":
+            # After the completion there is no composer — no banner copy.
+            return None
+        row = TRANSITIONS.get(entry.get("state", ""))
+        if row is None:
+            return _GENERIC_REJECTION
+        return row.get("rejected") if row.get("rejected") is not None else _GENERIC_REJECTION
 
     def _used_value(self, entry: dict, following: Optional[dict]) -> Optional[str]:
         """The option value the learner used to answer this assistant entry.
 
         ``chat_history`` is a flat list, so the answer to an entry is the
         entry right after it. The value counts when it matches one of the
-        scenario options stored on the entry, or one of the transition row's
+        scenario options stored on the entry, one of the transition row's
         ``nav`` values for the entry's state (navigation options are not
-        stored on entries). Free-text answers mark nothing; so does any
-        turn with no user entry after it (the newest turn).
+        stored on entries), or the synthesised edges — ``back`` (everywhere
+        but ``start``) and ``retry`` on a failed LLM entry (issue #15).
+        Free-text answers mark nothing; so does any turn with no user entry
+        after it (the newest turn).
         """
         if entry.get("role") != "assistant" or following is None:
             return None
@@ -538,6 +566,10 @@ class TutorSession:
             return value
         nav = TRANSITIONS.get(entry.get("state", ""), {}).get("nav", {})
         if value in nav:
+            return value
+        if value == "back" and entry.get("state") != "start":
+            return value
+        if value == "retry" and entry.get("llm_failed"):
             return value
         return None
 

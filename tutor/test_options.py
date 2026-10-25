@@ -13,24 +13,15 @@ from django.test import SimpleTestCase
 
 from .data import ROLE_BY_VALUE
 from .session import MemoryStorage, TurnOption
-from .test_tutor_session import FakeLLM, ROLE_MENU_INPUTS
+from .test_tutor_session import (
+    FakeLLM,
+    GENERIC_REJECTION,
+    ROLE_MENU_COPY,
+    ROLE_MENU_INPUTS,
+)
 from .tutor_session import TutorSession
 
 KINDS = {"choice", "nav", "retry"}
-
-#: The module's fallback for rows that declare no copy (``rejected: None``) —
-#: pinned verbatim (it replaces the string the view used to synthesise).
-GENERIC = (
-    "That answer is not recognized: choose one of the offered options, type "
-    "'back', 'finish', 'restart' (to erase and start over), 'export' (to "
-    "download the transcript), 'help' (for a summary of the rules), 'idea' "
-    "(to generate an idea for the assignments, when the task asks for one), "
-    "or 'next' (to advance one page). In data collection, type 'name <your "
-    "name>'. The task's own options are shown beneath the question."
-)
-
-#: The role menu's row-owned copy.
-ROLE_MENU_COPY = "Choose one of the numbered roles, finish, or back."
 
 
 def _session(llm=None):
@@ -106,4 +97,4 @@ class TurnRejectionTests(SimpleTestCase):
         # analysis_feedback_2: closed accept (next/back), no bespoke copy
         session = _drive(_session(), *ROLE_MENU_INPUTS[:8])
         session.submit("no such task")
-        self.assertEqual(session.turns()[-1].rejection, GENERIC)
+        self.assertEqual(session.turns()[-1].rejection, GENERIC_REJECTION)
