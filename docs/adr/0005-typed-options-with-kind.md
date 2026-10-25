@@ -34,3 +34,8 @@ Rejection was the same shape problem in the view: the module silently drops an i
 - The export payload shifts shape (schema-shift precedent of ADR-0003).
 - All 44 transition rows carry the `rejected` key (closed schema, validator-enforced).
 - `TurnOption` is the repo's first frozen dataclass — session value types are now immutable by default.
+
+## Follow-up (owner UI pass, 2026-10-25)
+
+- `TurnOption.completed`: an option is rendered finished when **its step is in the ledger** — role options carry the `ROLE_BY_VALUE` value, so the module maps to ledger keys before marking (the pages never do); finished roles render muted with a check.
+- Kind gets rendering: `choice` options render first in defined order; `nav`/`retry` render in their own row — utilities, not content options. The LLM answer contract was fixed alongside: the learner sees the parsed `content` only; chain-of-thought (`reasoning`) never reaches the page.

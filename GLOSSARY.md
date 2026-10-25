@@ -24,7 +24,7 @@ Canonical domain vocabulary for MetaChat Tutor. Use these terms in issues, code,
 
 - **lifecycle pair (started / finished)** — `started`: the conversation exists — the session has begun (the chat auto-starts it, before the learner registers). `finished`: the conversation has reached its terminal state. They answer lifecycle questions only — completion is the job of counts and rows, never of `finished`. Registration is carried by the **Summary**'s participant name: set once the learner has given it. Pages gate on `started` (the progress panel shows from the **zero-state Summary**) and on `finished` (the conversation is over).
 
-- **completion model** — The module's single source of truth for progress: a per-item status (`not_started` / `in_progress` / `completed`) across the scenario's tasks and assessment points. Every progress figure, **section row**, and used-option mark is derived from it; there is no parallel completion list.
+- **completion model** — The module's single source of truth for progress: a per-item status (`not_started` / `in_progress` / `completed`) across the scenario's tasks and assessment points. Every progress figure, **section row**, used-option mark, and finished-option mark is derived from it; there is no parallel completion list.
 
 ## Research-domain terms
 

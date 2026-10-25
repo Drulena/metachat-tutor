@@ -3,6 +3,23 @@
 Append-only, one session per section, newest first. Sessions run `/retro` at
 close; the findings feed the standards docs and the next session's start.
 
+## 2026-10-25 (evening) — Owner UI polish pass: four reported defects (issue #15)
+
+Owner reviewed the branch in `runserver` and reported four defects; all four
+fixed test-first on the same branch: the literal progress-panel comment
+(Django `{# #}` is single-line — block headers use `{% comment %}`, and a
+rendered-page test asserts the words absent), the LLM chain-of-thought reaching
+the chat (parse `content` only; a `content`-missing answer falls through to the
+demo-failure path; prompt demands student-facing output only), utility offers
+sharing the look and order of content options (choices first in defined order;
+nav/retry in their own row), finished roles rendering live (new
+`TurnOption.completed` — the module marks options whose step is in the ledger;
+role options map through `ROLE_BY_VALUE`, and the test's first premise —
+comparing scenario values to ledger keys — was false, caught by a print probe).
+Lesson kept: the two-axis review and the unit tests never rendered a full page —
+owner eyes on `runserver` found four defects in minutes; rendered-page tests
+catch comment leaks.
+
 ## 2026-10-25 — Candidates 2/3/5: Summary rows, typed options, rejection copy (issues #14–#15)
 
 Shipped: section rows carrying their own status (ADR-0003), the `started`/

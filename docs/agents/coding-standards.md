@@ -29,6 +29,22 @@ sequence (`ROLE_MENU_INPUTS`) — are defined once, in
 (`test_options.py`, `test_views.py`). A string copy pinned twice drifts the
 first time the string changes; the shared pin catches every consumer at once.
 
+## Django template comments
+
+`{# … #}` is single-line (Django ≥1.9). A multi-line block header written as
+`{#` … `#}` renders as literal text on the page — the progress-panel header
+shipped on both pages that way. Block comments use `{% comment %}…{% endcomment %}`.
+A rendered-page test (assert the words absent from the response) catches what
+unit tests of the module never see.
+
+## LLM output contract
+
+The learner-facing answer is the parsed `content` field only. Chain-of-thought
+fields (`reasoning`, `reasoning_content`) are model thinking and never reach a
+page — a `content`-missing answer is treated as a miss and falls through to the
+demo-failure path, not to the thinking text (owner: "I want only result of llm,
+not what it thought").
+
 ## Commands
 
 Tests run on the project venv, from the repo root, Django's runner:
