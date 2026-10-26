@@ -13,9 +13,7 @@ from . import (
     start,
     pretest,
     level_assessment,
-    after_registration_beginner,
-    after_registration_intermediate,
-    after_registration_advanced,
+    after_registration,
     analysis_intro_beginner,
     analysis_intro_intermediate,
     analysis_intro_advanced,
@@ -86,9 +84,13 @@ SCENARIO: dict[str, Any] = {
         "start": start.STATE,
         "pretest": pretest.STATE,
         "level_assessment": level_assessment.STATE,
-        "after_registration_beginner": after_registration_beginner.STATE,
-        "after_registration_intermediate": after_registration_intermediate.STATE,
-        "after_registration_advanced": after_registration_advanced.STATE,
+        # The registration axis (spec #16 C1-2, ADR-0006): the suffixed
+        # keys are generated from the level-keyed map — the axis is
+        # spelled once, in this comprehension, not in three module lines.
+        **{
+            f"after_registration_{level}": after_registration.STATE[level]
+            for level in LEVELS
+        },
         "analysis_intro_beginner": analysis_intro_beginner.STATE,
         "analysis_intro_intermediate": analysis_intro_intermediate.STATE,
         "analysis_intro_advanced": analysis_intro_advanced.STATE,
