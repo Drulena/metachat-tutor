@@ -34,6 +34,10 @@ ROLE_MENU_INPUTS = [
     "continue",         # -> role_menu
 ]
 
+#: (level, registration digit) pairs covering the whole level axis
+#: (ADR-0006); mirrors the ``level_assessment`` row's value -> state map.
+LEVEL_DIGITS = [("beginner", "1"), ("intermediate", "2"), ("advanced", "3")]
+
 
 def row_statuses(summary: Summary) -> dict[str, str]:
     """The ``{key: status}`` map of every section row in a Summary."""
@@ -293,6 +297,56 @@ class TutorSessionTests(SimpleTestCase):
         # the user turn records the state it was submitted in
         self.assertEqual(last.state, "data_collection")
         self.assertIsNone(last.options)
+
+    def test_all_registered_levels_traverse_the_graph_through_submit(self):
+        """#17 anchor: each registered level walks the graph end to end.
+
+        Drives every level path through :meth:`TutorSession.submit` one
+        input at a time and asserts the row reached after each step in
+        today's suffix notation. Committed green before the row-registry
+        expand (#17) and kept as the safety net for the base-name
+        cutover (spec #16 C1-9): the sequence of reached rows must not
+        change.
+        """
+        tail = [
+            "1",                    # -> role_mediator
+            "I mediate the conflict",  # -> roleplay_feedback_mediator
+            "next",                 # -> role_menu (mediator completed)
+            "finish",               # -> reflection
+            "A long reflection",    # -> posttest
+            "4 4 4",                # -> data_collection
+            "exit",                 # -> end
+        ]
+        for level, digit in LEVEL_DIGITS:
+            inputs = ROLE_MENU_INPUTS[:2] + [digit] + ROLE_MENU_INPUTS[3:] + tail
+            expected = [
+                "pretest",
+                "level_assessment",
+                f"after_registration_{level}",
+                f"analysis_intro_{level}",
+                f"analysis_task_1_{level}",
+                f"analysis_feedback_1_{level}",
+                f"analysis_task_2_{level}",
+                f"analysis_feedback_2_{level}",
+                "roleplay_intro",
+                "role_menu",
+                "role_mediator",
+                "roleplay_feedback_mediator",
+                "role_menu",
+                "reflection",
+                "posttest",
+                "data_collection",
+                "end",
+            ]
+            self.assertEqual(len(inputs), len(expected))
+            with self.subTest(level=level):
+                session, storage, _ = self.make_session()
+                for step, (text, reached) in enumerate(zip(inputs, expected), 1):
+                    with self.subTest(step=step, input=text):
+                        session.submit(text)
+                        self.assertEqual(
+                            self.state_of(storage).current_state, reached
+                        )
 
     def test_idea_generator_path_yields_the_feedback_turn(self):
         """Issue #12: the Idea Generator gets a feedback turn like every other role.
