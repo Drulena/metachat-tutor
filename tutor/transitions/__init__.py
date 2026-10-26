@@ -63,7 +63,13 @@ from . import (
     posttest,
     data_collection
 )
-from ._registry import expand_rows, make_row_resolver
+from ._registry import (
+    axis_rows,
+    expand_rows,
+    join_state,
+    make_row_resolver,
+    with_fixture_level,
+)
 from ._validate import (
     EFFECT_OPS,
     ITEM_STATUSES,
@@ -78,6 +84,9 @@ __all__ = [
     "TRANSITIONS",
     "ROW_REGISTRY",
     "row_for",
+    "axis_rows",
+    "join_state",
+    "with_fixture_level",
     "EFFECT_OPS",
     "ITEM_STATUSES",
     "ROW_FIELDS",

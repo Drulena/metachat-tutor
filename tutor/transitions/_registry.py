@@ -13,6 +13,12 @@ remain the storage of record, the pair keys are built alongside them,
 and nothing migrates. The base-name cutover of the scenario names is
 C1-9; the prefix-match back repair retires in C1-8.
 
+Spec #16 C1-2 (ticket #18) adds the generation half of the same seam
+algebra: :func:`join_state` joins a pair into a suffixed name,
+:func:`axis_rows` generates one base's three suffixed rows from a
+single level-keyed map, and :func:`with_fixture_level` injects the
+level into one per-base fixture dict (ADR-0006 decisions 5-6).
+
 :func:`make_row_resolver` builds the ``row_for(state, level)`` seam,
 preserving today's resolution behavior exactly:
 
@@ -26,6 +32,7 @@ preserving today's resolution behavior exactly:
 4. an unknown pair resolves to ``None``, like :meth:`dict.get`.
 """
 
+import copy
 from collections.abc import Callable, Mapping
 from typing import Any
 
@@ -50,6 +57,15 @@ def split_state(name: str) -> tuple[str, str | None]:
     return name, None
 
 
+def join_state(base: str, level: str) -> str:
+    """Join a registry pair into its suffixed state name.
+
+    Inverse of :func:`split_state` for axis levels:
+    ``("analysis_intro", "beginner")`` → ``"analysis_intro_beginner"``.
+    """
+    return f"{base}_{level}"
+
+
 def expand_rows(table: Mapping[str, Row]) -> dict[tuple[str, str | None], Row]:
     """Expand a suffix-named row table to ``(base, level)`` pair keys.
 
@@ -67,6 +83,37 @@ def expand_rows(table: Mapping[str, Row]) -> dict[tuple[str, str | None], Row]:
         pairs[pair] = row
         source[pair] = name
     return pairs
+
+
+def axis_rows(base: str, rows_by_level: Mapping[str, Row]) -> dict[str, Row]:
+    """Generate one base state's suffixed-key rows from a level-keyed map.
+
+    The seam generating the level axis (ADR-0006, spec #16 C1-2): one
+    module spells a row per level once, and the assembly keys them
+    ``f"{base}_{level}"`` in axis order — the suffixed names appear in
+    no row module. Raises ``ValueError`` when the map is not keyed by
+    exactly the axis levels: a partial axis is a bug, not a row set.
+    """
+    if set(rows_by_level) != set(LEVEL_SUFFIXES):
+        raise ValueError(
+            f"axis map for {base!r} must cover exactly {LEVEL_SUFFIXES}, "
+            f"got {tuple(sorted(rows_by_level))}"
+        )
+    return {join_state(base, level): rows_by_level[level] for level in LEVEL_SUFFIXES}
+
+
+def with_fixture_level(fixture: Mapping[str, Any], level: str) -> Row:
+    """Copy a per-base fixture dict, injecting the axis level.
+
+    Spec #16 C1-2 (ADR-0006 decision 6): a base state carries one
+    fixture dict; the seam generates the axis by setting
+    ``user_data["level"]`` per level. The assembly keys the generated
+    fixture under the suffixed state name, keeping every fixture
+    self-coherent (fixture level == state-name suffix).
+    """
+    generated = copy.deepcopy(dict(fixture))
+    generated["user_data"]["level"] = level
+    return generated
 
 
 def make_row_resolver(
