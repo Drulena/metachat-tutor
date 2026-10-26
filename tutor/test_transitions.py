@@ -24,11 +24,14 @@ from .transitions import (
     EFFECT_OPS,
     ITEM_STATUSES,
     ROW_FIELDS,
+    ROW_REGISTRY,
     TRANSITIONS,
     USER_DATA_KEYS,
     USER_DATA_SOURCES,
+    row_for,
     validate_transitions,
 )
+from .transitions._registry import LEVEL_SUFFIXES, split_state
 from .tutor_session import (
     ITEM_KEYS,
     _BACK_LABEL,
@@ -175,6 +178,62 @@ class TransitionTableShapeTests(SimpleTestCase):
         if isinstance(row["effects"], dict):
             return row["effects"].values()
         return [row["effects"]]
+
+
+class RowRegistryTests(SimpleTestCase):
+    """The ``(base state, level)`` pair registry and its seam (#17)."""
+
+    AXIS_BASES = (
+        "after_registration",
+        "analysis_intro",
+        "analysis_task_1",
+        "analysis_task_2",
+        "analysis_feedback_1",
+        "analysis_feedback_2",
+    )
+
+    def test_pair_registry_covers_the_table_one_to_one(self):
+        self.assertEqual(set(ROW_REGISTRY), {split_state(s) for s in TRANSITIONS})
+        self.assertEqual(len(ROW_REGISTRY), 44)
+        axis_pairs = [pair for pair in ROW_REGISTRY if pair[1] is not None]
+        self.assertEqual(len(axis_pairs), 18)  # 6 bases x 3 levels
+        self.assertEqual(len(ROW_REGISTRY) - len(axis_pairs), 26)
+        for name, row in TRANSITIONS.items():
+            self.assertIs(ROW_REGISTRY[split_state(name)], row)
+
+    def test_row_for_resolves_axis_pairs_from_base_and_level(self):
+        for base in self.AXIS_BASES:
+            for level in LEVEL_SUFFIXES:
+                with self.subTest(base=base, level=level):
+                    legacy = f"{base}_{level}"
+                    self.assertIs(row_for(base, level), TRANSITIONS[legacy])
+
+    def test_row_for_prefers_the_suffix_embedded_in_the_name(self):
+        # History entries are self-describing: a suffixed name resolves
+        # to its own row even when the session's registered level
+        # differs (the mid-session level change is not reachable —
+        # spec #16 C1-3 pins this).
+        self.assertIs(
+            row_for("analysis_task_1_beginner", "advanced"),
+            TRANSITIONS["analysis_task_1_beginner"],
+        )
+        self.assertIs(
+            row_for("analysis_task_1_beginner"),
+            TRANSITIONS["analysis_task_1_beginner"],
+        )
+
+    def test_row_for_resolves_single_form_states_at_any_level(self):
+        for state in ("pretest", "role_menu", "data_collection"):
+            self.assertIs(row_for(state, "advanced"), TRANSITIONS[state])
+            self.assertIs(row_for(state), TRANSITIONS[state])
+
+    def test_row_for_returns_none_for_unknown_pairs(self):
+        # A bare axis base is not a node: without a level it must not
+        # silently resolve, exactly like a miss on the flat table.
+        self.assertIsNone(row_for("analysis_task_1"))
+        self.assertIsNone(row_for("analysis_task_1", "novice"))
+        self.assertIsNone(row_for("no_such_state", "beginner"))
+        self.assertIsNone(row_for("no_such_state"))
 
 
 class FakeFeedback:

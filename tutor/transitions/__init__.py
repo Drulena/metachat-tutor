@@ -10,6 +10,11 @@ behavior change.
 Each row lives in its own module, one per scenario state. The row schema,
 the closed sets and :func:`validate_transitions` live in
 :mod:`tutor.transitions._validate` and are re-exported here.
+
+Spec #16 C1-1 (ticket #17) adds :data:`ROW_REGISTRY` and the
+:func:`row_for` seam: the table expanded 1:1 to ``(base state, level)``
+pair keys per ADR-0006. The suffix-name keys above stay the storage of
+record — expand only; the base-name cutover is C1-9.
 """
 
 from . import (
@@ -58,6 +63,7 @@ from . import (
     posttest,
     data_collection
 )
+from ._registry import expand_rows, make_row_resolver
 from ._validate import (
     EFFECT_OPS,
     ITEM_STATUSES,
@@ -69,6 +75,8 @@ from ._validate import (
 
 __all__ = [
     "TRANSITIONS",
+    "ROW_REGISTRY",
+    "row_for",
     "EFFECT_OPS",
     "ITEM_STATUSES",
     "ROW_FIELDS",
@@ -123,3 +131,15 @@ TRANSITIONS = {
     "posttest": posttest.ROW,
     "data_collection": data_collection.ROW,
 }
+
+#: The table expanded 1:1 to ``(base state, level)`` pair keys
+#: (ADR-0006, spec #16 C1-1): 18 analysis/registration rows on the
+#: level axis plus 26 single-form ``(state, None)`` entries. Built
+#: from :data:`TRANSITIONS`, which remains the storage of record.
+ROW_REGISTRY = expand_rows(TRANSITIONS)
+
+#: The row-resolution seam (spec #16 C1-1): the session module resolves
+#: every row through this, never through the flat table. A suffix
+#: embedded in the name wins; then ``(base, level)``; then the
+#: single-form ``(base, None)``; unknown pairs resolve to ``None``.
+row_for = make_row_resolver(ROW_REGISTRY)
