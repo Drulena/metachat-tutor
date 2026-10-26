@@ -3,7 +3,7 @@
 import html as html_mod
 import logging
 import os
-from typing import Optional
+from typing import NamedTuple, Optional
 
 import requests
 
@@ -86,14 +86,22 @@ def _task_hint(task_question: str) -> str:
 # protocol (x-api-key, /v1/messages, content blocks); "mistral"
 # answers Mistral's native Conversations API (inputs/outputs) — the
 # owner's key answers there while chat/completions 429s.
-_PROVIDER_ANTHROPIC = "anthropic"
-_PROVIDER_MISTRAL = "mistral"
 _ANTHROPIC_VERSION = "2023-06-01"
 # Endpoints owners paste from provider docs; the API base is recovered
 # from any of them (issue #15: a Mistral /v1/conversations URL shipped
 # in .env and every attempt 404'd behind it).
 _URL_SUFFIXES = ("/chat/completions", "/completions", "/messages",
                  "/conversations")
+
+
+class _Attempt(NamedTuple):
+    """One labelled wire call: endpoint, headers, payload, timeout."""
+
+    label: str
+    url: str
+    headers: dict
+    payload: dict
+    timeout: int
 
 
 def _api_base(llm_url: str) -> str:
@@ -104,6 +112,62 @@ def _api_base(llm_url: str) -> str:
             base = base[: -len(suffix)]
             break
     return base
+
+
+def _bearer(api_key: str) -> dict:
+    """Bearer-auth headers shared by the OpenAI-compatible protocols."""
+    return {"Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"}
+
+
+def _openai_attempts(base: str, model: str, api_key: str,
+                     prompt: str) -> list[_Attempt]:
+    """The OpenAI-compatible shape, plus the legacy /completions probe."""
+    bearer = _bearer(api_key)
+    return [
+        _Attempt("chat", base + "/chat/completions", bearer,
+                 {"model": model,
+                  "messages": [{"role": "user", "content": prompt}],
+                  "max_tokens": _MAX_OUTPUT_TOKENS},
+                 _PRIMARY_TIMEOUT),
+        _Attempt("legacy", base + "/completions", bearer,
+                 {"prompt": prompt, "max_tokens": _MAX_OUTPUT_TOKENS},
+                 _FALLBACK_TIMEOUT),
+    ]
+
+
+def _anthropic_attempts(base: str, model: str, api_key: str,
+                        prompt: str) -> list[_Attempt]:
+    """Anthropic's own protocol: x-api-key auth, /v1/messages."""
+    return [
+        _Attempt("anthropic", base + "/messages",
+                 {"x-api-key": api_key,
+                  "anthropic-version": _ANTHROPIC_VERSION,
+                  "Content-Type": "application/json"},
+                 {"model": model,
+                  "max_tokens": _MAX_OUTPUT_TOKENS,
+                  "messages": [{"role": "user", "content": prompt}]},
+                 _PRIMARY_TIMEOUT),
+    ]
+
+
+def _mistral_attempts(base: str, model: str, api_key: str,
+                      prompt: str) -> list[_Attempt]:
+    """Mistral's native Conversations API: inputs in, outputs out."""
+    return [
+        _Attempt("mistral", base + "/conversations", _bearer(api_key),
+                 {"model": model,
+                  "inputs": [{"role": "user", "content": prompt}],
+                  "tools": [],
+                  "completion_args": {"max_tokens": _MAX_OUTPUT_TOKENS},
+                  "instructions": ""},
+                 _PRIMARY_TIMEOUT),
+    ]
+
+
+# Provider → attempt builder; unlisted providers speak the OpenAI shape.
+_ATTEMPTS_BY_PROVIDER = {"anthropic": _anthropic_attempts,
+                         "mistral": _mistral_attempts}
 
 
 def _anthropic_text(result: dict) -> Optional[str]:
@@ -135,6 +199,24 @@ def _mistral_text(result: dict) -> Optional[str]:
     return html_mod.unescape(joined.strip())
 
 
+def _openai_text(result: dict) -> Optional[str]:
+    """The OpenAI-compatible answer: choices[0]'s content, legacy text
+    field as fallback — the ``reasoning`` field is never surfaced."""
+    choices = result.get("choices")
+    if not choices:
+        return None
+    choice = choices[0]
+    msg = choice.get("message") or {}
+    text = choice.get("text") or msg.get("content") or ""
+    if text.strip():
+        return html_mod.unescape(text.strip())
+    return None
+
+
+# Provider → text extractor; unlisted providers speak the OpenAI shape.
+_TEXT_BY_PROVIDER = {"anthropic": _anthropic_text, "mistral": _mistral_text}
+
+
 def _response_text(result: object, provider: str = "openai") -> Optional[str]:
     """Extract the student-facing text from a completions response.
 
@@ -146,19 +228,7 @@ def _response_text(result: object, provider: str = "openai") -> Optional[str]:
     """
     if not isinstance(result, dict):
         return None
-    if provider == _PROVIDER_ANTHROPIC:
-        return _anthropic_text(result)
-    if provider == _PROVIDER_MISTRAL:
-        return _mistral_text(result)
-    choices = result.get("choices")
-    if not choices:
-        return None
-    choice = choices[0]
-    msg = choice.get("message") or {}
-    text = choice.get("text") or msg.get("content") or ""
-    if text.strip():
-        return html_mod.unescape(text.strip())
-    return None
+    return _TEXT_BY_PROVIDER.get(provider, _openai_text)(result)
 
 
 def get_roleplay_fallback(level: str, role_name: str, detail: str) -> str:
@@ -210,70 +280,19 @@ def get_llm_feedback(
     provider = os.getenv("LLM_PROVIDER", "openai").strip().lower()
 
     base = _api_base(llm_url)
-    bearer = {"Authorization": f"Bearer {api_key}",
-              "Content-Type": "application/json"}
-    if provider == _PROVIDER_ANTHROPIC:
-        attempts = [
-            (
-                "anthropic",
-                base + "/messages",
-                {"x-api-key": api_key,
-                 "anthropic-version": _ANTHROPIC_VERSION,
-                 "Content-Type": "application/json"},
-                {
-                    "model": llm_model,
-                    "max_tokens": _MAX_OUTPUT_TOKENS,
-                    "messages": [{"role": "user", "content": prompt}],
-                },
-                _PRIMARY_TIMEOUT,
-            ),
-        ]
-    elif provider == _PROVIDER_MISTRAL:
-        attempts = [
-            (
-                "mistral",
-                base + "/conversations",
-                bearer,
-                {
-                    "model": llm_model,
-                    "inputs": [{"role": "user", "content": prompt}],
-                    "tools": [],
-                    "completion_args": {"max_tokens": _MAX_OUTPUT_TOKENS},
-                    "instructions": "",
-                },
-                _PRIMARY_TIMEOUT,
-            ),
-        ]
-    else:
-        attempts = [
-            (
-                "chat",
-                base + "/chat/completions",
-                bearer,
-                {
-                    "model": llm_model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": _MAX_OUTPUT_TOKENS,
-                },
-                _PRIMARY_TIMEOUT,
-            ),
-            (
-                "legacy",
-                base + "/completions",
-                bearer,
-                {"prompt": prompt, "max_tokens": _MAX_OUTPUT_TOKENS},
-                _FALLBACK_TIMEOUT,
-            ),
-        ]
+    build_attempts = _ATTEMPTS_BY_PROVIDER.get(provider, _openai_attempts)
+    attempts = build_attempts(base, llm_model, api_key, prompt)
 
     errors: list[str] = []
-    for label, url, headers, payload, timeout in attempts:
+    for attempt in attempts:
         try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
-            logger.debug("LLM %s at %s -> status=%d", label, url, resp.status_code)
+            resp = requests.post(attempt.url, headers=attempt.headers,
+                                 json=attempt.payload, timeout=attempt.timeout)
+            logger.debug("LLM %s at %s -> status=%d",
+                         attempt.label, attempt.url, resp.status_code)
 
             if resp.status_code != 200:
-                errors.append(f"{label}: HTTP {resp.status_code}")
+                errors.append(f"{attempt.label}: HTTP {resp.status_code}")
                 continue
 
             result = resp.json()
@@ -281,17 +300,17 @@ def get_llm_feedback(
             if text:
                 return text, False
 
-            errors.append(f"{label}: no student-facing text in response")
+            errors.append(f"{attempt.label}: no student-facing text in response")
             logger.debug(
                 "LLM %s response keys=%s preview=%s",
-                label,
+                attempt.label,
                 list(result.keys()),
                 str(result)[:300],
             )
 
         except Exception as exc:
-            errors.append(f"{label}: {exc}")
-            logger.debug("LLM %s error: %s", label, exc)
+            errors.append(f"{attempt.label}: {exc}")
+            logger.debug("LLM %s error: %s", attempt.label, exc)
 
     safe = truncated_answer[:200]
     detail = errors[0] if errors else "unknown"
