@@ -50,7 +50,7 @@ from .session import (
     TurnOption,
     default_feedback,
 )
-from .transitions import TRANSITIONS
+from .transitions import row_for
 
 #: The one canonical completion model: every assessable item plus the two
 #: mode choices. ``data_collection`` is deliberately NOT an item — the old
@@ -106,13 +106,16 @@ def _parse_scores(text: str) -> Optional[list[int]]:
     return scores
 
 
-def _phase_of(current: str) -> str:
+def _phase_of(current: str, level: Optional[str] = None) -> str:
     """Coarse lifecycle phase for the Summary, from the transition row.
 
-    The terminal ``end`` state has no row (the table covers the
-    non-terminal states only), so it falls back to ``"finished"``.
+    Resolved through the row_for seam (spec #16 C1-1): a suffixed
+    history name is self-describing, the session's registered level
+    resolves any bare base name. The terminal ``end`` state has no row
+    (the registry covers the non-terminal states only), so it falls
+    back to ``"finished"``.
     """
-    row = TRANSITIONS.get(current)
+    row = row_for(current, level)
     if row is not None:
         return row["phase"]
     return "finished" if current == "end" else ""
@@ -149,7 +152,7 @@ class TutorSession:
         state = self._require_state()
         text = (text or "")[:_MAX_INPUT_LENGTH]
         command = text.lower()
-        row = TRANSITIONS.get(state.current_state, {})
+        row = row_for(state.current_state, state.user_data.get("level")) or {}
 
         if command == "back":
             self._go_back(state)
@@ -226,7 +229,7 @@ class TutorSession:
             percentage=percentage,
             total_steps=TOTAL_STEPS,
             completed_steps_count=count,
-            finished=_phase_of(current) == "finished",
+            finished=_phase_of(current, ud.get("level")) == "finished",
             level=ud.get("level"),
             user_name=ud.get("user_name"),
             session_id=state.session_id,
@@ -310,7 +313,7 @@ class TutorSession:
         the target (a plain state, or a per-input mapping); ``effects``
         mutate the completion model / user data for the accepted input.
         """
-        row = TRANSITIONS.get(state.current_state)
+        row = row_for(state.current_state, state.user_data.get("level"))
         if row is None:
             return None, False
 
@@ -374,7 +377,7 @@ class TutorSession:
     def _go_back(self, state: State) -> None:
         state.retry_count = 0
         current = state.current_state
-        back = TRANSITIONS.get(current, {}).get("back")
+        back = (row_for(current, state.user_data.get("level")) or {}).get("back")
         if back is None:
             # ``start`` has no back target: a typed ``back`` there is an
             # unrecognized input — flagged, so the turn carries the row's
@@ -525,7 +528,9 @@ class TutorSession:
             else:
                 # The row's nav map and declared back/retry edges are the
                 # values routing treats as navigation (ratified Q3).
-                nav_values = self._nav_values(TRANSITIONS.get(entry["state"], {}))
+                # History entries are self-describing: the suffixed
+                # name resolves its own row, no level needed.
+                nav_values = self._nav_values(row_for(entry["state"]) or {})
             merged: dict[str, tuple[str, str]] = dict(nav_offers)
             for value, label in (options or {}).items():
                 # On a clash the scenario-defined label wins (presentation)
@@ -578,7 +583,7 @@ class TutorSession:
         """
         if entry.get("role") != "user" or not entry.get("rejected"):
             return None
-        row = TRANSITIONS.get(entry.get("state", ""))
+        row = row_for(entry.get("state", ""))
         if row is None:
             # The structural "no row" case (the ``end`` state after the
             # completion): no composer, so no banner copy (ADR-0005 d5).
@@ -605,7 +610,7 @@ class TutorSession:
         stored = entry.get("options")
         if stored and value in stored:
             return value
-        nav = TRANSITIONS.get(entry.get("state", ""), {}).get("nav", {})
+        nav = (row_for(entry.get("state", "")) or {}).get("nav", {})
         if value in nav:
             return value
         if value == "back" and entry.get("state") != "start":
@@ -624,7 +629,7 @@ class TutorSession:
         ``start`` — there is nothing to go back to on the welcome turn.
         """
         current = state.current_state
-        row = TRANSITIONS.get(current, {})
+        row = row_for(current, state.user_data.get("level")) or {}
         if entry.get("llm_failed") and state.retry_count < 3:
             navigation: dict[str, tuple[str, str]] = {}
             if current != "start":
