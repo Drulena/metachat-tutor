@@ -92,6 +92,24 @@ class MainMenuViewTests(TestCase):
             self.assertNotIn("badge-completed", cell, f"{path} overstates task 2")
             self.assertNotIn("badge-not-started", cell, f"{path} understates task 2")
 
+    def test_in_progress_task_keeps_the_next_row_not_started_on_both_pages(self):
+        """Issue #14 acceptance: task 1 in progress → task 2 ⬜ on BOTH pages.
+
+        The reported state: analysis task 1 in progress, task 2 never opened.
+        The sidebar used to stamp ✅ Completed on task 2 through a positional
+        fallback over a completed count while the overview page said ⬜ Not
+        Started. Each row now answers for itself, so this state agrees too.
+        """
+        client = self.client
+        _drive(client, ["Alice", "3 4 5", "2", "1", "yes"])  # -> task 1 in progress
+        for path in ("/menu/", "/"):  # overview page, chat page (sidebar fragment)
+            html = client.get(path).content.decode()
+            cell = _task_cell(html, "Task 1: Softening Criticism")
+            self.assertIn("badge-in-progress", cell, f"{path} lost task 1's badge")
+            cell = _task_cell(html, "Task 2: Aggressive Formatting")
+            self.assertIn("badge-not-started", cell, f"{path} understates task 2")
+            self.assertNotIn("badge-completed", cell, f"{path} overstates task 2")
+
     def test_chat_marks_the_option_the_learner_used(self):
         """Issue #14: the chat page marks an option used from the turn's own
         used_value. Anchored per prompt: the mode the learner picked ('1')
@@ -253,6 +271,19 @@ class ExportViewTests(TestCase):
         # progress composed from Summary
         self.assertEqual(data["progress"]["percentage"], 26)
         self.assertTrue(data["progress"]["started"])
+        # wire schema (issue #14): exactly the nine Summary fields on the wire —
+        # the lifecycle pair and the sections in, the eleven flat fields out.
+        self.assertEqual(
+            sorted(data["progress"]),
+            sorted(
+                [
+                    "sections", "started", "percentage", "total_steps",
+                    "completed_steps_count", "finished",
+                    "level", "user_name", "session_id",
+                ]
+            ),
+        )
+        self.assertIn("used_value", data["turns"][0])
         # export timestamp
         self.assertIn("export_time", data)
         # download name uses the session id

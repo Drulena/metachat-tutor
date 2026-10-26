@@ -165,6 +165,21 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual((sections[1].completed, sections[1].total), (0, 9))
         self.assertEqual(sections[1].rows[0].key, "role_mediator")
 
+    def test_in_progress_task_leaves_later_rows_not_started(self):
+        """The reported state, at the module seam: task 1 in progress.
+
+        The analysis intro row marks task 1 ``in_progress`` on entering it;
+        the task the learner never opened stays ``not_started``. The status
+        is the row's own, so no page can stamp the second task Completed from
+        a completed count (issue #14, GLOSSARY "completion model").
+        """
+        session, _, _ = self.make_session()
+        self.drive(session, "Alice", "3 4 5", "2", "1", "yes")
+        self.assertEqual(
+            [(row.key, row.status) for row in session.progress().sections[0].rows],
+            [("analysis_task_1", "in_progress"), ("analysis_task_2", "not_started")],
+        )
+
     def test_first_turn_uses_placeholder_when_name_unavailable(self):
         session, _, _ = self.make_session()
         turn = session.turns()[-1]
