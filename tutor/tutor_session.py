@@ -209,7 +209,10 @@ class TutorSession:
         state = self._load()
         if state is None:
             return Summary(sections=self._sections({}))
-        items = state.user_data["items"]
+        # A row saved before the ledger (ADR-0004's stranded row) has no
+        # items: the never-raises promise above keeps the pages rendering
+        # and the reset reachable — a KeyError here is a 500 per render.
+        items = state.user_data.get("items", {})
         ud = state.user_data
         current = state.current_state
 
@@ -343,7 +346,10 @@ class TutorSession:
         if not effects:
             return
         ud = state.user_data
-        items = ud["items"]
+        # An accepted input on a pre-ledger row writes the ledger on the
+        # spot: no legacy key is renamed, so this is not a migration
+        # (ADR-0004) — it just stops the effect from KeyErrors.
+        items = ud.setdefault("items", {})
         for op, key, third in effects:
             if op == "set-item":
                 items[key] = third

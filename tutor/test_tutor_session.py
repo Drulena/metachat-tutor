@@ -859,3 +859,36 @@ class TutorSessionTests(SimpleTestCase):
         reloaded = TutorSession(storage)
         self.assertEqual(row_statuses(reloaded.progress())["role_mediator"], "completed")
         self.assertEqual(reloaded.progress().percentage, 33)  # 5 of 15 steps
+
+    def test_progress_on_a_pre_ledger_row_stays_zero_state(self):
+        # A row saved before the ledger exists (the stranded row of
+        # ADR-0004): progress() promises it never raises, so the pages
+        # render and recovery — reset — is reachable. A KeyError here
+        # is a 500 on every render of the deployed site.
+        session, storage, _ = self.make_session()
+        self.drive_to_role_menu(session)
+        legacy = self.state_of(storage)
+        legacy.user_data.pop("items")
+        storage.save(legacy)
+
+        summary = TutorSession(storage).progress()
+        self.assertEqual(summary.completed_steps_count, 0)
+        self.assertEqual(summary.percentage, 0)
+        self.assertFalse(summary.finished)
+        self.assertEqual(set(row_statuses(summary).values()), {"not_started"})
+        self.assertEqual(summary.user_name, "Alice")
+
+    def test_effects_on_a_pre_ledger_row_create_the_ledger(self):
+        # An accepted input on a stranded row can land on a state that
+        # has a transition row; its effect writes items — the ledger is
+        # created on the spot, not KeyError 500. No legacy keys are
+        # renamed anywhere: this is not a migration (ADR-0004).
+        session, storage, _ = self.make_session()
+        self.drive_to_role_menu(session)
+        legacy = self.state_of(storage)
+        legacy.user_data.pop("items")
+        storage.save(legacy)
+
+        TutorSession(storage).submit("1")  # role_menu accepts it
+        items = self.state_of(storage).user_data["items"]
+        self.assertEqual(items["role_mediator"], "in_progress")
