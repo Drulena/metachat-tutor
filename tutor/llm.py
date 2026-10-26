@@ -17,6 +17,69 @@ _MAX_OUTPUT_TOKENS = 150
 _PRIMARY_TIMEOUT = 15
 _FALLBACK_TIMEOUT = 10
 
+# The owner tuned the prompt by hand (issue #15); the character budget is
+# the one number meant to be tuned, so it lives here, not in the text.
+_MAX_FEEDBACK_CHARS = 500
+
+_OUTPUT_RULES = (
+    "Always use English to respond.\n"
+    "When discussing emojis, use the actual Unicode emoji character "
+    "(e.g., \U0001f642 not the word 'smiley').\n"
+)
+
+# The demo banner's tuned answer hints, keyed by the task marker in the
+# task question; the default is the generic coaching nudge.
+_TASK_HINTS = (
+    ("TASK 1",
+     "Adding a friendly emoji like \U0001f642 or \U0001f60a can make "
+     "criticism feel more supportive."),
+    ("TASK 2",
+     "Combining multiple metagrapheme techniques creates stronger effects."),
+)
+_TASK_HINT_DEFAULT = (
+    "Review the criteria and check if your response addresses all requirements."
+)
+
+
+def _instruction() -> str:
+    """The owner-tuned ask; the budget follows ``_MAX_FEEDBACK_CHARS``."""
+    return (
+        "--- INSTRUCTION ---\n"
+        "Evaluate the student's answer based on the theoretical framework above. "
+        "Check whether they identified/applied metagrapheme tools correctly for their level. "
+        f"Give brief constructive feedback (max {_MAX_FEEDBACK_CHARS} characters). "
+        "Be supportive and specific. "
+        "Return only the feedback text the student should read. "
+        "No reasoning, no analysis notes, no preamble."
+    )
+
+
+def _build_prompt(
+    user_name: str,
+    level: str,
+    role_name: Optional[str],
+    task_question: str,
+    answer: str,
+) -> str:
+    """Assemble the feedback prompt: theory, rules, context, ask."""
+    return (
+        f"{THEORETICAL_BASE}\n\n"
+        f"{_OUTPUT_RULES}"
+        f"Student: {user_name}\nLevel: {level}\n"
+        f"Selected role: {role_name or 'none'}\n\n"
+        f"--- TASK QUESTION ---\n{task_question}\n\n"
+        f"--- STUDENT ANSWER ---\n{answer}\n\n"
+        f"{_instruction()}"
+    )
+
+
+def _task_hint(task_question: str) -> str:
+    """Pick the demo banner's hint by the task marker in the question."""
+    for marker, hint in _TASK_HINTS:
+        if marker in task_question:
+            return hint
+    return _TASK_HINT_DEFAULT
+
 # Three wire protocols, not one SDK per vendor: "openai" covers every
 # OpenAI-compatible endpoint (OpenAI, Mistral, OpenRouter, Cerebras,
 # DeepSeek, local servers); "anthropic" answers the vendor's own
@@ -139,24 +202,8 @@ def get_llm_feedback(
         )
 
     truncated_answer = user_answer[:_MAX_ANSWER_LENGTH]
-
-    prompt = (
-        f"{THEORETICAL_BASE}\n\n"
-        "Always use English to respond.\n"
-        "When discussing emojis, use the actual Unicode emoji character "
-        "(e.g., \U0001f642 not the word 'smiley').\n"
-        f"Student: {user_name}\nLevel: {level}\n"
-        f"Selected role: {role_name or 'none'}\n\n"
-        f"--- TASK QUESTION ---\n{task_question}\n\n"
-        f"--- STUDENT ANSWER ---\n{truncated_answer}\n\n"
-        "--- INSTRUCTION ---\n"
-        "Evaluate the student's answer based on the theoretical framework above. "
-        "Check whether they identified/applied metagrapheme tools correctly for their level. "
-        "Give brief constructive feedback (max 500 characters). "
-        "Be supportive and specific. "
-        "Return only the feedback text the student should read. "
-        "No reasoning, no analysis notes, no preamble."
-    )
+    prompt = _build_prompt(user_name, level, role_name, task_question,
+                           truncated_answer)
 
     llm_url = os.getenv("LLM_URL", "https://vedai.by/api/v1")
     llm_model = os.getenv("LLM_MODEL", "gpt-4o-mini")
@@ -253,16 +300,8 @@ def get_llm_feedback(
     if role_name is not None:
         fallback_text = get_roleplay_fallback(level, role_name, detail)
     else:
-        if "TASK 1" in task_question:
-            hint = "Adding a friendly emoji like \U0001f642 or \U0001f60a can make criticism feel more supportive."
-        elif "TASK 2" in task_question:
-            hint = (
-                "Combining multiple metagrapheme techniques creates stronger effects."
-            )
-        else:
-            hint = "Review the criteria and check if your response addresses all requirements."
         fallback_text = (
             f"**\U0001f916 LLM Feedback (API failed \u2014 {detail}):** "
-            f'You wrote: "{safe}". {hint}'
+            f'You wrote: "{safe}". {_task_hint(task_question)}'
         )
     return html_mod.unescape(fallback_text), True

@@ -101,10 +101,7 @@ class ResponseTextMistralTests(unittest.TestCase):
 class PromptContractTests(unittest.TestCase):
     """The prompt must demand student-facing output only — the owner's rule."""
 
-    def test_prompt_forbids_reasoning_text(self):
-        import os
-        from unittest import mock
-
+    def _prompt(self, env=None, **kwargs):
         from . import llm
 
         captured: dict = {}
@@ -120,24 +117,102 @@ class PromptContractTests(unittest.TestCase):
             captured["payload"] = json
             return _Resp()
 
-        with mock.patch.dict(os.environ, {"LLM_API_KEY": "test-key"}):
+        settings = {"LLM_API_KEY": "test-key", "LLM_PROVIDER": "openai"}
+        settings.update(env or {})
+        args = {"user_answer": "answer", "role_name": None,
+                "user_name": "Bob", "level": "beginner",
+                "task_question": "TASK 1?"}
+        args.update(kwargs)
+        with mock.patch.dict(os.environ, settings):
             with mock.patch.object(llm.requests, "post", _post):
-                text, failed = llm.get_llm_feedback("answer", None, "Bob", "beginner", "TASK 1?")
-        self.assertFalse(failed)
-        prompt = captured["payload"]["messages"][0]["content"]
-        self.assertIn("Return only the feedback text", prompt)
+                llm.get_llm_feedback(**args)
+        return captured["payload"]["messages"][0]["content"]
 
-    def test_no_requests_attempted_without_api_key(self):
-        import os
-        from unittest import mock
+    def test_prompt_forbids_reasoning_text(self):
+        self.assertIn("Return only the feedback text", self._prompt())
 
+    def test_prompt_states_the_feedback_length_limit(self):
+        # The instruction's budget is one number the owner tunes (issue #15):
+        # the prompt must carry it, not a literal typed twice.
         from . import llm
 
+        self.assertIn(f"max {llm._MAX_FEEDBACK_CHARS} characters",
+                      self._prompt())
+
+    def test_prompt_length_limit_follows_the_constant(self):
+        from . import llm
+
+        with mock.patch.object(llm, "_MAX_FEEDBACK_CHARS", 600):
+            self.assertIn("max 600 characters", self._prompt())
+
+    def test_prompt_shape_is_pinned(self):
+        # The full prompt is the product contract the owner tuned by hand —
+        # a golden pin so refactors and edits cannot drift it silently.
+        from .data import THEORETICAL_BASE
+
+        self.assertEqual(
+            self._prompt(),
+            f"{THEORETICAL_BASE}\n\n"
+            "Always use English to respond.\n"
+            "When discussing emojis, use the actual Unicode emoji character "
+            "(e.g., \U0001f642 not the word 'smiley').\n"
+            "Student: Bob\nLevel: beginner\n"
+            "Selected role: none\n\n"
+            "--- TASK QUESTION ---\nTASK 1?\n\n"
+            "--- STUDENT ANSWER ---\nanswer\n\n"
+            "--- INSTRUCTION ---\n"
+            "Evaluate the student's answer based on the theoretical framework "
+            "above. Check whether they identified/applied metagrapheme tools "
+            "correctly for their level. Give brief constructive feedback "
+            "(max 500 characters). Be supportive and specific. "
+            "Return only the feedback text the student should read. "
+            "No reasoning, no analysis notes, no preamble.",
+        )
+
+    def test_no_requests_attempted_without_api_key(self):
         with mock.patch.dict(os.environ, {}, clear=True):
+            from . import llm
             with mock.patch.object(llm.requests, "post", _boom):
                 text, failed = llm.get_llm_feedback("a", None, "B", "beginner", "q")
         self.assertTrue(failed)
         self.assertIn("not configured", text)
+
+
+class FallbackCopyTests(unittest.TestCase):
+    """The demo banner names the failure and answers with the tuned hint."""
+
+    def _fallback(self, env, **kwargs):
+        from . import llm
+
+        class _Resp:
+            status_code = 429
+
+            @staticmethod
+            def json():
+                return {}
+
+        def _post(*args, **kwargs):
+            return _Resp()
+
+        with mock.patch.dict(os.environ, env):
+            with mock.patch.object(llm.requests, "post", _post):
+                args = {"user_answer": "answer", "role_name": None,
+                        "user_name": "Bob", "level": "beginner",
+                        "task_question": "TASK 1?"}
+                args.update(kwargs)
+                return llm.get_llm_feedback(**args)
+
+    def test_task_hint_per_task_question(self):
+        env = {"LLM_API_KEY": "key", "LLM_URL": "https://api.example/v1",
+               "LLM_MODEL": "m"}
+        text, failed = self._fallback(env)
+        self.assertTrue(failed)
+        self.assertIn("HTTP 429", text)
+        self.assertIn("friendly emoji like \U0001f642", text)
+        text, _ = self._fallback(env, task_question="TASK 2: combine")
+        self.assertIn("multiple metagrapheme techniques", text)
+        text, _ = self._fallback(env, task_question="something else")
+        self.assertIn("Review the criteria", text)
 
 
 class ProviderShapeTests(unittest.TestCase):
