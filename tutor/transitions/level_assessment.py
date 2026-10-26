@@ -6,12 +6,16 @@ Part of the pure-data transition table (ticket #8); see
 """
 
 ROW = {
+    # The accept map targets the registration BASE state (spec #16
+    # C1-2, ADR-0006): the parsed-level effect lands the session's
+    # level and the row registry resolves the pair — no suffixed
+    # target literal survives in this row's accept map.
     "next": {
-        "1": "after_registration_beginner",
-        "2": "after_registration_intermediate",
-        "3": "after_registration_advanced",
+        "1": "after_registration",
+        "2": "after_registration",
+        "3": "after_registration",
     },
-    "back": "after_registration_beginner",
+    "back": "after_registration_beginner",  # placeholder; C1-8 retires the repair
     "nav": {},
     "retryable": False,
     "item": "level_assessment",

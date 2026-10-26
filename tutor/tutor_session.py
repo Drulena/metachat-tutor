@@ -50,7 +50,7 @@ from .session import (
     TurnOption,
     default_feedback,
 )
-from .transitions import row_for
+from .transitions import join_state, row_for, split_state
 
 #: The one canonical completion model: every assessable item plus the two
 #: mode choices. ``data_collection`` is deliberately NOT an item — the old
@@ -175,7 +175,7 @@ class TutorSession:
             state,
             current,
             is_current=True,
-            rejection=self._rejection_copy(current),
+            rejection=self._rejection_copy(state, current),
         )
 
     def turns(self) -> list[Turn]:
@@ -194,9 +194,11 @@ class TutorSession:
                 entry,
                 is_current=index == len(history) - 1,
                 used_value=self._used_value(
-                    entry, history[index + 1] if index + 1 < len(history) else None
+                    entry,
+                    history[index + 1] if index + 1 < len(history) else None,
+                    state.user_data.get("level"),
                 ),
-                rejection=self._rejection_copy(entry),
+                rejection=self._rejection_copy(state, entry),
             )
             for index, entry in enumerate(history)
         ]
@@ -411,11 +413,35 @@ class TutorSession:
 
     # -------------------------------------------------------------- messages
 
+    def _scenario_state_data(self, state: State) -> Optional[dict]:
+        """The scenario entry for the current state — the construction point.
+
+        Spec #16 C1-2 (ADR-0006): landing targets spell base names, so
+        the scenario lookup joins the session's level onto a bare axis
+        base (``"after_registration"`` + ``"beginner"`` →
+        ``"after_registration_beginner"``). A suffix embedded in the
+        name is self-describing and wins, as in :func:`row_for`.
+        Returns ``None`` for an unknown state, like :meth:`dict.get`.
+        """
+        states = state.scenario["states"]
+        current = state.current_state
+        data = states.get(current)
+        if data is not None:
+            return data
+        base, embedded = split_state(current)
+        if embedded is None:
+            level = state.user_data.get("level")
+            if level is not None:
+                return states.get(join_state(base, level))
+        return None
+
     def _build_message(self, state: State) -> tuple[str, bool]:
         scenario = state.scenario
         current = state.current_state
         ud = state.user_data
-        state_data = scenario["states"][current]
+        state_data = self._scenario_state_data(state)
+        if state_data is None:
+            raise KeyError(current)
         message = state_data["message"]
 
         task_context: Optional[str] = None
@@ -465,7 +491,7 @@ class TutorSession:
         return message, llm_failed
 
     def _append_assistant_turn(self, state: State) -> None:
-        state_data = state.scenario["states"].get(state.current_state)
+        state_data = self._scenario_state_data(state)
         if state_data is None:
             return
         message, llm_failed = self._build_message(state)
@@ -528,9 +554,13 @@ class TutorSession:
             else:
                 # The row's nav map and declared back/retry edges are the
                 # values routing treats as navigation (ratified Q3).
-                # History entries are self-describing: the suffixed
-                # name resolves its own row, no level needed.
-                nav_values = self._nav_values(row_for(entry["state"]) or {})
+                # History entries are self-describing: a suffixed name
+                # resolves its own row; a bare base name — the
+                # registration landing (spec #16 C1-2) — resolves with
+                # the session's level, immutable after the pick (C1-3).
+                nav_values = self._nav_values(
+                    row_for(entry["state"], state.user_data.get("level")) or {}
+                )
             merged: dict[str, tuple[str, str]] = dict(nav_offers)
             for value, label in (options or {}).items():
                 # On a clash the scenario-defined label wins (presentation)
@@ -571,26 +601,31 @@ class TutorSession:
             # An unanswered user entry carries its own rejection flag (d5):
             # submit() stamps it when routing drops the input; in turns()
             # the flag rides on the stored entry, so derive the copy there.
-            rejection=rejection if rejection is not None else self._rejection_copy(entry),
+            rejection=rejection if rejection is not None else self._rejection_copy(state, entry),
         )
 
-    def _rejection_copy(self, entry: dict) -> Optional[str]:
+    def _rejection_copy(self, state: State, entry: dict) -> Optional[str]:
         """The row-owned copy for an unanswered, rejected user entry.
 
         The flag rides on the chat entry (``submit()`` sets it when routing
         drops the input). The row's ``rejected`` copy wins; rows that declare
         ``None`` get the module's generic fallback (ADR-0005, issue #15).
+        The entry's state resolves through the seam: a suffixed name is
+        self-describing, a bare base name (the registration landing,
+        spec #16 C1-2) resolves with the session's level.
         """
         if entry.get("role") != "user" or not entry.get("rejected"):
             return None
-        row = row_for(entry.get("state", ""))
+        row = row_for(entry.get("state", ""), state.user_data.get("level"))
         if row is None:
             # The structural "no row" case (the ``end`` state after the
             # completion): no composer, so no banner copy (ADR-0005 d5).
             return None
         return row.get("rejected") if row.get("rejected") is not None else _GENERIC_REJECTION
 
-    def _used_value(self, entry: dict, following: Optional[dict]) -> Optional[str]:
+    def _used_value(
+        self, entry: dict, following: Optional[dict], level: Optional[str]
+    ) -> Optional[str]:
         """The option value the learner used to answer this assistant entry.
 
         ``chat_history`` is a flat list, so the answer to an entry is the
@@ -599,6 +634,9 @@ class TutorSession:
         ``nav`` values for the entry's state (navigation options are not
         stored on entries), or the synthesised edges — ``back`` (everywhere
         but ``start``) and ``retry`` on a failed LLM entry (issue #15).
+        The entry's state resolves through the seam: a suffixed name is
+        self-describing, a bare base name (the registration landing,
+        spec #16 C1-2) resolves with the session ``level``.
         Free-text answers mark nothing; so does any turn with no user entry
         after it (the newest turn).
         """
@@ -610,7 +648,7 @@ class TutorSession:
         stored = entry.get("options")
         if stored and value in stored:
             return value
-        nav = (row_for(entry.get("state", "")) or {}).get("nav", {})
+        nav = (row_for(entry.get("state", ""), level) or {}).get("nav", {})
         if value in nav:
             return value
         if value == "back" and entry.get("state") != "start":

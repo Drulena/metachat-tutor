@@ -5,7 +5,8 @@ transition mechanics — one data row per concrete scenario state
 (``end`` excluded, 44 rows in total). This module pins down its shape:
 
 - the row keys coincide with the scenario state keys minus ``end``;
-- every next/back target names a known state;
+- every next/back target names a known state, or a bare axis base the
+  row registry resolves with a level through the seam (spec #16 C1-2);
 - every effect references a valid item or user-data key;
 - every row carries the full field set, well-formed.
 
@@ -44,6 +45,15 @@ from .tutor_session import (
 
 NON_TERMINAL_STATES = set(SCENARIO["states"]) - {"end"}
 
+#: Bare base names of the level axis. A target may spell one (spec #16
+#: C1-2): the row registry resolves it with a level through the seam, so
+#: it names no scenario state of its own.
+AXIS_BASES = {
+    base
+    for base, level in ROW_REGISTRY
+    if level is not None
+}
+
 
 class TransitionTableShapeTests(SimpleTestCase):
     def test_rows_cover_every_non_terminal_scenario_state(self):
@@ -77,6 +87,8 @@ class TransitionTableShapeTests(SimpleTestCase):
         self.assertTrue(any("no_such_item" in v for v in violations))
 
     def test_next_targets_name_known_states(self):
+        # Seam-aware (spec #16 C1-2): a target is a scenario state, or a
+        # bare axis base the registry resolves with a level.
         states = set(SCENARIO["states"])
         for state, row in TRANSITIONS.items():
             next_ = row["next"]
@@ -84,11 +96,16 @@ class TransitionTableShapeTests(SimpleTestCase):
                 if isinstance(next_, dict):
                     self.assertTrue(next_)
                     for value, target in next_.items():
-                        self.assertIn(target, states, f"{state} value {value!r}")
+                        self.assertTrue(
+                            target in states or target in AXIS_BASES,
+                            f"{state} value {value!r} -> {target!r}",
+                        )
                 elif next_ is not None:
-                    self.assertIn(next_, states)
+                    self.assertTrue(next_ in states or next_ in AXIS_BASES)
 
     def test_back_target_is_none_only_at_start(self):
+        # Seam-aware (spec #16 C1-2): a bare axis base back target
+        # resolves through the seam at the row's level.
         states = set(SCENARIO["states"])
         for state, row in TRANSITIONS.items():
             back = row["back"]
@@ -96,7 +113,7 @@ class TransitionTableShapeTests(SimpleTestCase):
                 if state == "start":
                     self.assertIsNone(back)
                 else:
-                    self.assertIn(back, states)
+                    self.assertTrue(back in states or back in AXIS_BASES)
 
     def test_effects_reference_valid_keys(self):
         for state, row in TRANSITIONS.items():

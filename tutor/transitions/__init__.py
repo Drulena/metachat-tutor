@@ -15,15 +15,19 @@ Spec #16 C1-1 (ticket #17) adds :data:`ROW_REGISTRY` and the
 :func:`row_for` seam: the table expanded 1:1 to ``(base state, level)``
 pair keys per ADR-0006. The suffix-name keys above stay the storage of
 record — expand only; the base-name cutover is C1-9.
+
+Spec #16 C1-2 (ticket #18) folds the registration triplet into one
+axis module: the assembly generates its suffixed keys with
+:func:`axis_rows` from a level-keyed row map, landing targets spell
+base names, and fixtures are generated from one per-base dict
+(:func:`with_fixture_level`).
 """
 
 from . import (
     start,
     pretest,
     level_assessment,
-    after_registration_beginner,
-    after_registration_intermediate,
-    after_registration_advanced,
+    after_registration,
     analysis_intro_beginner,
     analysis_task_1_beginner,
     analysis_task_2_beginner,
@@ -68,6 +72,7 @@ from ._registry import (
     expand_rows,
     join_state,
     make_row_resolver,
+    split_state,
     with_fixture_level,
 )
 from ._validate import (
@@ -86,6 +91,7 @@ __all__ = [
     "row_for",
     "axis_rows",
     "join_state",
+    "split_state",
     "with_fixture_level",
     "EFFECT_OPS",
     "ITEM_STATUSES",
@@ -100,9 +106,10 @@ TRANSITIONS = {
     "start": start.ROW,
     "pretest": pretest.ROW,
     "level_assessment": level_assessment.ROW,
-    "after_registration_beginner": after_registration_beginner.ROW,
-    "after_registration_intermediate": after_registration_intermediate.ROW,
-    "after_registration_advanced": after_registration_advanced.ROW,
+    # The registration axis (spec #16 C1-2, ADR-0006): rows and
+    # fixtures generated from the level-keyed map by the seam —
+    # suffixed keys appear in no row module.
+    **axis_rows(after_registration.BASE, after_registration.ROWS),
     "analysis_intro_beginner": analysis_intro_beginner.ROW,
     "analysis_task_1_beginner": analysis_task_1_beginner.ROW,
     "analysis_task_2_beginner": analysis_task_2_beginner.ROW,

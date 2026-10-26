@@ -9,9 +9,10 @@ behavior change.
 
 Each row is a plain mapping with the fields in :data:`ROW_FIELDS`:
 
-- ``next`` — the next-state target: a plain state name, a dict keyed by
-  accepted input value (when the target depends on the answer), or
-  ``None`` (no transition).
+- ``next`` — the next-state target: a plain state name — a bare axis
+  base for level-axis targets, resolved by the row registry with a
+  level (spec #16 C1-2) — a dict keyed by accepted input value (when
+  the target depends on the answer), or ``None`` (no transition).
 - ``back`` — the back target, or ``None`` at ``start``.
 - ``nav`` — the system-navigation option to offer (value → label);
   the universal ``back`` option is handled separately and not listed.
@@ -103,6 +104,10 @@ def validate_transitions(table: dict[str, dict] | None = None) -> list[str]:
     violations: list[str] = []
     states = set(SCENARIO["states"])
     non_terminal = states - {"end"}
+    # Bare base names of the level axis: seam-resolvable targets — a
+    # row spells the base and the row registry resolves it with a
+    # level, so they name no scenario state (spec #16 C1-2).
+    axis_names = {split_state(name)[0] for name in table if split_state(name)[1] is not None}
 
     for state in sorted(non_terminal - set(table)):
         violations.append(f"missing row for state {state!r}")
@@ -120,14 +125,14 @@ def validate_transitions(table: dict[str, dict] | None = None) -> list[str]:
         next_ = row.get("next")
         targets = next_.items() if isinstance(next_, dict) else [(None, next_)]
         for value, target in targets:
-            if target is not None and target not in states:
+            if target is not None and target not in states and target not in axis_names:
                 violations.append(f"{state}: next target {target!r} is not a scenario state")
 
         back = row.get("back")
         if state == "start":
             if back is not None:
                 violations.append(f"{state}: back must be None")
-        elif back not in states:
+        elif back not in states and back not in axis_names:
             violations.append(f"{state}: back target {back!r} is not a scenario state")
 
         rejected = row.get("rejected")
@@ -178,6 +183,35 @@ def _row_targets(row: dict) -> Iterator[str]:
         yield back
 
 
+def _resolve_pairs(
+    target: str,
+    row_level: str | None,
+    pairs: set[tuple[str, str | None]],
+    axis_bases: set[str],
+) -> list[tuple[str, str | None]]:
+    """Resolve one row target to graph nodes, seen from a row at ``row_level``.
+
+    The pair seam of the validator (spec #16 C1-2): a target with an
+    embedded suffix is self-describing; a bare name resolves as
+    ``(base, None)`` when that row exists, and otherwise at the row's
+    own level when the base is on the axis. A single-form row
+    targeting a bare axis base stands for *every* level of it — at
+    runtime the session's level builds the concrete target (the
+    construction point, ADR-0006). Anything unresolvable keys to
+    ``(base, None)`` so the caller reports the pair with no row.
+    """
+    base, embedded = split_state(target)
+    if embedded is not None:
+        return [(base, embedded)]
+    if (base, None) in pairs:
+        return [(base, None)]
+    if base in axis_bases:
+        if row_level is not None:
+            return [(base, row_level)]
+        return [(base, level) for level in LEVEL_SUFFIXES]
+    return [(base, None)]
+
+
 def validate_expanded(table: dict[str, dict] | None = None) -> list[str]:
     """Check the ``(base state, level)`` expansion of ``table`` (#17).
 
@@ -187,7 +221,10 @@ def validate_expanded(table: dict[str, dict] | None = None) -> list[str]:
     expansion:
 
     - graph closure: every next/back target resolves to a pair that
-      has a row (``("end", None)`` is the terminal exception);
+      has a row (``("end", None)`` is the terminal exception). Bare
+      axis-base targets resolve at the row's own level; from a
+      single-form row they stand for every level of the axis
+      (:func:`_resolve_pairs`, spec #16 C1-2);
     - reachability: every pair is reachable from ``("start", None)``
       along next/back edges;
     - level coverage: a base carrying any axis row must carry every
@@ -208,23 +245,25 @@ def validate_expanded(table: dict[str, dict] | None = None) -> list[str]:
 
     violations: list[str] = []
     terminal = ("end", None)
+    axis_bases = {base for base, level in pairs if level is not None}
 
     for state in sorted(table):
+        row_level = split_state(state)[1]
         for target in _row_targets(table[state]):
-            pair = split_state(target)
-            if pair not in pairs and pair != terminal:
-                violations.append(
-                    f"expanded: {state!r}: target {target!r} resolves to "
-                    f"pair {pair!r} with no row"
-                )
+            for pair in _resolve_pairs(target, row_level, pairs, axis_bases):
+                if pair not in pairs and pair != terminal:
+                    violations.append(
+                        f"expanded: {state!r}: target {target!r} resolves to "
+                        f"pair {pair!r} with no row"
+                    )
 
-    axis_bases: dict[str, set[str]] = {}
+    axis_levels: dict[str, set[str]] = {}
     for base, level in pairs:
         if level is not None:
-            axis_bases.setdefault(base, set()).add(level)
-    for base in sorted(axis_bases):
+            axis_levels.setdefault(base, set()).add(level)
+    for base in sorted(axis_levels):
         for level in LEVEL_SUFFIXES:
-            if level not in axis_bases[base]:
+            if level not in axis_levels[base]:
                 violations.append(
                     f"expanded: row module {base!r} misses axis level {level!r}"
                 )
@@ -234,11 +273,12 @@ def validate_expanded(table: dict[str, dict] | None = None) -> list[str]:
         seen = {start}
         queue = [start]
         while queue:
-            for target in _row_targets(pairs[queue.pop()]):
-                pair = split_state(target)
-                if pair in pairs and pair not in seen:
-                    seen.add(pair)
-                    queue.append(pair)
+            node = queue.pop()
+            for target in _row_targets(pairs[node]):
+                for pair in _resolve_pairs(target, node[1], pairs, axis_bases):
+                    if pair in pairs and pair not in seen:
+                        seen.add(pair)
+                        queue.append(pair)
         for pair in sorted(set(pairs) - seen):
             violations.append(f"expanded: pair {pair!r} is unreachable from {start!r}")
 

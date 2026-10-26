@@ -17,6 +17,7 @@ from .data import (
     STEP_KEYS,
 )
 from .session import MemoryStorage, State, Summary
+from .transitions import ROW_REGISTRY, row_for
 from .tutor_session import TutorSession
 
 #: Input sequence that drives a fresh session to the role menu.
@@ -24,7 +25,7 @@ from .tutor_session import TutorSession
 ROLE_MENU_INPUTS = [
     "Alice",            # start -> pretest
     "3 4 5",            # pretest -> level_assessment
-    "2",                # level_assessment -> after_registration_intermediate
+    "2",                # level_assessment -> after_registration (base name, C1-2)
     "1",                # -> analysis_intro_intermediate
     "yes",              # -> analysis_task_1_intermediate
     "Answer to task one",   # -> analysis_feedback_1_intermediate
@@ -302,11 +303,13 @@ class TutorSessionTests(SimpleTestCase):
         """#17 anchor: each registered level walks the graph end to end.
 
         Drives every level path through :meth:`TutorSession.submit` one
-        input at a time and asserts the row reached after each step in
-        today's suffix notation. Committed green before the row-registry
-        expand (#17) and kept as the safety net for the base-name
-        cutover (spec #16 C1-9): the sequence of reached rows must not
-        change.
+        input at a time and asserts the row reached after each step.
+        Committed green before the row-registry expand (#17) and kept as
+        the safety net for the base-name cutover (spec #16 C1-9): the
+        sequence of reached rows must not change. Registration lands on
+        the base name (spec #16 C1-2), so that step asserts the row the
+        pair registry resolves with the level — the row reached before
+        the cutover, by identity.
         """
         tail = [
             "1",                    # -> role_mediator
@@ -322,7 +325,7 @@ class TutorSessionTests(SimpleTestCase):
             expected = [
                 "pretest",
                 "level_assessment",
-                f"after_registration_{level}",
+                "after_registration",  # base name lands (spec #16 C1-2)
                 f"analysis_intro_{level}",
                 f"analysis_task_1_{level}",
                 f"analysis_feedback_1_{level}",
@@ -347,6 +350,14 @@ class TutorSessionTests(SimpleTestCase):
                         self.assertEqual(
                             self.state_of(storage).current_state, reached
                         )
+                        if reached == "after_registration":
+                            # The landed row is the one today's suffixed
+                            # name resolved before the cutover: the pair
+                            # registry keys it, the name no longer spells it.
+                            self.assertIs(
+                                row_for(reached, level),
+                                ROW_REGISTRY[("after_registration", level)],
+                            )
 
     def test_idea_generator_path_yields_the_feedback_turn(self):
         """Issue #12: the Idea Generator gets a feedback turn like every other role.
@@ -677,7 +688,7 @@ class TutorSessionTests(SimpleTestCase):
                     "3": "Advanced",
                 },
             ),
-            "after_registration_intermediate": (
+            "after_registration": (  # base name lands (spec #16 C1-2)
                 ["Alice", "3 4 5", "2"],
                 {
                     "back": "⬅️ Back",
@@ -885,7 +896,8 @@ class TutorSessionTests(SimpleTestCase):
             if turn.role == "assistant"
         }
         self.assertEqual(used["level_assessment"], "2")
-        self.assertEqual(used["after_registration_intermediate"], "1")
+        # The registration turn is stored under its base name (spec #16 C1-2).
+        self.assertEqual(used["after_registration"], "1")
         self.assertEqual(used["analysis_intro_intermediate"], "yes")
         self.assertIsNone(used["analysis_task_1_intermediate"])
         self.assertIsNone(session.turns()[-1].used_value)
