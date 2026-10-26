@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MetaChat Tutor">
+  <!-- Squircle in MD3 primary-container, chat bubble in primary with a
+       smile: the polylogue softened constructively (Task 1's lesson).
+       Colors are the tonal tokens from style.css :root. -->
+  <rect width="64" height="64" rx="14" fill="#e9ddff"/>
+  <path d="M12 14a8 8 0 0 1 8-8h24a8 8 0 0 1 8 8v18a8 8 0 0 1-8 8H28l-10 9v-9h-2a8 8 0 0 1-8-8V14z" fill="#6750a4"/>
+  <circle cx="24" cy="24" r="3" fill="#e9ddff"/>
+  <circle cx="40" cy="24" r="3" fill="#e9ddff"/>
+  <path d="M22 33c2.5 3.4 6 5 10 5s7.5-1.6 10-5" fill="none" stroke="#e9ddff" stroke-width="3" stroke-linecap="round"/>
+</svg>

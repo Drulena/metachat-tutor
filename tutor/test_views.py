@@ -372,3 +372,15 @@ class ChatSidebarGateTests(TestCase):
         self.assertIn("Overall Progress", chat)
         self.assertNotIn("Export Chat History", menu)
         self.assertNotIn("Export Chat History", chat)
+
+
+class FaviconTests(TestCase):
+    """Every page links the project favicon — a rendered-page rule, the
+    tab is the whole surface a browser shows."""
+
+    def test_every_page_links_the_svg_favicon(self):
+        _drive(self.client, ROLE_MENU_INPUTS)
+        for path in ("/", "/menu/", "/reset/confirm/"):
+            html = self.client.get(path).content.decode()
+            self.assertIn('rel="icon"', html, path)
+            self.assertIn("/static/tutor/favicon.svg", html, path)
