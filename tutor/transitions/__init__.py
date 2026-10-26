@@ -70,6 +70,7 @@ from ._validate import (
     ROW_FIELDS,
     USER_DATA_KEYS,
     USER_DATA_SOURCES,
+    validate_expanded,
     validate_transitions,
 )
 
@@ -82,6 +83,7 @@ __all__ = [
     "ROW_FIELDS",
     "USER_DATA_KEYS",
     "USER_DATA_SOURCES",
+    "validate_expanded",
     "validate_transitions",
 ]
 

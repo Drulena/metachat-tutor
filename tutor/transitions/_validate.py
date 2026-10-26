@@ -39,7 +39,10 @@ end-to-end. :func:`validate_transitions` checks the table against the
 scenario and the closed sets above.
 """
 
+from collections.abc import Iterator
+
 from ..data import SCENARIO
+from ._registry import LEVEL_SUFFIXES, expand_rows, split_state
 
 #: The fields every row carries, in canonical order.
 ROW_FIELDS = (
@@ -87,7 +90,9 @@ def validate_transitions(table: dict[str, dict] | None = None) -> list[str]:
     table is valid. The checks mirror the ticket's acceptance criteria:
     one row per non-terminal scenario state, every next/back target a
     known state, every effect referencing a valid item or user-data key,
-    and effects aligned with the ``next`` map.
+    and effects aligned with the ``next`` map. The expanded-table checks
+    of :func:`validate_expanded` (spec #16 C1-1) run over the same
+    table and their violations join the same list.
     """
     from ..tutor_session import ITEM_KEYS  # deferred: avoids a circular import
 
@@ -156,5 +161,85 @@ def validate_transitions(table: dict[str, dict] | None = None) -> list[str]:
         else:
             if not isinstance(effects, list):
                 violations.append(f"{state}: effects must be a list when next is a plain state")
+
+    violations.extend(validate_expanded(table))
+    return violations
+
+
+def _row_targets(row: dict) -> Iterator[str]:
+    """Every next/back target name declared by a row (map values included)."""
+    next_ = row.get("next")
+    if isinstance(next_, dict):
+        yield from next_.values()
+    elif next_ is not None:
+        yield next_
+    back = row.get("back")
+    if back is not None:
+        yield back
+
+
+def validate_expanded(table: dict[str, dict] | None = None) -> list[str]:
+    """Check the ``(base state, level)`` expansion of ``table`` (#17).
+
+    Spec #16 C1-1 expands the suffix-named table 1:1 to pair keys
+    (ADR-0006): 44 graph nodes — 18 axis pairs plus 26 single-form
+    ``(state, None)`` entries. Three checks run over the whole
+    expansion:
+
+    - graph closure: every next/back target resolves to a pair that
+      has a row (``("end", None)`` is the terminal exception);
+    - reachability: every pair is reachable from ``("start", None)``
+      along next/back edges;
+    - level coverage: a base carrying any axis row must carry every
+      :data:`~tutor.transitions._registry.LEVEL_SUFFIXES` level, so a
+      row module missing an axis level is rejected.
+
+    Returns human-readable violations prefixed ``expanded:``; an empty
+    list means the expansion is sound.
+    """
+    if table is None:
+        from . import TRANSITIONS  # deferred: avoids a circular import
+
+        table = TRANSITIONS
+    try:
+        pairs = expand_rows(table)
+    except ValueError as exc:
+        return [f"expanded: {exc}"]
+
+    violations: list[str] = []
+    terminal = ("end", None)
+
+    for state in sorted(table):
+        for target in _row_targets(table[state]):
+            pair = split_state(target)
+            if pair not in pairs and pair != terminal:
+                violations.append(
+                    f"expanded: {state!r}: target {target!r} resolves to "
+                    f"pair {pair!r} with no row"
+                )
+
+    axis_bases: dict[str, set[str]] = {}
+    for base, level in pairs:
+        if level is not None:
+            axis_bases.setdefault(base, set()).add(level)
+    for base in sorted(axis_bases):
+        for level in LEVEL_SUFFIXES:
+            if level not in axis_bases[base]:
+                violations.append(
+                    f"expanded: row module {base!r} misses axis level {level!r}"
+                )
+
+    start = ("start", None)
+    if start in pairs:
+        seen = {start}
+        queue = [start]
+        while queue:
+            for target in _row_targets(pairs[queue.pop()]):
+                pair = split_state(target)
+                if pair in pairs and pair not in seen:
+                    seen.add(pair)
+                    queue.append(pair)
+        for pair in sorted(set(pairs) - seen):
+            violations.append(f"expanded: pair {pair!r} is unreachable from {start!r}")
 
     return violations

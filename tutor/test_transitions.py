@@ -29,6 +29,7 @@ from .transitions import (
     USER_DATA_KEYS,
     USER_DATA_SOURCES,
     row_for,
+    validate_expanded,
     validate_transitions,
 )
 from .transitions._registry import LEVEL_SUFFIXES, split_state
@@ -234,6 +235,59 @@ class RowRegistryTests(SimpleTestCase):
         self.assertIsNone(row_for("analysis_task_1", "novice"))
         self.assertIsNone(row_for("no_such_state", "beginner"))
         self.assertIsNone(row_for("no_such_state"))
+
+
+class ExpandedTableTests(SimpleTestCase):
+    """Validator checks over the expanded (base, level) pair table (#17)."""
+
+    def test_expansion_validates_clean(self):
+        # Graph closure, reachability over all 44 pairs, level coverage.
+        self.assertEqual(validate_expanded(), [])
+
+    def test_missing_axis_level_is_rejected(self):
+        table = copy.deepcopy(TRANSITIONS)
+        del table["analysis_task_1_beginner"]
+        self.assertIn(
+            "expanded: row module 'analysis_task_1' misses axis level 'beginner'",
+            validate_expanded(table),
+        )
+
+    def test_unreachable_pair_is_rejected(self):
+        table = copy.deepcopy(TRANSITIONS)
+        # The level_assessment next map is the only inbound edge to the
+        # advanced pair cluster: point every value at the intermediate
+        # one. The beginner cluster stays reachable through the
+        # single-form rows' shared back edge to after_registration_beginner.
+        table["level_assessment"]["next"] = {
+            value: "after_registration_intermediate" for value in ("1", "2", "3")
+        }
+        self.assertIn(
+            "expanded: pair ('after_registration', 'advanced') "
+            "is unreachable from ('start', None)",
+            validate_expanded(table),
+        )
+
+    def test_target_without_pair_row_is_rejected(self):
+        table = copy.deepcopy(TRANSITIONS)
+        table["analysis_intro_beginner"]["next"] = "analysis_intro_beginner_beginner"
+        self.assertIn(
+            "expanded: 'analysis_intro_beginner': target "
+            "'analysis_intro_beginner_beginner' resolves to pair "
+            "('analysis_intro_beginner', 'beginner') with no row",
+            validate_expanded(table),
+        )
+
+    def test_flat_validator_runs_the_expanded_checks_too(self):
+        # One entry point: the flat checks and the expanded checks
+        # share the single violations list.
+        table = copy.deepcopy(TRANSITIONS)
+        del table["analysis_task_1_beginner"]
+        violations = validate_transitions(table)
+        self.assertIn("missing row for state 'analysis_task_1_beginner'", violations)
+        self.assertIn(
+            "expanded: row module 'analysis_task_1' misses axis level 'beginner'",
+            violations,
+        )
 
 
 class FakeFeedback:
