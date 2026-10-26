@@ -115,14 +115,14 @@ def _api_base(llm_url: str) -> str:
 
 
 def _bearer(api_key: str) -> dict:
-    """Bearer-auth headers shared by the OpenAI-compatible protocols."""
+    """Return the bearer-auth headers shared by the OpenAI-compatible protocols."""
     return {"Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"}
 
 
 def _openai_attempts(base: str, model: str, api_key: str,
                      prompt: str) -> list[_Attempt]:
-    """The OpenAI-compatible shape, plus the legacy /completions probe."""
+    """Build the OpenAI-compatible calls, plus the legacy /completions probe."""
     bearer = _bearer(api_key)
     return [
         _Attempt("chat", base + "/chat/completions", bearer,
@@ -138,7 +138,7 @@ def _openai_attempts(base: str, model: str, api_key: str,
 
 def _anthropic_attempts(base: str, model: str, api_key: str,
                         prompt: str) -> list[_Attempt]:
-    """Anthropic's own protocol: x-api-key auth, /v1/messages."""
+    """Build Anthropic's own protocol call: x-api-key auth, /v1/messages."""
     return [
         _Attempt("anthropic", base + "/messages",
                  {"x-api-key": api_key,
@@ -153,7 +153,7 @@ def _anthropic_attempts(base: str, model: str, api_key: str,
 
 def _mistral_attempts(base: str, model: str, api_key: str,
                       prompt: str) -> list[_Attempt]:
-    """Mistral's native Conversations API: inputs in, outputs out."""
+    """Build Mistral's native Conversations call: inputs in, outputs out."""
     return [
         _Attempt("mistral", base + "/conversations", _bearer(api_key),
                  {"model": model,
@@ -200,8 +200,9 @@ def _mistral_text(result: dict) -> Optional[str]:
 
 
 def _openai_text(result: dict) -> Optional[str]:
-    """The OpenAI-compatible answer: choices[0]'s content, legacy text
-    field as fallback — the ``reasoning`` field is never surfaced."""
+    """Extract the OpenAI-compatible answer: choices[0]'s content, the
+    legacy text field as fallback — the ``reasoning`` field is never
+    surfaced."""
     choices = result.get("choices")
     if not choices:
         return None
