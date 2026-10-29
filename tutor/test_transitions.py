@@ -570,7 +570,7 @@ class RejectionCopyTests(SimpleTestCase):
 
 
 class AxisScenarioCopyTests(SimpleTestCase):
-    """The axis copy stays byte-exact at every level (spec #16 C1-3)."""
+    """The axis copy stays byte-exact at every level (spec #16 C1-3, C1-4)."""
 
     def test_intro_message_is_byte_exact_per_level(self):
         """The map replaces three modules; the words must not move."""
@@ -597,3 +597,37 @@ class AxisScenarioCopyTests(SimpleTestCase):
         for level in LEVEL_SUFFIXES:
             with self.subTest(level=level):
                 self.assertTrue(messages[level].endswith("\n\n👇**Click *yes* to start**"))
+
+    def test_task_1_message_is_byte_exact_per_level(self):
+        """The task-1 map (spec #16 C1-4) replaces three modules; the
+        words must not move, so the three texts are pinned whole."""
+        expected = {
+            "beginner": "**📝 TASK 1: Softening Criticism (Beginner)**\n\nContext: {context}\n\nOriginal message: *{message}*\n\n❓ **Question:** Which emoji(s) would you add to the END of this message to make it sound kinder? Explain your choice.\n\n*Hint: {hint}*\n\n⬇️**Type your answer and tap Enter:**",
+            "intermediate": "**📝 TASK 1: Softening Criticism (Intermediate)**\n\nContext: {context}\n\nOriginal message: *{message}*\n\n❓ **Question:** Which emoji(s) would you add to signal openness to dialogue?\n\n💡*Hint: {hint}*\n\n⬇️**Type your answer and tap Enter:**",
+            "advanced": "**📝 TASK 1: Softening Criticism (Advanced)**\n\nContext: {context}\n\nOriginal message: {message}\n\n❓ **Question:** Where would you place emojis to maintain professionalism?\n\n*Hint: {hint}*\n\n⬇️**Type your answer:**",
+        }
+        for level, message in expected.items():
+            with self.subTest(level=level):
+                self.assertEqual(
+                    SCENARIO["states"][f"analysis_task_1_{level}"]["message"],
+                    message,
+                )
+
+    def test_task_1_framing_is_shared_across_the_axis(self):
+        """Only the wording of a level differs on the task-1 axis: the
+        heading, the context line, the question lead-in, the answer
+        prompt and the free-text gate are shared (spec #16 C1-4)."""
+        states = {
+            level: SCENARIO["states"][f"analysis_task_1_{level}"]
+            for level in LEVEL_SUFFIXES
+        }
+        for level in LEVEL_SUFFIXES:
+            with self.subTest(level=level):
+                message = states[level]["message"]
+                self.assertTrue(message.startswith("**📝 TASK 1: Softening Criticism ("))
+                self.assertIn("**\n\nContext: {context}\n\nOriginal message: ", message)
+                self.assertIn("\n\n❓ **Question:** ", message)
+                self.assertIn("\n\n⬇️**Type your answer", message)
+                self.assertEqual(states[level]["validation"], ".+")
+        # The axis carries three distinct texts, not one text three times.
+        self.assertEqual(len({state["message"] for state in states.values()}), 3)
