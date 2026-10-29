@@ -14,7 +14,7 @@ point): ``next`` names the base states the learner goes to from here
 — the analysis intro since spec #16 C1-3, the role-play intro being a
 single-form state — and ``back`` spells this row's own base state,
 landing on its own pair (the prefix-match repair no longer fires here;
-spec #16 C1-5 turns this into ``back: None``, the point of no return).
+spec #16 C1-8 turns this into ``back: None``, the point of no return).
 """
 
 from ._registry import LEVEL_SUFFIXES, with_fixture_level
