@@ -115,9 +115,9 @@ TRANSITIONS = {
     # suffixed keys appear in no row module.
     **axis_rows(after_registration.BASE, after_registration.ROWS),
     # The analysis-intro axis (spec #16 C1-3, ADR-0006): the suffixed
-    # keys and the fixture levels come from the seam; the back target
-    # spells the registration base state, the next target embeds the
-    # row level until the task axis lands (spec #16 C1-4).
+    # keys and the fixture levels come from the seam; both targets spell
+    # base names — the registration state (C1-2) and the task-1 state
+    # (C1-4) — resolved by the seam with the session's level.
     **axis_rows(analysis_intro.BASE, analysis_intro.ROWS),
     # The analysis-task-1 axis (spec #16 C1-4, ADR-0006): rows and fixtures
     # generated from the level-keyed map by the seam; the back target spells

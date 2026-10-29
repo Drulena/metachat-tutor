@@ -10,12 +10,12 @@ axis: :func:`axis_rows` keys the rows by suffixed name at assembly,
 :func:`with_fixture_level` injects the level into the one fixture dict.
 Targets spell base names, resolved by the row registry: ``back`` spells
 the registration base state, converted in the preceding ticket (spec #16
-C1-2), and ``next`` embeds the row level, joined by :func:`join_state`
-at the construction point, because the analysis task axis is converted
-in the following ticket (spec #16 C1-4).
+C1-2), and ``next`` spells the analysis task base state, converted in
+the following ticket (spec #16 C1-4) — the seam resolves both with the
+session's level.
 """
 
-from ._registry import LEVEL_SUFFIXES, join_state, with_fixture_level
+from ._registry import LEVEL_SUFFIXES, with_fixture_level
 
 #: The base state name; :func:`axis_rows` generates the suffixed keys.
 BASE = "analysis_intro"
@@ -56,7 +56,7 @@ _FIXTURE = {
 def _row(level: str) -> dict:
     """Build the axis row for one level; level targets come from the seam."""
     return {
-        "next": join_state("analysis_task_1", level),
+        "next": "analysis_task_1",
         "back": "after_registration",
         "nav": {"yes": "Yes"},
         "retryable": False,

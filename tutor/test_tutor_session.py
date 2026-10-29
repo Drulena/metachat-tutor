@@ -27,7 +27,7 @@ ROLE_MENU_INPUTS = [
     "3 4 5",            # pretest -> level_assessment
     "2",                # level_assessment -> after_registration (base name, C1-2)
     "1",                # -> analysis_intro (base name, C1-3)
-    "yes",              # -> analysis_task_1_intermediate
+    "yes",              # -> analysis_task_1 (base name, C1-4)
     "Answer to task one",   # -> analysis_feedback_1_intermediate
     "next",             # -> analysis_task_2_intermediate
     "Answer to task two",   # -> analysis_feedback_2_intermediate
@@ -327,7 +327,7 @@ class TutorSessionTests(SimpleTestCase):
                 "level_assessment",
                 "after_registration",  # base name lands (spec #16 C1-2)
                 "analysis_intro",       # base name lands (spec #16 C1-3)
-                f"analysis_task_1_{level}",
+                "analysis_task_1",        # base name lands (spec #16 C1-4)
                 f"analysis_feedback_1_{level}",
                 f"analysis_task_2_{level}",
                 f"analysis_feedback_2_{level}",
@@ -350,7 +350,11 @@ class TutorSessionTests(SimpleTestCase):
                         self.assertEqual(
                             self.state_of(storage).current_state, reached
                         )
-                        if reached in ("after_registration", "analysis_intro"):
+                        if reached in (
+                            "after_registration",
+                            "analysis_intro",
+                            "analysis_task_1",
+                        ):
                             # The landed row is the one today's suffixed
                             # name resolved before the cutover: the pair
                             # registry keys it, the name no longer spells it.
@@ -517,7 +521,7 @@ class TutorSessionTests(SimpleTestCase):
     def test_back_from_analysis_task_returns_to_analysis_intro(self):
         session, storage, _ = self.make_session()
         self.drive(session, "Alice", "3 4 5", "2", "1", "yes")
-        self.assertEqual(self.state_of(storage).current_state, "analysis_task_1_intermediate")
+        self.assertEqual(self.state_of(storage).current_state, "analysis_task_1")
         session.submit("back")
         self.assertEqual(self.state_of(storage).current_state, "analysis_intro")
 
@@ -701,7 +705,7 @@ class TutorSessionTests(SimpleTestCase):
                 {"back": "Back to menu", "yes": "Yes, proceed"},
             ),
             # Non-nav states: only the always-available back button.
-            "analysis_task_1_intermediate": (
+            "analysis_task_1": (  # base name lands (spec #16 C1-4)
                 ["Alice", "3 4 5", "2", "1", "yes"],
                 {"back": "⬅️ Back"},
             ),
@@ -900,7 +904,8 @@ class TutorSessionTests(SimpleTestCase):
         # names (spec #16 C1-2 and C1-3).
         self.assertEqual(used["after_registration"], "1")
         self.assertEqual(used["analysis_intro"], "yes")
-        self.assertIsNone(used["analysis_task_1_intermediate"])
+        # The task-1 turn is stored under its base name (spec #16 C1-4).
+        self.assertIsNone(used["analysis_task_1"])
         self.assertIsNone(session.turns()[-1].used_value)
 
     def test_user_turns_carry_no_options(self):
