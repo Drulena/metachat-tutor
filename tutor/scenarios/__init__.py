@@ -18,7 +18,6 @@ from . import (
     analysis_task_1,
     analysis_task_2_beginner,
     analysis_task_2_intermediate,
-    analysis_task_2_advanced,
     analysis_feedback_1_advanced,
     analysis_task_2_advanced,
     analysis_feedback_2_advanced,
