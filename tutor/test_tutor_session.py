@@ -350,13 +350,13 @@ class TutorSessionTests(SimpleTestCase):
                         self.assertEqual(
                             self.state_of(storage).current_state, reached
                         )
-                        if reached == "after_registration":
+                        if reached in ("after_registration", "analysis_intro"):
                             # The landed row is the one today's suffixed
                             # name resolved before the cutover: the pair
                             # registry keys it, the name no longer spells it.
                             self.assertIs(
                                 row_for(reached, level),
-                                ROW_REGISTRY[("after_registration", level)],
+                                ROW_REGISTRY[(reached, level)],
                             )
 
     def test_idea_generator_path_yields_the_feedback_turn(self):
