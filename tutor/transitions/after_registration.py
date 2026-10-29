@@ -58,7 +58,7 @@ def _row(level: str) -> dict:
     """Build the axis row for one level; level targets come from the seam."""
     return {
         "next": {
-            "1": join_state("analysis_intro", level),
+            "1": "analysis_intro",
             "2": "roleplay_intro",
         },
         "back": BASE,

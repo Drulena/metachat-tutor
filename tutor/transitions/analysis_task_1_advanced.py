@@ -7,7 +7,7 @@ Part of the pure-data transition table (ticket #8); see
 
 ROW = {
     "next": "analysis_feedback_1_advanced",
-    "back": "analysis_intro_advanced",
+    "back": "analysis_intro",
     "nav": {},
     "retryable": False,
     "item": "analysis_task_1",

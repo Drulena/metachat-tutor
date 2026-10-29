@@ -26,7 +26,7 @@ ROLE_MENU_INPUTS = [
     "Alice",            # start -> pretest
     "3 4 5",            # pretest -> level_assessment
     "2",                # level_assessment -> after_registration (base name, C1-2)
-    "1",                # -> analysis_intro_intermediate
+    "1",                # -> analysis_intro (base name, C1-3)
     "yes",              # -> analysis_task_1_intermediate
     "Answer to task one",   # -> analysis_feedback_1_intermediate
     "next",             # -> analysis_task_2_intermediate
@@ -326,7 +326,7 @@ class TutorSessionTests(SimpleTestCase):
                 "pretest",
                 "level_assessment",
                 "after_registration",  # base name lands (spec #16 C1-2)
-                f"analysis_intro_{level}",
+                "analysis_intro",       # base name lands (spec #16 C1-3)
                 f"analysis_task_1_{level}",
                 f"analysis_feedback_1_{level}",
                 f"analysis_task_2_{level}",
@@ -442,7 +442,7 @@ class TutorSessionTests(SimpleTestCase):
 
     def test_advance_option_matches_current_state(self):
         paths = {
-            "analysis_intro_intermediate": ["Alice", "3 4 5", "2", "1"],
+            "analysis_intro": ["Alice", "3 4 5", "2", "1"],
             "analysis_feedback_1_intermediate": ["Alice", "3 4 5", "2", "1", "yes", "Answer one"],
             "roleplay_intro": ["Alice", "3 4 5", "2", "1", "yes", "A1", "next", "A2", "next"],
             "roleplay_feedback_mediator": ["Alice", "3 4 5", "2", "1", "yes", "A1", "next", "A2",
@@ -452,7 +452,7 @@ class TutorSessionTests(SimpleTestCase):
                                 "Reflections", "4 4 4"],
         }
         keys = {
-            "analysis_intro_intermediate": "yes",
+            "analysis_intro": "yes",
             "analysis_feedback_1_intermediate": "next",
             "roleplay_intro": "continue",
             "roleplay_feedback_mediator": "next",
@@ -519,7 +519,7 @@ class TutorSessionTests(SimpleTestCase):
         self.drive(session, "Alice", "3 4 5", "2", "1", "yes")
         self.assertEqual(self.state_of(storage).current_state, "analysis_task_1_intermediate")
         session.submit("back")
-        self.assertEqual(self.state_of(storage).current_state, "analysis_intro_intermediate")
+        self.assertEqual(self.state_of(storage).current_state, "analysis_intro")
 
     def test_back_from_role_menu_returns_to_roleplay_intro(self):
         session, storage, _ = self.make_session()
@@ -696,7 +696,7 @@ class TutorSessionTests(SimpleTestCase):
                     "2": "Step2️⃣: ROLE-PLAY",
                 },
             ),
-            "analysis_intro_intermediate": (
+            "analysis_intro": (
                 ["Alice", "3 4 5", "2", "1"],
                 {"back": "Back to menu", "yes": "Yes, proceed"},
             ),
@@ -856,7 +856,7 @@ class TutorSessionTests(SimpleTestCase):
         self.drive(session, "Alice", "3 4 5", "2", "1")
         turns_before = len(session.turns())
         session.submit("no")
-        self.assertEqual(self.state_of(storage).current_state, "analysis_intro_intermediate")
+        self.assertEqual(self.state_of(storage).current_state, "analysis_intro")
         self.assertEqual(len(session.turns()), turns_before + 1)  # only the user turn
 
     def test_role_menu_rejects_non_roles(self):
@@ -896,9 +896,10 @@ class TutorSessionTests(SimpleTestCase):
             if turn.role == "assistant"
         }
         self.assertEqual(used["level_assessment"], "2")
-        # The registration turn is stored under its base name (spec #16 C1-2).
+        # The registration and intro turns are stored under their base
+        # names (spec #16 C1-2 and C1-3).
         self.assertEqual(used["after_registration"], "1")
-        self.assertEqual(used["analysis_intro_intermediate"], "yes")
+        self.assertEqual(used["analysis_intro"], "yes")
         self.assertIsNone(used["analysis_task_1_intermediate"])
         self.assertIsNone(session.turns()[-1].used_value)
 
