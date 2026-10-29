@@ -18,49 +18,52 @@ wording that differs between the levels sits in the map.
 #: ``{message}`` and ``{hint}`` are the randomization placeholders
 #: filled in by :func:`tutor.scenarios.randomize_scenario`.
 _HEAD = "**📝 TASK 1: Softening Criticism ("
-_PROMPT = "⬇️**Type your answer"
+_ANSWER_PROMPT = "⬇️**Type your answer"
 
 #: The accept gate of every level of this state: any non-empty answer
 #: (the state has no options — the learner types the answer).
 _VALIDATION = ".+"
 
 
-def _text(
-    level: str, message_field: str, question: str, hint_line: str, closing: str
-) -> str:
-    """Assemble one level's task copy: the shared frame around its wording."""
+def _text(level: str, wording: dict[str, str]) -> str:
+    """Assemble one level's task copy: the shared frame around its wording.
+
+    ``wording`` is one entry of :data:`_COPY`: the message under
+    review, the question, its hint line and the tail of the answer
+    prompt.
+    """
     return (
         f"{_HEAD}{level.capitalize()})**\n\n"
         "Context: {context}\n\n"
-        f"Original message: {message_field}\n\n"
-        f"❓ **Question:** {question}\n\n"
-        f"{hint_line}\n\n"
-        f"{_PROMPT}{closing}"
+        f"Original message: {wording['message_field']}\n\n"
+        f"❓ **Question:** {wording['question']}\n\n"
+        f"{wording['hint_line']}\n\n"
+        f"{_ANSWER_PROMPT}{wording['prompt_tail']}"
     )
 
 
 #: The per-level wording of the axis, side by side (spec #16 C1-4): the
 #: message under review (quoted at the two lower levels, bare at the
 #: advanced one), the question, the hint line (the bulb marks the
-#: intermediate level) and the closing of the answer prompt.
+#: intermediate level) and the tail of the answer prompt.
 _COPY: dict[str, dict[str, str]] = {
     "beginner": {
         "message_field": "*{message}*",
         "question": "Which emoji(s) would you add to the END of this message to make it sound kinder? Explain your choice.",
         "hint_line": "*Hint: {hint}*",
-        "closing": " and tap Enter:**",
+        "prompt_tail": " and tap Enter:**",
     },
     "intermediate": {
         "message_field": "*{message}*",
         "question": "Which emoji(s) would you add to signal openness to dialogue?",
         "hint_line": "💡*Hint: {hint}*",
-        "closing": " and tap Enter:**",
+        "prompt_tail": " and tap Enter:**",
     },
     "advanced": {
         "message_field": "{message}",
         "question": "Where would you place emojis to maintain professionalism?",
         "hint_line": "*Hint: {hint}*",
-        "closing": ":**",
+        "prompt_tail": ":**",
     },
 }
 
@@ -68,6 +71,6 @@ _COPY: dict[str, dict[str, str]] = {
 #: each suffixed scenario key from this map; a state carries no options
 #: — the answer is free text.
 STATE: dict[str, dict] = {
-    level: {"message": _text(level, **wording), "validation": _VALIDATION}
+    level: {"message": _text(level, wording), "validation": _VALIDATION}
     for level, wording in _COPY.items()
 }
