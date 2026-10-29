@@ -25,6 +25,10 @@ base names, and fixtures are generated from one per-base dict
 Spec #16 C1-3 (ticket #19) folds the analysis-intro triplet into the
 same shape: the intro rows generate from the axis, and the intro
 back-target spells the registration base state through the seam.
+
+Spec #16 C1-4 (ticket #20) folds the analysis-task-1 triplet into the
+same shape: the task rows generate from the axis, and the task
+back-target spells the intro base state through the seam.
 """
 
 from . import (
@@ -33,11 +37,9 @@ from . import (
     level_assessment,
     after_registration,
     analysis_intro,
-    analysis_task_1_beginner,
+    analysis_task_1,
     analysis_task_2_beginner,
-    analysis_task_1_intermediate,
     analysis_task_2_intermediate,
-    analysis_task_1_advanced,
     analysis_task_2_advanced,
     analysis_feedback_1_beginner,
     analysis_feedback_2_beginner,
@@ -117,11 +119,13 @@ TRANSITIONS = {
     # spells the registration base state, the next target embeds the
     # row level until the task axis lands (spec #16 C1-4).
     **axis_rows(analysis_intro.BASE, analysis_intro.ROWS),
-    "analysis_task_1_beginner": analysis_task_1_beginner.ROW,
+    # The analysis-task-1 axis (spec #16 C1-4, ADR-0006): rows and fixtures
+    # generated from the level-keyed map by the seam; the back target spells
+    # the intro base state, the next target embeds the row level until the
+    # feedback axis lands (spec #16 C1-5).
+    **axis_rows(analysis_task_1.BASE, analysis_task_1.ROWS),
     "analysis_task_2_beginner": analysis_task_2_beginner.ROW,
-    "analysis_task_1_intermediate": analysis_task_1_intermediate.ROW,
     "analysis_task_2_intermediate": analysis_task_2_intermediate.ROW,
-    "analysis_task_1_advanced": analysis_task_1_advanced.ROW,
     "analysis_task_2_advanced": analysis_task_2_advanced.ROW,
     "analysis_feedback_1_beginner": analysis_feedback_1_beginner.ROW,
     "analysis_feedback_2_beginner": analysis_feedback_2_beginner.ROW,
