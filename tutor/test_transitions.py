@@ -567,3 +567,33 @@ class RejectionCopyTests(SimpleTestCase):
         for state, copy_text in expected.items():
             with self.subTest(state=state):
                 self.assertEqual(TRANSITIONS[state]["rejected"], copy_text)
+
+
+class AxisScenarioCopyTests(SimpleTestCase):
+    """The axis copy stays byte-exact at every level (spec #16 C1-3)."""
+
+    def test_intro_message_is_byte_exact_per_level(self):
+        """The map replaces three modules; the words must not move."""
+        expected = {
+            "beginner": "**Step1️⃣: ANALYSIS**\n\nYou'll learn to identify basic metagrapheme functions and practice softening simple criticism using examples of online comments.\n\n👇**Click *yes* to start**",
+            "intermediate": "**Step1️⃣: ANALYSIS**\n\nYou'll analyze more complex examples of online comments and practice nuanced use of metagraphemes.\n\n👇**Click *yes* to start**",
+            "advanced": "**Step1️⃣: ANALYSIS**\n\nYou'll work with complex, multi-layered examples of online comments and cultural comparisons.\n\n👇**Click *yes* to start**",
+        }
+        for level, message in expected.items():
+            with self.subTest(level=level):
+                self.assertEqual(
+                    SCENARIO["states"][f"analysis_intro_{level}"]["message"],
+                    message,
+                )
+
+    def test_intro_framing_is_shared_across_the_axis(self):
+        """Only the level body differs: heading and call to action are fixed."""
+        messages = {
+            level: SCENARIO["states"][f"analysis_intro_{level}"]["message"]
+            for level in LEVEL_SUFFIXES
+        }
+        heads = {m.split("\n")[0] for m in messages.values()}
+        self.assertEqual(heads, {"**Step1️⃣: ANALYSIS**"})
+        for level in LEVEL_SUFFIXES:
+            with self.subTest(level=level):
+                self.assertTrue(messages[level].endswith("\n\n👇**Click *yes* to start**"))
