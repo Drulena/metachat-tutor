@@ -14,9 +14,7 @@ from . import (
     pretest,
     level_assessment,
     after_registration,
-    analysis_intro_beginner,
-    analysis_intro_intermediate,
-    analysis_intro_advanced,
+    analysis_intro,
     analysis_task_1_beginner,
     analysis_task_2_beginner,
     analysis_task_1_intermediate,
@@ -91,9 +89,12 @@ SCENARIO: dict[str, Any] = {
             f"after_registration_{level}": after_registration.STATE[level]
             for level in LEVELS
         },
-        "analysis_intro_beginner": analysis_intro_beginner.STATE,
-        "analysis_intro_intermediate": analysis_intro_intermediate.STATE,
-        "analysis_intro_advanced": analysis_intro_advanced.STATE,
+        # The intro axis (spec #16 C1-3, ADR-0006): the suffixed scenario
+        # keys are generated from the level-keyed map, spelled once here.
+        **{
+            f"analysis_intro_{level}": analysis_intro.STATE[level]
+            for level in LEVELS
+        },
         "analysis_task_1_beginner": analysis_task_1_beginner.STATE,
         "analysis_task_2_beginner": analysis_task_2_beginner.STATE,
         "analysis_task_1_intermediate": analysis_task_1_intermediate.STATE,
