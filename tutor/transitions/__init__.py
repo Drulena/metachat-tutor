@@ -40,6 +40,13 @@ same shape: the task rows generate from the axis, its back-target
 spells the intro base state, feedback-1's landing retires its level-
 named exception for the task-2 base, and the session's task-context
 read names the task-2 sibling by base through the seam.
+
+Spec #16 C1-7 (ticket #23) folds the analysis-feedback-2 triplet into
+the same shape: the retryable LLM-feedback rows generate from the
+axis, its back-target spells the intro base state, task-2's landing
+retires its level-named exception for the feedback-2 base, and the
+row's own ``next`` leaves the analysis arc for the single-form
+role-play intro — one node for every level, so it needs no join.
 """
 
 from . import (
@@ -51,9 +58,7 @@ from . import (
     analysis_task_1,
     analysis_task_2,
     analysis_feedback_1,
-    analysis_feedback_2_beginner,
-    analysis_feedback_2_intermediate,
-    analysis_feedback_2_advanced,
+    analysis_feedback_2,
     roleplay_intro,
     role_menu,
     role_mediator,
@@ -133,17 +138,20 @@ TRANSITIONS = {
     **axis_rows(analysis_task_1.BASE, analysis_task_1.ROWS),
     # The analysis-task-2 axis (spec #16 C1-6, ADR-0006): rows and
     # fixtures generated from the level-keyed map by the seam; the back
-    # target spells the intro base state, and the next target embeds the
-    # row level until the feedback-2 axis lands (spec #16 C1-7).
+    # target spells the intro base state, and the next target spells the
+    # feedback-2 base state (spec #16 C1-7).
     **axis_rows(analysis_task_2.BASE, analysis_task_2.ROWS),
     # The analysis-feedback-1 axis (spec #16 C1-5, ADR-0006): the retryable
     # LLM-feedback rows and their fixtures generate from the level-keyed map
     # by the seam; the back target spells the intro base state, and the next
     # target spells the task-2 base state (spec #16 C1-6).
     **axis_rows(analysis_feedback_1.BASE, analysis_feedback_1.ROWS),
-    "analysis_feedback_2_beginner": analysis_feedback_2_beginner.ROW,
-    "analysis_feedback_2_intermediate": analysis_feedback_2_intermediate.ROW,
-    "analysis_feedback_2_advanced": analysis_feedback_2_advanced.ROW,
+    # The analysis-feedback-2 axis (spec #16 C1-7, ADR-0006): the
+    # retryable LLM-feedback rows and their fixtures generate from the
+    # level-keyed map by the seam; the back target spells the intro base
+    # state, and the next target leaves the analysis arc for the
+    # single-form role-play intro.
+    **axis_rows(analysis_feedback_2.BASE, analysis_feedback_2.ROWS),
     "roleplay_intro": roleplay_intro.ROW,
     "role_menu": role_menu.ROW,
     "role_mediator": role_mediator.ROW,
