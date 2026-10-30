@@ -73,6 +73,15 @@ _ROLEPLAY_MARKERS = ("\n\n▶️",)
 
 _BACK_LABEL = "⬅️ Back"
 
+def _row_has_back(row: dict) -> bool:
+    """Returns whether the row declares a journey back.
+
+    ``start`` and the registration axis — the point of no return
+    (ADR-0006 decision 2, spec #16 C1-8) — declare none: a typed
+    ``back`` there is rejected input and no back offer appears.
+    """
+    return row.get("back") is not None
+
 #: The module's fallback copy for rows that declare ``rejected: None``
 #: (ADR-0005: rejection is the module's question, so the fallback string
 #: lives here, not in the view).
@@ -661,7 +670,7 @@ class TutorSession:
         # ``back`` marks an offer only where the row declares the edge:
         # at ``start`` and at the registration axis (spec #16 C1-8) a
         # typed "back" is rejected input, not an answer — it marks nothing.
-        if value == "back" and row.get("back") is not None:
+        if value == "back" and _row_has_back(row):
             return value
         if value == "retry" and entry.get("llm_failed"):
             return value
@@ -681,14 +690,14 @@ class TutorSession:
         row = row_for(state.current_state, state.user_data.get("level")) or {}
         if entry.get("llm_failed") and state.retry_count < 3:
             navigation: dict[str, tuple[str, str]] = {}
-            if row.get("back") is not None:
+            if _row_has_back(row):
                 navigation["back"] = (_BACK_LABEL, "nav")
             navigation["retry"] = (f"🔄 Retry LLM ({max(state.retry_count, 1)}/3)", "retry")
             return navigation
         navigation = {
             value: (label, "nav") for value, label in row.get("nav", {}).items()
         }
-        if row.get("back") is not None:
+        if _row_has_back(row):
             navigation["back"] = (_BACK_LABEL, "nav")
         return navigation
 
@@ -703,6 +712,6 @@ class TutorSession:
         ever synthesised for a failed LLM message, never stored.
         """
         values = set(row.get("nav", {}))
-        if row.get("back") is not None:
+        if _row_has_back(row):
             values.add("back")
         return values
