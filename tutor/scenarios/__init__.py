@@ -18,9 +18,7 @@ from . import (
     analysis_task_1,
     analysis_task_2,
     analysis_feedback_1,
-    analysis_feedback_2_advanced,
-    analysis_feedback_2_beginner,
-    analysis_feedback_2_intermediate,
+    analysis_feedback_2,
     roleplay_intro,
     role_menu,
     role_mediator,
@@ -108,9 +106,13 @@ SCENARIO: dict[str, Any] = {
             f"analysis_task_2_{level}": analysis_task_2.STATE[level]
             for level in LEVELS
         },
-        "analysis_feedback_2_advanced": analysis_feedback_2_advanced.STATE,
-        "analysis_feedback_2_beginner": analysis_feedback_2_beginner.STATE,
-        "analysis_feedback_2_intermediate": analysis_feedback_2_intermediate.STATE,
+        # The feedback-2 axis (spec #16 C1-7, ADR-0006): the suffixed
+        # scenario keys are generated from the level-keyed map, spelled
+        # once here.
+        **{
+            f"analysis_feedback_2_{level}": analysis_feedback_2.STATE[level]
+            for level in LEVELS
+        },
         "roleplay_intro": roleplay_intro.STATE,
         "role_menu": role_menu.STATE,
         "role_mediator": role_mediator.STATE,
