@@ -15,6 +15,7 @@ are checked in the second part of this module.
 """
 
 import copy
+import inspect
 import re
 
 from django.test import SimpleTestCase
@@ -29,6 +30,7 @@ from .transitions import (
     TRANSITIONS,
     USER_DATA_KEYS,
     USER_DATA_SOURCES,
+    join_state,
     row_for,
     validate_expanded,
     validate_transitions,
@@ -293,6 +295,73 @@ class ExpandedTableTests(SimpleTestCase):
             "is unreachable from ('start', None)",
             validate_expanded(table),
         )
+
+    def test_no_row_spells_a_suffixed_registration_target(self):
+        """Ticket #24 AC[3]: the registration target is spelled by the
+        named mechanism — the BASE name resolved with the session's
+        level at the construction point — never as a suffixed literal."""
+        spelled = {
+            join_state("after_registration", level) for level in LEVEL_SUFFIXES
+        }
+        self.assertEqual([t for t in self._all_targets(TRANSITIONS) if t in spelled], [])
+
+    def test_no_path_reaches_level_assessment_after_registration(self):
+        """Ticket #24 AC[1]: the point of no return — no next, back, nav,
+        or self edge from any registration level leads back to the level
+        assessment, the pretest, or start; the only escape is reset."""
+        for level in LEVEL_SUFFIXES:
+            reached = self._reachable_pairs(("after_registration", level))
+            self.assertNotIn(("level_assessment", None), reached)
+            self.assertNotIn(("pretest", None), reached)
+            self.assertNotIn(("start", None), reached)
+
+    def test_go_back_has_no_prefix_repair(self):
+        """Ticket #24 AC[3]: the runtime prefix-repair in _go_back is
+        deleted — no back target is rewritten by string surgery."""
+        source = inspect.getsource(TutorSession._go_back)
+        self.assertNotIn("startswith", source)
+        self.assertNotIn("after_registration_", source)
+
+    @staticmethod
+    def _all_targets(table):
+        """Every state name a table can route to: next values, back,
+        nav values."""
+        targets = []
+        for row in table.values():
+            nxt = row.get("next")
+            if isinstance(nxt, str):
+                targets.append(nxt)
+            elif isinstance(nxt, dict):
+                targets.extend(nxt.values())
+            if row.get("back") is not None:
+                targets.append(row["back"]);
+            targets.extend((row.get("nav") or {}).values())
+        return targets
+
+    @staticmethod
+    def _reachable_pairs(origin):
+        """BFS over (state, level) pairs following next, back, and nav
+        edges, resolving a bare axis base with the BFS's fixed level —
+        the session's construction-point rule at one level."""
+        level = origin[1]
+        reached, queue = set(), [origin]
+        while queue:
+            pair = queue.pop()
+            if pair in reached:
+                continue
+            reached.add(pair)
+            row = ROW_REGISTRY.get(pair)
+            if row is None:
+                continue
+            for target in ExpandedTableTests._all_targets({"r": row}):
+                base, suffix = split_state(target)
+                if suffix is not None:
+                    queue.append((base, suffix))
+                elif (base, level) in ROW_REGISTRY:
+                    queue.append((base, level))
+                else:
+                    queue.append((base, None))
+        return reached
 
     def test_target_without_pair_row_is_rejected(self):
         table = copy.deepcopy(TRANSITIONS)

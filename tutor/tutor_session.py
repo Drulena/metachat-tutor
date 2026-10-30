@@ -386,16 +386,15 @@ class TutorSession:
             # rejection copy (d5).
             self._append_user_turn(state, "back", rejected=True)
             return
-        if back.startswith("after_registration_"):
-            level = state.user_data.get("level") or "beginner"
-            back = f"after_registration_{level}"
         # The typed ``back`` answers the current offer — mark it (synthesised
         # edge, no user entry follows; the stamp is the marking).
         if state.chat_history:
             state.chat_history[-1]["used_value"] = "back"
         state.current_state = back
-        # The old handle_back re-appended the assistant turn even when the
-        # state did not change (e.g. from after_registration_*).
+        # A back target is a true predecessor: landing changes the state,
+        # and the construction point resolves a bare axis base with the
+        # session's level (C1-8). The landing re-appends the assistant
+        # turn, as the old handle_back did.
         self._append_assistant_turn(state)
 
     def _retry(self, state: State) -> None:
