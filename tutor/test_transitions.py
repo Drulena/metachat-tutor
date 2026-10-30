@@ -557,7 +557,7 @@ class LegacyParityTests(SimpleTestCase):
                             f"user_data[{key!r}] mismatch",
                         )
 
-    def test_back_targets_match_legacy_go_back(self):
+    def test_back_targets_match_legacy_go_back_except_the_point_of_no_return(self):
         for name, row in TRANSITIONS.items():
             with self.subTest(state=name):
                 if name == "start" or split_state(name)[0] == "after_registration":

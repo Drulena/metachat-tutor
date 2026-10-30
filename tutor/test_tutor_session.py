@@ -552,7 +552,7 @@ class TutorSessionTests(SimpleTestCase):
         session.submit("back")
         self.assertEqual(self.state_of(storage).current_state, "roleplay_intro")
 
-    def test_back_from_pretest_lands_on_the_data_collection_screen(self):
+    def test_back_from_pretest_lands_on_the_name_and_group_screen(self):
         """Ticket #24: back at pretest goes to its TRUE predecessor — the
         name-and-group data-collection screen (``start``) — not a
         registration screen of a level the learner never picked (the
