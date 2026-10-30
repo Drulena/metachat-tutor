@@ -5,6 +5,8 @@ Part of the pure-data transition table (ticket #8); see
 :func:`tutor.transitions.validate_transitions` for validation.
 """
 
+BASE = "role_judge"
+
 ROW = {
     "next": "roleplay_feedback_judge",
     "back": "after_registration",  # BASE: resolved with the session level (C1-8)

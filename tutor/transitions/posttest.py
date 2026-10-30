@@ -5,6 +5,8 @@ Part of the pure-data transition table (ticket #8); see
 :func:`tutor.transitions.validate_transitions` for validation.
 """
 
+BASE = "posttest"
+
 ROW = {
     "next": "data_collection",
     "back": "after_registration",  # BASE: resolved with the session level (C1-8)

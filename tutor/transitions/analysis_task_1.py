@@ -6,7 +6,7 @@ Part of the pure-data transition table (ticket #8); see
 
 Spec #16 C1-4 (ADR-0006): the level axis is a parameter — this one
 module replaces the three triplet modules and the seam generates the
-axis: :func:`axis_rows` keys the rows by suffixed name at assembly,
+axis: :func:`axis_pairs` keys the rows by ``(base, level)`` pair at assembly,
 :func:`with_fixture_level` injects the level into the one fixture dict.
 Targets resolve through the row registry: `back` spells the intro base
 state, converted in the preceding ticket (spec #16 C1-3), and `next`
@@ -16,7 +16,7 @@ spells the feedback base state, converted in the following ticket
 
 from ._registry import LEVEL_SUFFIXES, with_fixture_level
 
-#: The base state name; :func:`axis_rows` generates the suffixed keys.
+#: The base state name; :func:`axis_pairs` generates the pair keys.
 BASE = "analysis_task_1"
 
 #: The one per-base fixture dict (ADR-0006 decision 6): the seam
@@ -68,6 +68,6 @@ def _row(level: str) -> dict:
     }
 
 
-#: The level-keyed row map: the assembly generates the suffixed keys with
-#: :func:`axis_rows` — suffixed names appear in no row module.
+#: The level-keyed row map: the assembly generates the pair keys with
+#: :func:`axis_pairs` — a state name never carries the level.
 ROWS: dict[str, dict] = {level: _row(level) for level in LEVEL_SUFFIXES}

@@ -17,7 +17,16 @@ from .data import (
     STEP_KEYS,
 )
 from .session import MemoryStorage, State, Summary
-from .transitions import TRANSITIONS, join_state, row_for
+from .transitions import (
+    ROW_REGISTRY,
+    after_registration,
+    analysis_feedback_1,
+    analysis_feedback_2,
+    analysis_intro,
+    analysis_task_1,
+    analysis_task_2,
+    row_for,
+)
 from .tutor_session import TutorSession
 
 #: Input sequence that drives a fresh session to the role menu.
@@ -321,6 +330,18 @@ class TutorSessionTests(SimpleTestCase):
         pair registry resolves with the level — the row reached before
         the cutover, by identity.
         """
+        #: Per-level rows of the six axis modules (spec #16 C1-2..C1-7):
+        #: the module-level maps the pair assembly is built FROM. They
+        #: spell no suffixed name — the level is a key, not a suffix —
+        #: so this is the independent oracle for the row landed on.
+        axis_rows = {
+            "after_registration": after_registration.ROWS,
+            "analysis_intro": analysis_intro.ROWS,
+            "analysis_task_1": analysis_task_1.ROWS,
+            "analysis_feedback_1": analysis_feedback_1.ROWS,
+            "analysis_task_2": analysis_task_2.ROWS,
+            "analysis_feedback_2": analysis_feedback_2.ROWS,
+        }
         tail = [
             "1",                    # -> role_mediator
             "I mediate the conflict",  # -> roleplay_feedback_mediator
@@ -360,25 +381,21 @@ class TutorSessionTests(SimpleTestCase):
                         self.assertEqual(
                             self.state_of(storage).current_state, reached
                         )
-                        if reached in (
-                            "after_registration",
-                            "analysis_intro",
-                            "analysis_task_1",
-                            "analysis_feedback_1",
-                            "analysis_task_2",
-                            "analysis_feedback_2",
-                        ):
-                            # "Asserting the row reached" is the row the
-                            # suffixed name resolved to before the cutover.
-                            # The seam must land on that same flat-table row,
-                            # and that row's fixture must carry this level -
-                            # checking row_for against its own registry would
-                            # be true by construction, so the flat table,
-                            # spelled with the level, is the oracle here.
+                        if reached in axis_rows:
+                            # "Asserting the row reached" is the row
+                            # the suffixed flat-table name resolved to
+                            # before the cutover. The seam must land on
+                            # that same row, and that row's fixture
+                            # must carry this level — checking row_for
+                            # against its own registry would be true by
+                            # construction, so the axis module's level
+                            # map is the oracle here (C1-9: no suffixed
+                            # spelling is spelled to look it up).
                             landed = row_for(reached, level)
+                            self.assertIs(landed, axis_rows[reached][level])
                             self.assertIs(
                                 landed,
-                                TRANSITIONS[join_state(reached, level)],
+                                ROW_REGISTRY[(reached, level)],
                             )
                             self.assertEqual(
                                 landed["fixture"]["user_data"]["level"], level
@@ -938,9 +955,12 @@ class TutorSessionTests(SimpleTestCase):
                 self.assertEqual((user_name, got_level), ("Alice", level))
                 self.assertEqual(
                     task_question,
-                    state.scenario["states"][join_state("analysis_task_1", level)]["message"],
+                    # The session's own scenario, keyed by base with the
+                    # level as a key (C1-9): the randomized copy for this
+                    # level, placeholders filled by the variant pass.
+                    state.scenario["states"]["analysis_task_1"][level]["message"],
                 )
-                # The join landed on this level's copy, not a neighbour's.
+                # The level axis landed on this level's copy, not a neighbour's.
                 self.assertIn(f"Softening Criticism ({level.capitalize()})", task_question)
 
     def test_analysis_task_2_context_reaches_the_llm_at_the_base_name(self):
@@ -970,9 +990,12 @@ class TutorSessionTests(SimpleTestCase):
                 self.assertEqual((user_name, got_level), ("Alice", level))
                 self.assertEqual(
                     task_question,
-                    state.scenario["states"][join_state("analysis_task_2", level)]["message"],
+                    # The session's own scenario, keyed by base with the
+                    # level as a key (C1-9): the randomized copy for this
+                    # level, placeholders filled by the variant pass.
+                    state.scenario["states"]["analysis_task_2"][level]["message"],
                 )
-                # The join landed on this level's copy, not a neighbour's.
+                # The level axis landed on this level's copy, not a neighbour's.
                 self.assertIn(
                     f"Aggressive Formatting ({level.capitalize()})", task_question
                 )

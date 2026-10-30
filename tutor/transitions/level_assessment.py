@@ -5,6 +5,8 @@ Part of the pure-data transition table (ticket #8); see
 :func:`tutor.transitions.validate_transitions` for validation.
 """
 
+BASE = "level_assessment"
+
 ROW = {
     # The accept map targets the registration BASE state (spec #16
     # C1-2, ADR-0006): the parsed-level effect lands the session's

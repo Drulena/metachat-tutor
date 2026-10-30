@@ -5,6 +5,8 @@ Part of the pure-data transition table (ticket #8); see
 :func:`tutor.transitions.validate_transitions` for validation.
 """
 
+BASE = "pretest"
+
 ROW = {
     "next": "level_assessment",
     "back": "start",  # true predecessor: the name-and-group screen (C1-8)

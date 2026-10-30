@@ -74,45 +74,17 @@ SCENARIO: dict[str, Any] = {
         "start": start.STATE,
         "pretest": pretest.STATE,
         "level_assessment": level_assessment.STATE,
-        # The registration axis (spec #16 C1-2, ADR-0006): the suffixed
-        # keys are generated from the level-keyed map — the axis is
-        # spelled once, in this comprehension, not in three module lines.
-        **{
-            f"after_registration_{level}": after_registration.STATE[level]
-            for level in LEVELS
-        },
-        # The intro axis (spec #16 C1-3, ADR-0006): the suffixed scenario
-        # keys are generated from the level-keyed map, spelled once here.
-        **{
-            f"analysis_intro_{level}": analysis_intro.STATE[level]
-            for level in LEVELS
-        },
-        # The task-1 axis (spec #16 C1-4, ADR-0006): the suffixed scenario
-        # keys are generated from the level-keyed map, spelled once here.
-        **{
-            f"analysis_task_1_{level}": analysis_task_1.STATE[level]
-            for level in LEVELS
-        },
-        # The feedback-1 axis (spec #16 C1-5, ADR-0006): the suffixed
-        # scenario keys are generated from the level-keyed map, spelled
-        # once here.
-        **{
-            f"analysis_feedback_1_{level}": analysis_feedback_1.STATE[level]
-            for level in LEVELS
-        },
-        # The task-2 axis (spec #16 C1-6, ADR-0006): the suffixed scenario
-        # keys are generated from the level-keyed map, spelled once here.
-        **{
-            f"analysis_task_2_{level}": analysis_task_2.STATE[level]
-            for level in LEVELS
-        },
-        # The feedback-2 axis (spec #16 C1-7, ADR-0006): the suffixed
-        # scenario keys are generated from the level-keyed map, spelled
-        # once here.
-        **{
-            f"analysis_feedback_2_{level}": analysis_feedback_2.STATE[level]
-            for level in LEVELS
-        },
+        # The level axes (spec #16 C1-2..C1-7, ADR-0006): keyed by base
+        # state name (spec #16 C1-9) — the entry is the module's
+        # level-keyed copy map; the construction point flattens one
+        # (base, level) entry into the learner-facing shape. The axis
+        # is spelled once, as a name, in no comprehension.
+        "after_registration": after_registration.STATE,
+        "analysis_intro": analysis_intro.STATE,
+        "analysis_task_1": analysis_task_1.STATE,
+        "analysis_feedback_1": analysis_feedback_1.STATE,
+        "analysis_task_2": analysis_task_2.STATE,
+        "analysis_feedback_2": analysis_feedback_2.STATE,
         "roleplay_intro": roleplay_intro.STATE,
         "role_menu": role_menu.STATE,
         "role_mediator": role_mediator.STATE,

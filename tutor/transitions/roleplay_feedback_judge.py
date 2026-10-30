@@ -5,6 +5,8 @@ Part of the pure-data transition table (ticket #8); see
 :func:`tutor.transitions.validate_transitions` for validation.
 """
 
+BASE = "roleplay_feedback_judge"
+
 ROW = {
     "next": {"revise": "role_judge", "next": "role_menu"},
     "back": "role_menu",

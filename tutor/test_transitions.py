@@ -1,12 +1,14 @@
-"""Structural tests for the state transition table (ticket #8).
+"""Structural tests for the state transition registry (ticket #8, #25).
 
-The table in :mod:`tutor.transitions` is the single source of state
-transition mechanics — one data row per concrete scenario state
-(``end`` excluded, 44 rows in total). This module pins down its shape:
+The registry in :mod:`tutor.transitions` is the single source of state
+transition mechanics — one data row per graph node, a ``(base state,
+level)`` pair (``end`` excluded, 44 pairs in total; spec #16 C1-9,
+ADR-0006). This module pins down its shape:
 
-- the row keys coincide with the scenario state keys minus ``end``;
-- every next/back target names a known state, or a bare axis base the
-  row registry resolves with a level through the seam (spec #16 C1-2);
+- the registry pairs cover the scenario's base state names minus
+  ``end`` — the six axis bases at every level, the rest single-form;
+- every next/back target names a known scenario state by base name
+  (spec #16 C1-9: no target spells a level suffix);
 - every effect references a valid item or user-data key;
 - every row carries the full field set, well-formed.
 
@@ -21,21 +23,30 @@ import re
 from django.test import SimpleTestCase
 
 from .data import ROLE_BY_VALUE, ROLE_LABELS, ROLE_STEP_KEYS, SCENARIO
+from .scenarios import (
+    after_registration as after_registration_scenario,
+    analysis_feedback_1 as analysis_feedback_1_scenario,
+    analysis_feedback_2 as analysis_feedback_2_scenario,
+    analysis_intro as analysis_intro_scenario,
+    analysis_task_1 as analysis_task_1_scenario,
+    analysis_task_2 as analysis_task_2_scenario,
+)
 from .session import MemoryStorage, State
 from .transitions import (
     EFFECT_OPS,
     ITEM_STATUSES,
     ROW_FIELDS,
     ROW_REGISTRY,
-    TRANSITIONS,
     USER_DATA_KEYS,
     USER_DATA_SOURCES,
-    join_state,
+    analysis_task_1,
+    role_menu,
     row_for,
-    validate_expanded,
+    start,
     validate_transitions,
 )
-from .transitions._registry import LEVEL_SUFFIXES, split_state
+from .transitions._registry import LEVEL_SUFFIXES
+from .transitions._validate import AXIS_BASES, axis_copy_violations
 from .tutor_session import (
     ITEM_KEYS,
     _BACK_LABEL,
@@ -47,83 +58,90 @@ from .tutor_session import (
 
 NON_TERMINAL_STATES = set(SCENARIO["states"]) - {"end"}
 
-#: Bare base names of the level axis. A target may spell one (spec #16
-#: C1-2): the row registry resolves it with a level through the seam, so
-#: it names no scenario state of its own.
-AXIS_BASES = {
-    base
-    for base, level in ROW_REGISTRY
-    if level is not None
-}
+#: The single-form ``(state, None)`` keys (everything outside the six
+#: axis bases).
+def _single_form_pairs():
+    return {(base, None) for base in NON_TERMINAL_STATES} - {
+        (base, None) for base in AXIS_BASES
+    }
+
+
+#: The axis ``(base, level)`` keys, spelled from the axis bases and the
+#: level axis — never from a suffixed name.
+def _axis_pairs():
+    return {(base, level) for base in AXIS_BASES for level in LEVEL_SUFFIXES}
 
 
 class TransitionTableShapeTests(SimpleTestCase):
     def test_rows_cover_every_non_terminal_scenario_state(self):
-        self.assertEqual(set(TRANSITIONS), NON_TERMINAL_STATES)
-        self.assertEqual(len(TRANSITIONS), 44)
+        # The registry IS the storage (spec #16 C1-9): every
+        # non-terminal base state carries a row — the six axis bases
+        # one per level, every other base one single-form pair.
+        self.assertEqual(set(ROW_REGISTRY), _single_form_pairs() | _axis_pairs())
+        self.assertEqual(len(ROW_REGISTRY), 44)
 
     def test_every_row_carries_the_full_field_set(self):
-        for state, row in TRANSITIONS.items():
-            with self.subTest(state=state):
-                self.assertEqual(set(row), set(ROW_FIELDS), state)
+        for pair, row in ROW_REGISTRY.items():
+            with self.subTest(pair=pair):
+                self.assertEqual(set(row), set(ROW_FIELDS), pair)
 
     def test_validator_accepts_the_table(self):
         self.assertEqual(validate_transitions(), [])
 
     def test_validator_detects_a_missing_row(self):
-        table = copy.deepcopy(TRANSITIONS)
-        del table["start"]
+        table = copy.deepcopy(ROW_REGISTRY)
+        del table[("start", None)]
         violations = validate_transitions(table)
         self.assertTrue(any("start" in v for v in violations))
 
     def test_validator_detects_an_unknown_target(self):
-        table = copy.deepcopy(TRANSITIONS)
-        table["start"]["next"] = "nowhere"
+        table = copy.deepcopy(ROW_REGISTRY)
+        table[("start", None)]["next"] = "nowhere"
         violations = validate_transitions(table)
         self.assertTrue(any("nowhere" in v for v in violations))
 
     def test_validator_detects_an_invalid_effect_key(self):
-        table = copy.deepcopy(TRANSITIONS)
-        table["start"]["effects"] = [("set-item", "no_such_item", "completed")]
+        table = copy.deepcopy(ROW_REGISTRY)
+        table[("start", None)]["effects"] = [
+            ("set-item", "no_such_item", "completed")
+        ]
         violations = validate_transitions(table)
         self.assertTrue(any("no_such_item" in v for v in violations))
 
     def test_next_targets_name_known_states(self):
-        # Seam-aware (spec #16 C1-2): a target is a scenario state, or a
-        # bare axis base the registry resolves with a level.
+        # Spec #16 C1-9: every target spells a scenario state by base
+        # name — no bare axis bases, no suffix spellings; the pair
+        # algebra resolves them.
         states = set(SCENARIO["states"])
-        for state, row in TRANSITIONS.items():
+        for pair, row in ROW_REGISTRY.items():
             next_ = row["next"]
-            with self.subTest(state=state):
+            with self.subTest(pair=pair):
                 if isinstance(next_, dict):
                     self.assertTrue(next_)
                     for value, target in next_.items():
-                        self.assertTrue(
-                            target in states or target in AXIS_BASES,
-                            f"{state} value {value!r} -> {target!r}",
-                        )
+                        self.assertIn(target, states, f"{pair} value {value!r}")
                 elif next_ is not None:
-                    self.assertTrue(next_ in states or next_ in AXIS_BASES)
+                    self.assertIn(next_, states)
 
     def test_back_target_is_none_only_at_start_and_registration(self):
-        # Seam-aware (spec #16 C1-2): a bare axis base back target
-        # resolves through the seam at the row's level. The registration
-        # axis joins ``start`` in declaring None — the point of no return
-        # (spec #16 C1-8, ADR-0006 decision 2).
+        # Spec #16 C1-9: back targets name scenario states by base.
+        # The registration axis joins ``start`` in declaring None —
+        # the point of no return (spec #16 C1-8, ADR-0006 decision 2).
         states = set(SCENARIO["states"])
-        for state, row in TRANSITIONS.items():
+        for pair, row in ROW_REGISTRY.items():
+            base, _level = pair
             back = row["back"]
-            with self.subTest(state=state):
-                if state == "start" or split_state(state)[0] == "after_registration":
+            with self.subTest(pair=pair):
+                if base == "start" or base == "after_registration":
                     self.assertIsNone(back)
                 else:
-                    self.assertTrue(back in states or back in AXIS_BASES)
+                    self.assertIn(back, states)
 
     def test_effects_reference_valid_keys(self):
-        for state, row in TRANSITIONS.items():
+        for pair, row in ROW_REGISTRY.items():
             for effects in self._effect_lists(row):
                 for effect in effects:
-                    with self.subTest(state=state, effect=effect):
+                    with self.subTest(pair=pair, effect=effect):
                         self.assertIn(effect[0], EFFECT_OPS)
                         self.assertEqual(len(effect), 3)
                         if effect[0] == "set-item":
@@ -139,8 +157,8 @@ class TransitionTableShapeTests(SimpleTestCase):
                             )
 
     def test_effects_align_with_the_next_map(self):
-        for state, row in TRANSITIONS.items():
-            with self.subTest(state=state):
+        for pair, row in ROW_REGISTRY.items():
+            with self.subTest(pair=pair):
                 if isinstance(row["next"], dict):
                     self.assertIsInstance(row["effects"], dict)
                     self.assertEqual(set(row["effects"]), set(row["next"]))
@@ -155,19 +173,20 @@ class TransitionTableShapeTests(SimpleTestCase):
         every role-play feedback row, so it has to be offered in every one of
         them — the Empath used to be the only role that offered it.
         """
-        for state, row in TRANSITIONS.items():
-            if not state.startswith("roleplay_feedback_"):
+        for pair, row in ROW_REGISTRY.items():
+            base = pair[0]
+            if not base.startswith("roleplay_feedback_"):
                 continue
-            with self.subTest(state=state):
-                options = SCENARIO["states"][state].get("options")
-                self.assertIsNotNone(options, f"{state} offers no options")
+            with self.subTest(pair=pair):
+                options = SCENARIO["states"][base].get("options")
+                self.assertIsNotNone(options, f"{base} offers no options")
                 self.assertEqual(set(options), set(row["next"]) | {"back"})
                 self.assertEqual(options["revise"], "✏️ Revise")
 
     def test_accept_gate_is_well_formed(self):
-        for state, row in TRANSITIONS.items():
+        for pair, row in ROW_REGISTRY.items():
             accept = row["accept"]
-            with self.subTest(state=state):
+            with self.subTest(pair=pair):
                 if accept is None:
                     continue  # no gate: the legacy if-chain validates nothing
                 if isinstance(accept, str):
@@ -178,8 +197,8 @@ class TransitionTableShapeTests(SimpleTestCase):
                     self.assertTrue(all(isinstance(v, str) for v in accept))
 
     def test_scalar_fields_are_well_formed(self):
-        for state, row in TRANSITIONS.items():
-            with self.subTest(state=state):
+        for pair, row in ROW_REGISTRY.items():
+            with self.subTest(pair=pair):
                 self.assertIsInstance(row["nav"], dict)
                 self.assertTrue(
                     all(isinstance(k, str) and isinstance(v, str) for k, v in row["nav"].items())
@@ -191,7 +210,7 @@ class TransitionTableShapeTests(SimpleTestCase):
                 # ``roleplay_feedback_idea`` key) is gone (issue #12).
                 if row["item"] is not None:
                     self.assertIsInstance(row["item"], str)
-                    self.assertIn(row["item"], ITEM_KEYS, state)
+                    self.assertIn(row["item"], ITEM_KEYS, pair)
                 self.assertIsInstance(row["phase"], str)
                 self.assertTrue(row["phase"])
 
@@ -203,51 +222,45 @@ class TransitionTableShapeTests(SimpleTestCase):
 
 
 class RowRegistryTests(SimpleTestCase):
-    """The ``(base state, level)`` pair registry and its seam (#17)."""
-
-    AXIS_BASES = (
-        "after_registration",
-        "analysis_intro",
-        "analysis_task_1",
-        "analysis_task_2",
-        "analysis_feedback_1",
-        "analysis_feedback_2",
-    )
+    """The ``(base state, level)`` pair registry and its seam (#17, #25)."""
 
     def test_pair_registry_covers_the_table_one_to_one(self):
-        self.assertEqual(set(ROW_REGISTRY), {split_state(s) for s in TRANSITIONS})
+        # C1-9: the registry IS the table — pair composition, and the
+        # rows are the modules' own row objects (no copy step).
+        self.assertEqual(set(ROW_REGISTRY), _single_form_pairs() | _axis_pairs())
         self.assertEqual(len(ROW_REGISTRY), 44)
         axis_pairs = [pair for pair in ROW_REGISTRY if pair[1] is not None]
         self.assertEqual(len(axis_pairs), 18)  # 6 bases x 3 levels
         self.assertEqual(len(ROW_REGISTRY) - len(axis_pairs), 26)
-        for name, row in TRANSITIONS.items():
-            self.assertIs(ROW_REGISTRY[split_state(name)], row)
+        self.assertIs(ROW_REGISTRY[("start", None)], start.ROW)
+        self.assertIs(ROW_REGISTRY[("role_menu", None)], role_menu.ROW)
+        self.assertIs(
+            ROW_REGISTRY[("analysis_task_1", "beginner")],
+            analysis_task_1.ROWS["beginner"],
+        )
 
     def test_row_for_resolves_axis_pairs_from_base_and_level(self):
-        for base in self.AXIS_BASES:
+        for base in AXIS_BASES:
             for level in LEVEL_SUFFIXES:
                 with self.subTest(base=base, level=level):
-                    legacy = f"{base}_{level}"
-                    self.assertIs(row_for(base, level), TRANSITIONS[legacy])
+                    self.assertIs(row_for(base, level), ROW_REGISTRY[(base, level)])
 
-    def test_row_for_prefers_the_suffix_embedded_in_the_name(self):
-        # History entries are self-describing: a suffixed name resolves
-        # to its own row even when the session's registered level
-        # differs (the mid-session level change is not reachable —
-        # spec #16 C1-3 pins this).
-        self.assertIs(
-            row_for("analysis_task_1_beginner", "advanced"),
-            TRANSITIONS["analysis_task_1_beginner"],
-        )
-        self.assertIs(
-            row_for("analysis_task_1_beginner"),
-            TRANSITIONS["analysis_task_1_beginner"],
-        )
+    def test_row_for_resolves_no_suffixed_name(self):
+        # C1-9 retires the suffix spelling: a name that carries the
+        # level as a suffix is not a node — it resolves to nothing,
+        # the same as any unknown state. The name is composed at
+        # runtime; no suffixed literal is spelled in this module.
+        for base in AXIS_BASES:
+            for level in LEVEL_SUFFIXES:
+                suffixed = f"{base}_{level}"
+                with self.subTest(base=base, level=level):
+                    self.assertIsNone(row_for(suffixed, "advanced"))
+                    self.assertIsNone(row_for(suffixed))
 
     def test_row_for_resolves_single_form_states_at_any_level(self):
         for state in ("pretest", "role_menu", "data_collection"):
-            self.assertIs(row_for(state, "advanced"), TRANSITIONS[state])
-            self.assertIs(row_for(state), TRANSITIONS[state])
+            self.assertIs(row_for(state, "advanced"), ROW_REGISTRY[(state, None)])
+            self.assertIs(row_for(state), ROW_REGISTRY[(state, None)])
 
     def test_row_for_returns_none_for_unknown_pairs(self):
         # A bare axis base is not a node: without a level it must not
@@ -259,22 +272,24 @@ class RowRegistryTests(SimpleTestCase):
 
 
 class ExpandedTableTests(SimpleTestCase):
-    """Validator checks over the expanded (base, level) pair table (#17)."""
+    """Validator graph checks over the pair registry — closure,
+    reachability, level coverage (spec #16 C1-1, folded into the
+    registry by C1-9; the ``expanded:`` message prefix is kept)."""
 
     def test_expansion_validates_clean(self):
         # Graph closure, reachability over all 44 pairs, level coverage.
-        self.assertEqual(validate_expanded(), [])
+        self.assertEqual(validate_transitions(), [])
 
     def test_missing_axis_level_is_rejected(self):
-        table = copy.deepcopy(TRANSITIONS)
-        del table["analysis_task_1_beginner"]
+        table = copy.deepcopy(ROW_REGISTRY)
+        del table[("analysis_task_1", "beginner")]
         self.assertIn(
             "expanded: row module 'analysis_task_1' misses axis level 'beginner'",
-            validate_expanded(table),
+            validate_transitions(table),
         )
 
     def test_unreachable_pair_is_rejected(self):
-        table = copy.deepcopy(TRANSITIONS)
+        table = copy.deepcopy(ROW_REGISTRY)
         # Only two kinds of edges lead into the role-play cluster: the
         # analysis arc's feedback_2 rows and registration's role-play
         # option. Detour every level path's feedback_2 to the reflection
@@ -283,17 +298,17 @@ class ExpandedTableTests(SimpleTestCase):
         # retired: point of no return; single-form rows' back spells the
         # BASE name, so no back edge leads forward into the cluster.)
         for level in LEVEL_SUFFIXES:
-            key = f"analysis_feedback_2_{level}"
-            table[key] = {**table[key], "next": "reflection"}
-            key = f"after_registration_{level}"
-            table[key] = {
-                **table[key],
+            pair = ("analysis_feedback_2", level)
+            table[pair] = {**table[pair], "next": "reflection"}
+            pair = ("after_registration", level)
+            table[pair] = {
+                **table[pair],
                 "next": {"1": "analysis_intro", "2": "analysis_intro"},
             }
         self.assertIn(
             "expanded: pair ('roleplay_intro', None) "
             "is unreachable from ('start', None)",
-            validate_expanded(table),
+            validate_transitions(table),
         )
 
     def test_no_row_spells_a_suffixed_registration_target(self):
@@ -301,9 +316,9 @@ class ExpandedTableTests(SimpleTestCase):
         named mechanism — the BASE name resolved with the session's
         level at the construction point — never as a suffixed literal."""
         spelled = {
-            join_state("after_registration", level) for level in LEVEL_SUFFIXES
+            f"after_registration_{level}" for level in LEVEL_SUFFIXES
         }
-        self.assertEqual([t for t in self._all_targets(TRANSITIONS) if t in spelled], [])
+        self.assertEqual([t for t in self._all_targets(ROW_REGISTRY) if t in spelled], [])
 
     def test_no_path_reaches_level_assessment_after_registration(self):
         """Ticket #24 AC[1]: the point of no return — no next, back, nav,
@@ -342,7 +357,8 @@ class ExpandedTableTests(SimpleTestCase):
     def _reachable_pairs(origin):
         """BFS over (state, level) pairs following next, back, and nav
         edges, resolving a bare axis base with the BFS's fixed level —
-        the session's construction-point rule at one level."""
+        the session's construction-point rule at one level. Targets
+        spell base names (spec #16 C1-9): no suffix splitting."""
         level = origin[1]
         reached, queue = set(), [origin]
         while queue:
@@ -354,35 +370,41 @@ class ExpandedTableTests(SimpleTestCase):
             if row is None:
                 continue
             for target in ExpandedTableTests._all_targets({"r": row}):
-                base, suffix = split_state(target)
-                if suffix is not None:
-                    queue.append((base, suffix))
-                elif (base, level) in ROW_REGISTRY:
-                    queue.append((base, level))
+                if (target, level) in ROW_REGISTRY:
+                    queue.append((target, level))
                 else:
-                    queue.append((base, None))
+                    queue.append((target, None))
         return reached
 
     def test_target_without_pair_row_is_rejected(self):
-        table = copy.deepcopy(TRANSITIONS)
-        table["analysis_intro_beginner"]["next"] = "analysis_intro_beginner_beginner"
+        table = copy.deepcopy(ROW_REGISTRY)
+        # A target that (mis)spells a suffixed name resolves to the
+        # self-describing pair and is reported: the retired spelling
+        # must never enter the graph (spec #16 C1-9 AC1). The name is
+        # composed at runtime from the level axis.
+        level = "beginner"
+        table[("analysis_intro", level)]["next"] = f"analysis_intro_{level}_{level}"
         self.assertIn(
-            "expanded: 'analysis_intro_beginner': target "
-            "'analysis_intro_beginner_beginner' resolves to pair "
-            "('analysis_intro_beginner', 'beginner') with no row",
-            validate_expanded(table),
+            f"expanded: ('analysis_intro', '{level}'): target "
+            f"'analysis_intro_{level}_{level}' resolves to pair "
+            f"('analysis_intro_{level}', '{level}') with no row",
+            validate_transitions(table),
         )
 
     def test_flat_validator_runs_the_expanded_checks_too(self):
-        # One entry point: the flat checks and the expanded checks
-        # share the single violations list.
-        table = copy.deepcopy(TRANSITIONS)
-        del table["analysis_task_1_beginner"]
-        violations = validate_transitions(table)
-        self.assertIn("missing row for state 'analysis_task_1_beginner'", violations)
+        # One entry point: the row-shape checks and the graph checks
+        # share the single violations list (the expand step is gone).
+        table = copy.deepcopy(ROW_REGISTRY)
+        del table[("analysis_task_1", "beginner")]
         self.assertIn(
             "expanded: row module 'analysis_task_1' misses axis level 'beginner'",
-            violations,
+            validate_transitions(table),
+        )
+        for level in ("intermediate", "advanced"):
+            del table[("analysis_task_1", level)]
+        self.assertIn(
+            "missing row for state 'analysis_task_1'",
+            validate_transitions(table),
         )
 
 
@@ -397,18 +419,21 @@ class FixtureCoherenceTests(SimpleTestCase):
     """Every fixture must seed a coherent session (issue criterion 3)."""
 
     def test_fixtures_seed_coherent_sessions(self):
-        for name, row in TRANSITIONS.items():
+        for pair, row in ROW_REGISTRY.items():
+            base, level = pair
             fixture = row["fixture"]
             ud = fixture["user_data"]
             items = fixture["items"]
-            with self.subTest(state=name):
+            with self.subTest(pair=pair):
                 self.assertEqual(set(ud), set(USER_DATA_KEYS))
                 self.assertEqual(set(items), set(ITEM_KEYS))
                 for status in items.values():
                     self.assertIn(status, ITEM_STATUSES)
-                for level in ("beginner", "intermediate", "advanced"):
-                    if name.endswith("_" + level):
-                        self.assertEqual(ud["level"], level)
+                # The axis fixture carries its pair's level (generated
+                # by the seam, spec #16 C1-2..C1-7); the level axis
+                # values come from the module, not a name suffix.
+                if level is not None:
+                    self.assertEqual(ud["level"], level)
                 # Completion-model invariants.
                 if items["pretest"] == "completed":
                     self.assertIsNotNone(ud["user_name"])
@@ -488,7 +513,7 @@ class LegacyParityTests(SimpleTestCase):
         self.fail(f"no rejection sample for {name!r}")
 
     def test_accepted_inputs_route_to_table_targets(self):
-        for name, row in TRANSITIONS.items():
+        for (name, _level), row in ROW_REGISTRY.items():
             for value in self._accepted_inputs(row):
                 with self.subTest(state=name, value=value):
                     state = self._make_state(name, row)
@@ -498,7 +523,7 @@ class LegacyParityTests(SimpleTestCase):
                     self.assertEqual(next_state, expected)
 
     def test_rejected_inputs_are_rejected_by_legacy(self):
-        for name, row in TRANSITIONS.items():
+        for (name, _level), row in ROW_REGISTRY.items():
             value = self._rejected_input(name, row)
             if value is None:
                 continue  # no gate: nothing to reject
@@ -538,7 +563,7 @@ class LegacyParityTests(SimpleTestCase):
                 self.fail(f"unknown effect op {op!r}")
 
     def test_effects_match_legacy_side_effects(self):
-        for name, row in TRANSITIONS.items():
+        for (name, _level), row in ROW_REGISTRY.items():
             for value in self._accepted_inputs(row):
                 with self.subTest(state=name, value=value):
                     legacy_state = self._make_state(name, row)
@@ -558,9 +583,9 @@ class LegacyParityTests(SimpleTestCase):
                         )
 
     def test_back_targets_match_legacy_go_back_except_the_point_of_no_return(self):
-        for name, row in TRANSITIONS.items():
+        for (name, _level), row in ROW_REGISTRY.items():
             with self.subTest(state=name):
-                if name == "start" or split_state(name)[0] == "after_registration":
+                if name == "start" or name == "after_registration":
                     # Point of no return (spec #16 C1-8): no back edge,
                     # so _go_back treats the typed command as rejected
                     # input and the state stays put.
@@ -575,7 +600,7 @@ class LegacyParityTests(SimpleTestCase):
 
     def test_nav_options_match_legacy_navigation(self):
         entry = {"role": "assistant", "llm_failed": False}
-        for name, row in TRANSITIONS.items():
+        for (name, _level), row in ROW_REGISTRY.items():
             with self.subTest(state=name):
                 state = self._make_state(name, row)
                 nav = self._session()._navigation_options(state, entry)
@@ -593,7 +618,7 @@ class LegacyParityTests(SimpleTestCase):
         # offered at EVERY state (not only the feedback ones) while
         # ``retry_count < 3``. That stays in nav assembly, not in the rows.
         entry = {"role": "assistant", "llm_failed": True}
-        for name, row in TRANSITIONS.items():
+        for (name, _level), row in ROW_REGISTRY.items():
             with self.subTest(state=name):
                 state = self._make_state(name, row)
                 nav = self._session()._navigation_options(state, entry)
@@ -635,25 +660,27 @@ class RejectionCopyTests(SimpleTestCase):
 
     def test_every_row_declares_rejected(self):
         self.assertIn("rejected", ROW_FIELDS)
-        for state, row in TRANSITIONS.items():
-            with self.subTest(state=state):
+        for pair, row in ROW_REGISTRY.items():
+            with self.subTest(pair=pair):
                 self.assertIn("rejected", row)
                 self.assertTrue(row["rejected"] is None or isinstance(row["rejected"], str))
 
     def test_validator_rejects_a_non_string_copy(self):
-        table = copy.deepcopy(TRANSITIONS)
-        table["role_menu"]["rejected"] = 123
+        table = copy.deepcopy(ROW_REGISTRY)
+        table[("role_menu", None)]["rejected"] = 123
         violations = validate_transitions(table)
         self.assertTrue(any("rejected" in v for v in violations), violations)
 
     def test_bespoke_rows_carry_their_copy(self):
         expected = {
-            "role_menu": "Choose one of the numbered roles, finish, or back.",
-            "analysis_intro_beginner": "Please confirm you want to proceed with the analysis.",
+            ("role_menu", None): "Choose one of the numbered roles, finish, or back.",
+            ("analysis_intro", "beginner"): (
+                "Please confirm you want to proceed with the analysis."
+            ),
         }
-        for state, copy_text in expected.items():
-            with self.subTest(state=state):
-                self.assertEqual(TRANSITIONS[state]["rejected"], copy_text)
+        for pair, copy_text in expected.items():
+            with self.subTest(pair=pair):
+                self.assertEqual(ROW_REGISTRY[pair]["rejected"], copy_text)
 
 
 class AxisScenarioCopyTests(SimpleTestCase):
@@ -669,14 +696,14 @@ class AxisScenarioCopyTests(SimpleTestCase):
         for level, message in expected.items():
             with self.subTest(level=level):
                 self.assertEqual(
-                    SCENARIO["states"][f"analysis_intro_{level}"]["message"],
+                    analysis_intro_scenario.STATE[level]["message"],
                     message,
                 )
 
     def test_intro_framing_is_shared_across_the_axis(self):
         """Only the level body differs: heading and call to action are fixed."""
         messages = {
-            level: SCENARIO["states"][f"analysis_intro_{level}"]["message"]
+            level: analysis_intro_scenario.STATE[level]["message"]
             for level in LEVEL_SUFFIXES
         }
         heads = {m.split("\n")[0] for m in messages.values()}
@@ -699,7 +726,7 @@ class AxisScenarioCopyTests(SimpleTestCase):
         for level, message in expected.items():
             with self.subTest(level=level):
                 self.assertEqual(
-                    SCENARIO["states"][f"analysis_task_1_{level}"]["message"],
+                    analysis_task_1_scenario.STATE[level]["message"],
                     message,
                 )
 
@@ -711,7 +738,7 @@ class AxisScenarioCopyTests(SimpleTestCase):
         (spec #16 C1-4).
         """
         states = {
-            level: SCENARIO["states"][f"analysis_task_1_{level}"]
+            level: analysis_task_1_scenario.STATE[level]
             for level in LEVEL_SUFFIXES
         }
         for level in LEVEL_SUFFIXES:
@@ -741,7 +768,7 @@ class AxisScenarioCopyTests(SimpleTestCase):
         for level, message in expected.items():
             with self.subTest(level=level):
                 self.assertEqual(
-                    SCENARIO["states"][f"analysis_task_2_{level}"]["message"],
+                    analysis_task_2_scenario.STATE[level]["message"],
                     message,
                 )
 
@@ -754,7 +781,7 @@ class AxisScenarioCopyTests(SimpleTestCase):
         advanced level swaps them for the free-text analysis prompt.
         """
         states = {
-            level: SCENARIO["states"][f"analysis_task_2_{level}"]
+            level: analysis_task_2_scenario.STATE[level]
             for level in LEVEL_SUFFIXES
         }
         for level in LEVEL_SUFFIXES:
@@ -806,7 +833,7 @@ class AxisScenarioCopyTests(SimpleTestCase):
         for level, message in expected.items():
             with self.subTest(level=level):
                 self.assertEqual(
-                    SCENARIO["states"][f"analysis_feedback_1_{level}"]["message"],
+                    analysis_feedback_1_scenario.STATE[level]["message"],
                     message,
                 )
 
@@ -818,7 +845,7 @@ class AxisScenarioCopyTests(SimpleTestCase):
         options are shared along the feedback-1 axis (spec #16 C1-5).
         """
         states = {
-            level: SCENARIO["states"][f"analysis_feedback_1_{level}"]
+            level: analysis_feedback_1_scenario.STATE[level]
             for level in LEVEL_SUFFIXES
         }
         for level in LEVEL_SUFFIXES:
@@ -863,7 +890,7 @@ class AxisScenarioCopyTests(SimpleTestCase):
         for level, message in expected.items():
             with self.subTest(level=level):
                 self.assertEqual(
-                    SCENARIO["states"][f"analysis_feedback_2_{level}"]["message"],
+                    analysis_feedback_2_scenario.STATE[level]["message"],
                     message,
                 )
 
@@ -879,7 +906,7 @@ class AxisScenarioCopyTests(SimpleTestCase):
         arc for the role-play step.
         """
         states = {
-            level: SCENARIO["states"][f"analysis_feedback_2_{level}"]
+            level: analysis_feedback_2_scenario.STATE[level]
             for level in LEVEL_SUFFIXES
         }
         for level in LEVEL_SUFFIXES:

@@ -5,6 +5,8 @@ Part of the pure-data transition table (ticket #8); see
 :func:`tutor.transitions.validate_transitions` for validation.
 """
 
+BASE = "role_menu"
+
 ROW = {
     "next": {
         "1": "role_mediator",

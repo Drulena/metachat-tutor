@@ -61,16 +61,20 @@ def randomize_scenario(
                 scenario_copy["states"][state_name]["message"] = msg
 
     # --- 2. Analysis tasks (all levels) ---
+    # The task states are keyed by base name (spec #16 C1-9); the entry
+    # carries the level-keyed copy map, and this pass fills the
+    # placeholders in every level's copy under it.
     for lvl in ("beginner", "intermediate", "advanced"):
         for task_num in (1, 2):
-            task_state = f"analysis_task_{task_num}_{lvl}"
+            base = f"analysis_task_{task_num}"
             variants = TASK_VARIANTS.get(f"analysis_task_{task_num}", {}).get(lvl, [])
-            if variants and task_state in scenario_copy["states"]:
+            entry = scenario_copy["states"].get(base)
+            if variants and entry and lvl in entry:
                 variant = random.choice(variants)
-                msg = scenario_copy["states"][task_state]["message"]
+                msg = entry[lvl]["message"]
                 for key, value in variant.items():
                     msg = msg.replace("{" + key + "}", str(value))
-                scenario_copy["states"][task_state]["message"] = msg
+                entry[lvl]["message"] = msg
 
     # --- 3. Role-play tasks ---
     for role_key in ROLE_STATE_KEYS:

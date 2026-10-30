@@ -50,7 +50,7 @@ from .session import (
     TurnOption,
     default_feedback,
 )
-from .transitions import join_state, row_for, split_state
+from .transitions import row_for
 
 #: The one canonical completion model: every assessable item plus the two
 #: mode choices. ``data_collection`` is deliberately NOT an item — the old
@@ -118,11 +118,10 @@ def _parse_scores(text: str) -> Optional[list[int]]:
 def _phase_of(current: str, level: Optional[str] = None) -> str:
     """Coarse lifecycle phase for the Summary, from the transition row.
 
-    Resolved through the row_for seam (spec #16 C1-1): a suffixed
-    history name is self-describing, the session's registered level
-    resolves any bare base name. The terminal ``end`` state has no row
-    (the registry covers the non-terminal states only), so it falls
-    back to ``"finished"``.
+    Resolved through the row_for seam: a state spells its base name
+    (spec #16 C1-9) and the session's registered level completes the
+    pair. The terminal ``end`` state has no row (the registry covers
+    the non-terminal states only), so it falls back to ``"finished"``.
     """
     row = row_for(current, level)
     if row is not None:
@@ -424,26 +423,24 @@ class TutorSession:
     def _scenario_entry(self, state: State, name: str) -> Optional[dict]:
         """The scenario entry for one state name — the construction point.
 
-        Spec #16 C1-2 (ADR-0006): landing targets spell base names, so
-        the scenario lookup joins the session's level onto a bare axis
-        base (``"after_registration"`` + ``"beginner"`` →
-        ``"after_registration_beginner"``). A suffix embedded in the
-        name is self-describing and wins, as in :func:`row_for`.
-        Spec #16 C1-5 widens the lookup past the current state: the LLM
-        task-context read resolves the sibling task by base name through
-        here, so every scenario read rides the same join.
-        Returns ``None`` for an unknown state, like :meth:`dict.get`.
+        Spec #16 C1-9 (ADR-0006 decision 4): the scenario keys its
+        states by base name, and an axis entry carries the module's
+        level-keyed copy map. This is where the pair flattens: a bare
+        base name plus the session's level picks the concrete
+        learner-facing entry out of the axis map; a single-form entry
+        passes through as it stands. Every scenario read rides this
+        point, so the LLM task-context sibling (C1-5) resolves by base
+        name through here too. Returns ``None`` for an unknown state —
+        or an axis state before any level is registered — like
+        :meth:`dict.get`.
         """
-        states = state.scenario["states"]
-        data = states.get(name)
-        if data is not None:
-            return data
-        base, embedded = split_state(name)
-        if embedded is None:
-            level = state.user_data.get("level")
-            if level is not None:
-                return states.get(join_state(base, level))
-        return None
+        entry = state.scenario["states"].get(name)
+        if entry is None:
+            return None
+        if "message" in entry:
+            return entry
+        level = state.user_data.get("level")
+        return entry.get(level) if level is not None else None
 
     def _build_message(self, state: State) -> tuple[str, bool]:
         current = state.current_state
@@ -455,18 +452,15 @@ class TutorSession:
 
         task_context: Optional[str] = None
         role_name: Optional[str] = None
-        # The task-question lookup goes through the construction point too:
-        # at a base state name (spec #16 C1-5) the sibling task is named by
-        # base, and _scenario_entry joins the session's level onto it.
-        if "analysis_feedback_1" in current:
-            entry = self._scenario_entry(state, current.replace("feedback_1", "task_1"))
+        # The task-question lookup goes through the construction point:
+        # every row lands a base state name (spec #16 C1-9), so the
+        # sibling task is named by base and _scenario_entry picks this
+        # session's level out of the axis map (spec #16 C1-5).
+        if current == "analysis_feedback_1":
+            entry = self._scenario_entry(state, "analysis_task_1")
             if entry is not None:
                 task_context = entry["message"]
-        elif "analysis_feedback_2" in current:
-            # The converted row lands the feedback-2 base name (spec #16
-            # C1-7), so the task sibling is named by base, never by
-            # surgery on a suffix: the seam joins this session's level
-            # onto it (spec #16 C1-6).
+        elif current == "analysis_feedback_2":
             entry = self._scenario_entry(state, "analysis_task_2")
             if entry is not None:
                 task_context = entry["message"]
@@ -501,8 +495,8 @@ class TutorSession:
 
         name = (ud.get("user_name") or "").strip()
         message = message.replace("{user_name}", name or _NAME_PLACEHOLDER)
-        if "{level}" in message and ud.get("level"):
-            message = message.replace("{level}", ud["level"])
+        # No ``{level}`` substitution: the axis copy spells the level
+        # word per level (spec #16 C1-9); single-form copy never carried it.
 
         return message, llm_failed
 
@@ -570,10 +564,9 @@ class TutorSession:
             else:
                 # The row's nav map and declared back/retry edges are the
                 # values routing treats as navigation (ratified Q3).
-                # History entries are self-describing: a suffixed name
-                # resolves its own row; a bare base name — the
-                # registration landing (spec #16 C1-2) — resolves with
-                # the session's level, immutable after the pick (C1-3).
+                # History entries spell a base name (spec #16 C1-9) and
+                # resolve with the session's level, immutable after the
+                # pick (C1-3).
                 nav_values = self._nav_values(
                     row_for(entry["state"], state.user_data.get("level")) or {}
                 )
@@ -626,9 +619,8 @@ class TutorSession:
         The flag rides on the chat entry (``submit()`` sets it when routing
         drops the input). The row's ``rejected`` copy wins; rows that declare
         ``None`` get the module's generic fallback (ADR-0005, issue #15).
-        The entry's state resolves through the seam: a suffixed name is
-        self-describing, a bare base name (the registration landing,
-        spec #16 C1-2) resolves with the session's level.
+        The entry's state spells a base name (spec #16 C1-9) and
+        resolves through the seam with the session's level.
         """
         if entry.get("role") != "user" or not entry.get("rejected"):
             return None
@@ -650,9 +642,8 @@ class TutorSession:
         ``nav`` values for the entry's state (navigation options are not
         stored on entries), or the synthesised edges — ``back`` where the
         row declares the edge and ``retry`` on a failed LLM entry (issue #15).
-        The entry's state resolves through the seam: a suffixed name is
-        self-describing, a bare base name (the registration landing,
-        spec #16 C1-2) resolves with the session ``level``.
+        The entry's state spells a base name (spec #16 C1-9) and
+        resolves through the seam with the session's ``level``.
         Free-text answers mark nothing; so does any turn with no user entry
         after it (the newest turn).
         """

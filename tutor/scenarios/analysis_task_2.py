@@ -6,7 +6,7 @@ for the assembled ``SCENARIO`` dict and
 
 Spec #16 C1-6 (ADR-0006): the level axis is a parameter. The three
 level texts live side by side in one level-keyed map and the assembly
-generates the suffixed scenario keys from it, so level copy cannot
+keys the entry under the base state name, the level a key, not a suffix,, so level copy cannot
 drift: the framing of the task — the heading, the message under
 review and the question lead-in — is shared, and only the wording that
 differs between the levels sits in the map: the question, the quoted
@@ -71,8 +71,8 @@ _COPY: dict[str, dict[str, str]] = {
     },
 }
 
-#: The task states, keyed by level (spec #16 C1-6). The assembly spells
-#: each suffixed scenario key from this map; a state carries no options
+#: The task states, keyed by level (spec #16 C1-6). The assembly keys
+#: this map under the base state name (C1-9); a state carries no options
 #: — the answer is free text.
 STATE: dict[str, dict] = {
     level: {"message": _text(level, wording), "validation": _VALIDATION}
