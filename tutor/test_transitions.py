@@ -637,3 +637,56 @@ class AxisScenarioCopyTests(SimpleTestCase):
                 self.assertEqual(states[level]["validation"], ".+")
         # The axis carries three distinct texts, not one text three times.
         self.assertEqual(len({state["message"] for state in states.values()}), 3)
+
+    def test_feedback_1_message_is_byte_exact_per_level(self):
+        """The map replaces three modules; the words must not move.
+
+        The feedback-1 axis of spec #16 C1-5 pins its three texts whole,
+        byte for byte: the level headline, the feedback line, the model
+        answer (absent at the advanced level) and the call to action.
+        """
+        expected = {
+            "beginner": "📖 **Read the feedback for you, {user_name} (Beginner), carefully and make notes:**\n\nGreat start! Adding a friendly emoji like 🙂 or 😊 can make criticism feel more supportive.\n\n**📋 Model answer:** 'This essay has some areas to work on 🙂. Let's look at them together.'\n\n👇**Tap *next* to proceed to Task 2:**",
+            "intermediate": "📖 **Read the feedback for you, {user_name} (Intermediate), carefully and make notes:**\n\nGood approach! A friendly emoji like 🙂 or 🤔 acts as an 'emotional cushion'.\n\n**📋 Model answer:** 'I think the data in this part might need a second look 🤔.'\n\n👇**Tap *next* to continue:**",
+            "advanced": "📖 **Read the feedback for you, {user_name} (Advanced), carefully and make notes:**\n\nFor complex feedback, emoji after the main critique softens tone.\n\n👇**Tap *next* to continue:**",
+        }
+        for level, message in expected.items():
+            with self.subTest(level=level):
+                self.assertEqual(
+                    SCENARIO["states"][f"analysis_feedback_1_{level}"]["message"],
+                    message,
+                )
+
+    def test_feedback_1_framing_is_shared_across_the_axis(self):
+        """Only the level wording differs: the framing and the options are fixed.
+
+        The reading instruction naming the level, the model-answer lead-in
+        (the LLM injection marker of spec #16) and the two scenario
+        options are shared along the feedback-1 axis (spec #16 C1-5).
+        """
+        states = {
+            level: SCENARIO["states"][f"analysis_feedback_1_{level}"]
+            for level in LEVEL_SUFFIXES
+        }
+        for level in LEVEL_SUFFIXES:
+            with self.subTest(level=level):
+                message = states[level]["message"]
+                self.assertTrue(
+                    message.startswith(
+                        f"📖 **Read the feedback for you, {{user_name}} "
+                        f"({level.capitalize()}), carefully and make notes:**\n\n"
+                    )
+                )
+                self.assertIn("\n\n👇**Tap *next*", message)
+                self.assertEqual(
+                    states[level]["options"],
+                    {"next": "Next Task", "back": "Back to menu"},
+                )
+        # The LLM injection marker sits in the two lower levels' copy, so
+        # the feedback the model generates lands where the old text did.
+        for level in ("beginner", "intermediate"):
+            with self.subTest(level=level):
+                self.assertIn("\n\n**📋 Model answer:**", states[level]["message"])
+        self.assertNotIn("**📋 Model answer:**", states["advanced"]["message"])
+        # The axis carries three distinct texts, not one text three times.
+        self.assertEqual(len({state["message"] for state in states.values()}), 3)

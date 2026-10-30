@@ -28,7 +28,7 @@ ROLE_MENU_INPUTS = [
     "2",                # level_assessment -> after_registration (base name, C1-2)
     "1",                # -> analysis_intro (base name, C1-3)
     "yes",              # -> analysis_task_1 (base name, C1-4)
-    "Answer to task one",   # -> analysis_feedback_1_intermediate
+    "Answer to task one",   # -> analysis_feedback_1 (base name, C1-5)
     "next",             # -> analysis_task_2_intermediate
     "Answer to task two",   # -> analysis_feedback_2_intermediate
     "next",             # -> roleplay_intro
@@ -328,7 +328,7 @@ class TutorSessionTests(SimpleTestCase):
                 "after_registration",  # base name lands (spec #16 C1-2)
                 "analysis_intro",       # base name lands (spec #16 C1-3)
                 "analysis_task_1",        # base name lands (spec #16 C1-4)
-                f"analysis_feedback_1_{level}",
+                "analysis_feedback_1",    # base name lands (spec #16 C1-5)
                 f"analysis_task_2_{level}",
                 f"analysis_feedback_2_{level}",
                 "roleplay_intro",
@@ -354,6 +354,7 @@ class TutorSessionTests(SimpleTestCase):
                             "after_registration",
                             "analysis_intro",
                             "analysis_task_1",
+                            "analysis_feedback_1",
                         ):
                             # "Asserting the row reached" is the row the
                             # suffixed name resolved to before the cutover.
@@ -455,7 +456,7 @@ class TutorSessionTests(SimpleTestCase):
     def test_advance_option_matches_current_state(self):
         paths = {
             "analysis_intro": ["Alice", "3 4 5", "2", "1"],
-            "analysis_feedback_1_intermediate": ["Alice", "3 4 5", "2", "1", "yes", "Answer one"],
+            "analysis_feedback_1": ["Alice", "3 4 5", "2", "1", "yes", "Answer one"],
             "roleplay_intro": ["Alice", "3 4 5", "2", "1", "yes", "A1", "next", "A2", "next"],
             "roleplay_feedback_mediator": ["Alice", "3 4 5", "2", "1", "yes", "A1", "next", "A2",
                                           "next", "continue", "1", "I mediate"],
@@ -841,6 +842,33 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(user_name, "Alice")
         self.assertEqual(level, "intermediate")
         self.assertIn("ROLE: Mediator", task_question or "")
+
+    def test_analysis_feedback_context_reaches_the_llm_at_the_base_name(self):
+        """Spec #16 C1-5: the task context resolves at the base state name.
+
+        The feedback row lands on the base state, so the task context
+        cannot be a suffixed-key lookup any more: it resolves through
+        the seam, and the LLM gets this level's task-1 copy — byte for
+        byte the entry the session's own scenario carries.
+        """
+        for level, digit in LEVEL_DIGITS:
+            with self.subTest(level=level):
+                llm = FakeLLM()
+                session, storage, _ = self.make_session(llm=llm)
+                self.drive(session, "Alice", "3 4 5", digit, "1", "yes", "Answer one")
+                state = self.state_of(storage)
+                self.assertEqual(state.current_state, "analysis_feedback_1")
+
+                user_answer, role_name, user_name, got_level, task_question = llm.calls[-1]
+                self.assertEqual(user_answer, "Answer one")
+                self.assertIsNone(role_name)
+                self.assertEqual((user_name, got_level), ("Alice", level))
+                self.assertEqual(
+                    task_question,
+                    state.scenario["states"][join_state("analysis_task_1", level)]["message"],
+                )
+                # The join landed on this level's copy, not a neighbour's.
+                self.assertIn(f"Softening Criticism ({level.capitalize()})", task_question)
 
     def test_feedback_not_called_outside_feedback_states(self):
         llm = FakeLLM()
