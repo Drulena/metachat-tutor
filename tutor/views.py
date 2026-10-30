@@ -118,6 +118,10 @@ def export_view(request: HttpRequest):
     turns = session.turns() if summary.started else []
     data = {
         "session_id": summary.session_id,
+        # The registered level once at the header (spec #16 C1-9 AC2):
+        # a session's research record is read with its level visible,
+        # not buried in the progress panel.
+        "level": summary.level,
         "turns": [asdict(turn) for turn in turns],
         "progress": asdict(summary),
         "export_time": datetime.now().isoformat(),

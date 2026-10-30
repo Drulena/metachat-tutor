@@ -289,6 +289,11 @@ class ExportViewTests(TestCase):
             ),
         )
         self.assertIn("used_value", data["turns"][0])
+        # The registered level once at the payload header (spec #16
+        # C1-9 AC2): the export names the session's level without
+        # digging into the progress panel.
+        self.assertEqual(data["level"], "intermediate")
+        self.assertEqual(data["level"], data["progress"]["level"])
         # export timestamp
         self.assertIn("export_time", data)
         # download name uses the session id
@@ -302,6 +307,8 @@ class ExportViewTests(TestCase):
         self.assertEqual(data["turns"], [])
         self.assertEqual(data["progress"]["percentage"], 0)
         self.assertFalse(data["progress"]["started"])
+        # An unstarted session has no registered level (C1-9 AC2).
+        self.assertIsNone(data["level"])
 
 
 class ResetViewTests(TestCase):
