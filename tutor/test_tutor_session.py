@@ -65,6 +65,16 @@ GENERIC_REJECTION = (
 #: The role-menu row's bespoke rejection copy (rows/role_menu.py).
 ROLE_MENU_COPY = "Choose one of the numbered roles, finish, or back."
 
+#: The registration row's own rejection copy (transitions/after_registration.py),
+#: worded away from the back invitation now that registration is the point of
+#: no return (spec #16 C1-8). Shared with :mod:`tutor.test_views`.
+REGISTRATION_REJECTION = "Choose the level to continue with."
+
+#: The two options the registration scenario offers
+#: (scenarios/after_registration.py). Shared with :mod:`tutor.test_views`:
+#: every pinning of these labels lives here, once.
+REGISTRATION_OPTIONS = {"1": "Step1️⃣: ANALYSIS", "2": "Step2️⃣: ROLE-PLAY"}
+
 
 class FakeLLM:
     """Deterministic feedback callable matching the Feedback protocol."""
@@ -606,18 +616,21 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(len(turns), turns_before + 1)
         self.assertEqual(turns[-1].role, "user")
         # the registration row's own copy, no longer inviting "back"
-        self.assertEqual(turns[-1].rejection, "Choose the level to continue with.")
+        self.assertEqual(turns[-1].rejection, REGISTRATION_REJECTION)
         self.assertEqual(self.state_of(storage).current_state, "after_registration")
 
     def test_back_at_registration_offers_no_back_option(self):
         """Ticket #24: with ``back: None`` the navigation panel must not
-        offer a back button the command line rejects — the offer follows
+        offer a back option the command line rejects — the offer follows
         the row, so registration offers only its two options."""
         session, _, _ = self.make_session()
         self.drive(session, "Alice", "3 4 5", "2")
         self.assertEqual(
             offers(session.turns()[-1]),
-            {"1": ("Step1️⃣: ANALYSIS", "choice"), "2": ("Step2️⃣: ROLE-PLAY", "choice")},
+            {
+                "1": (REGISTRATION_OPTIONS["1"], "choice"),
+                "2": (REGISTRATION_OPTIONS["2"], "choice"),
+            },
         )
 
     def test_rejection_pairs_the_row_copy_with_the_unanswered_user_turn(self):
@@ -765,8 +778,8 @@ class TutorSessionTests(SimpleTestCase):
             "after_registration": (  # base name lands (spec #16 C1-2)  # no back offer: point of no return (C1-8)
                 ["Alice", "3 4 5", "2"],
                 {
-                    "1": "Step1️⃣: ANALYSIS",
-                    "2": "Step2️⃣: ROLE-PLAY",
+                    "1": REGISTRATION_OPTIONS["1"],
+                    "2": REGISTRATION_OPTIONS["2"],
                 },
             ),
             "analysis_intro": (

@@ -19,6 +19,7 @@ from .session import SessionStorage
 from .test_tutor_session import (
     FakeLLM,
     GENERIC_REJECTION,
+    REGISTRATION_OPTIONS,
     ROLE_MENU_COPY,
     ROLE_MENU_INPUTS,
 )
@@ -118,8 +119,12 @@ class MainMenuViewTests(TestCase):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
         html = client.get("/").content.decode()
-        self.assertIn('data-value="1" data-used="true">Step1️⃣: ANALYSIS', html)
-        self.assertNotIn('data-value="2" data-used="true">Step2️⃣', html)
+        self.assertIn(
+            f'data-value="1" data-used="true">{REGISTRATION_OPTIONS["1"]}', html
+        )
+        self.assertNotIn(
+            f'data-value="2" data-used="true">{REGISTRATION_OPTIONS["2"]}', html
+        )
 
     def test_menu_has_no_leaked_template_comment(self):
         """Django's {# ... #} comments are single-line; the multi-line header
