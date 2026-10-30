@@ -9,15 +9,12 @@ module replaces the three triplet modules and the seam generates the
 axis: :func:`axis_rows` keys the rows by suffixed name at assembly,
 :func:`with_fixture_level` injects the level into the one fixture dict.
 Targets resolve through the row registry: `back` spells the intro base
-state, converted in the preceding ticket (spec #16 C1-3), so the seam
-resolves it with the session's level. `next` is the exception the cutover
-has not reached: the feedback base state joins the registry in the
-following ticket (spec #16 C1-5), so its row is named by
-:func:`join_state` with this row's own level, which is the level the
-seam would resolve it to.
+state, converted in the preceding ticket (spec #16 C1-3), and `next`
+spells the feedback base state, converted in the following ticket
+(spec #16 C1-5), so the seam resolves both with the session's level.
 """
 
-from ._registry import LEVEL_SUFFIXES, join_state, with_fixture_level
+from ._registry import LEVEL_SUFFIXES, with_fixture_level
 
 #: The base state name; :func:`axis_rows` generates the suffixed keys.
 BASE = "analysis_task_1"
@@ -58,7 +55,7 @@ _FIXTURE = {
 def _row(level: str) -> dict:
     """Build the axis row for one level; level targets come from the seam."""
     return {
-        "next": join_state("analysis_feedback_1", level),
+        "next": "analysis_feedback_1",
         "back": "analysis_intro",
         "nav": {},
         "retryable": False,

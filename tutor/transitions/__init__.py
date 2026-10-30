@@ -29,6 +29,11 @@ back-target spells the registration base state through the seam.
 Spec #16 C1-4 (ticket #20) folds the analysis-task-1 triplet into the
 same shape: the task rows generate from the axis, and the task
 back-target spells the intro base state through the seam.
+
+Spec #16 C1-5 (ticket #21) folds the analysis-feedback-1 triplet into
+the same shape: the retryable LLM-feedback rows generate from the axis,
+its back-target spells the intro base state, and the landing target
+that spells this row's own level moves to the task-2 axis (C1-6).
 """
 
 from . import (
@@ -41,11 +46,9 @@ from . import (
     analysis_task_2_beginner,
     analysis_task_2_intermediate,
     analysis_task_2_advanced,
-    analysis_feedback_1_beginner,
+    analysis_feedback_1,
     analysis_feedback_2_beginner,
-    analysis_feedback_1_intermediate,
     analysis_feedback_2_intermediate,
-    analysis_feedback_1_advanced,
     analysis_feedback_2_advanced,
     roleplay_intro,
     role_menu,
@@ -127,11 +130,13 @@ TRANSITIONS = {
     "analysis_task_2_beginner": analysis_task_2_beginner.ROW,
     "analysis_task_2_intermediate": analysis_task_2_intermediate.ROW,
     "analysis_task_2_advanced": analysis_task_2_advanced.ROW,
-    "analysis_feedback_1_beginner": analysis_feedback_1_beginner.ROW,
+    # The analysis-feedback-1 axis (spec #16 C1-5, ADR-0006): the retryable
+    # LLM-feedback rows and their fixtures generate from the level-keyed map
+    # by the seam; the back target spells the intro base state, and the next
+    # target embeds the row level until the task-2 axis lands (spec #16 C1-6).
+    **axis_rows(analysis_feedback_1.BASE, analysis_feedback_1.ROWS),
     "analysis_feedback_2_beginner": analysis_feedback_2_beginner.ROW,
-    "analysis_feedback_1_intermediate": analysis_feedback_1_intermediate.ROW,
     "analysis_feedback_2_intermediate": analysis_feedback_2_intermediate.ROW,
-    "analysis_feedback_1_advanced": analysis_feedback_1_advanced.ROW,
     "analysis_feedback_2_advanced": analysis_feedback_2_advanced.ROW,
     "roleplay_intro": roleplay_intro.ROW,
     "role_menu": role_menu.ROW,

@@ -150,7 +150,7 @@ class TutorSessionTests(SimpleTestCase):
         self.drive(
             session,
             "Alice", "3 4 5", "2", "1", "yes",
-            "Answer to task one",  # -> analysis_feedback_1_intermediate: task 1 completed
+            "Answer to task one",  # -> analysis_feedback_1 (base name, C1-5): task 1 completed
             "next",                # -> analysis_task_2_intermediate: task 2 in progress
         )
         sections = session.progress().sections
@@ -466,7 +466,7 @@ class TutorSessionTests(SimpleTestCase):
         }
         keys = {
             "analysis_intro": "yes",
-            "analysis_feedback_1_intermediate": "next",
+            "analysis_feedback_1": "next",
             "roleplay_intro": "continue",
             "roleplay_feedback_mediator": "next",
             "data_collection": "exit",

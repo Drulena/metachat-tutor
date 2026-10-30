@@ -413,8 +413,8 @@ class TutorSession:
 
     # -------------------------------------------------------------- messages
 
-    def _scenario_state_data(self, state: State) -> Optional[dict]:
-        """The scenario entry for the current state — the construction point.
+    def _scenario_entry(self, state: State, name: str) -> Optional[dict]:
+        """The scenario entry for one state name — the construction point.
 
         Spec #16 C1-2 (ADR-0006): landing targets spell base names, so
         the scenario lookup joins the session's level onto a bare axis
@@ -424,19 +424,21 @@ class TutorSession:
         Returns ``None`` for an unknown state, like :meth:`dict.get`.
         """
         states = state.scenario["states"]
-        current = state.current_state
-        data = states.get(current)
+        data = states.get(name)
         if data is not None:
             return data
-        base, embedded = split_state(current)
+        base, embedded = split_state(name)
         if embedded is None:
             level = state.user_data.get("level")
             if level is not None:
                 return states.get(join_state(base, level))
         return None
 
+    def _scenario_state_data(self, state: State) -> Optional[dict]:
+        """The scenario entry for the current state (see _scenario_entry)."""
+        return self._scenario_entry(state, state.current_state)
+
     def _build_message(self, state: State) -> tuple[str, bool]:
-        scenario = state.scenario
         current = state.current_state
         ud = state.user_data
         state_data = self._scenario_state_data(state)
@@ -446,19 +448,22 @@ class TutorSession:
 
         task_context: Optional[str] = None
         role_name: Optional[str] = None
+        # The task-question lookup goes through the construction point too:
+        # at a base state name (spec #16 C1-5) the sibling task is named by
+        # base, and _scenario_entry joins the session's level onto it.
         if "analysis_feedback_1" in current:
-            task_state = current.replace("feedback_1", "task_1")
-            if task_state in scenario["states"]:
-                task_context = scenario["states"][task_state]["message"]
+            entry = self._scenario_entry(state, current.replace("feedback_1", "task_1"))
+            if entry is not None:
+                task_context = entry["message"]
         elif "analysis_feedback_2" in current:
-            task_state = current.replace("feedback_2", "task_2")
-            if task_state in scenario["states"]:
-                task_context = scenario["states"][task_state]["message"]
+            entry = self._scenario_entry(state, current.replace("feedback_2", "task_2"))
+            if entry is not None:
+                task_context = entry["message"]
         elif "roleplay_feedback" in current:
             role_name = current.replace("roleplay_feedback_", "")
-            task_state = f"role_{role_name}"
-            if task_state in scenario["states"]:
-                task_context = scenario["states"][task_state]["message"]
+            entry = self._scenario_entry(state, f"role_{role_name}")
+            if entry is not None:
+                task_context = entry["message"]
 
         history = state.chat_history
         user_answer = history[-1]["content"] if history else ""
