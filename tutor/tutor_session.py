@@ -455,10 +455,10 @@ class TutorSession:
             if entry is not None:
                 task_context = entry["message"]
         elif "analysis_feedback_2" in current:
-            # The feedback-2 row is still level-suffixed (spec #16 C1-7
-            # converts it), but the task sibling is named by base, not by
-            # surgery on that suffix: the seam joins this session's level
-            # onto the base (spec #16 C1-6).
+            # The converted row lands the feedback-2 base name (spec #16
+            # C1-7), so the task sibling is named by base, never by
+            # surgery on a suffix: the seam joins this session's level
+            # onto it (spec #16 C1-6).
             entry = self._scenario_entry(state, "analysis_task_2")
             if entry is not None:
                 task_context = entry["message"]
