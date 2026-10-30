@@ -30,7 +30,7 @@ ROLE_MENU_INPUTS = [
     "yes",              # -> analysis_task_1 (base name, C1-4)
     "Answer to task one",   # -> analysis_feedback_1 (base name, C1-5)
     "next",             # -> analysis_task_2 (base name, C1-6)
-    "Answer to task two",   # -> analysis_feedback_2_intermediate
+    "Answer to task two",   # -> analysis_feedback_2 (base name, C1-7)
     "next",             # -> roleplay_intro
     "continue",         # -> role_menu
 ]
@@ -330,7 +330,7 @@ class TutorSessionTests(SimpleTestCase):
                 "analysis_task_1",        # base name lands (spec #16 C1-4)
                 "analysis_feedback_1",    # base name lands (spec #16 C1-5)
                 "analysis_task_2",        # base name lands (spec #16 C1-6)
-                f"analysis_feedback_2_{level}",
+                "analysis_feedback_2",    # base name lands (spec #16 C1-7)
                 "roleplay_intro",
                 "role_menu",
                 "role_mediator",
@@ -356,6 +356,7 @@ class TutorSessionTests(SimpleTestCase):
                             "analysis_task_1",
                             "analysis_feedback_1",
                             "analysis_task_2",
+                            "analysis_feedback_2",
                         ):
                             # "Asserting the row reached" is the row the
                             # suffixed name resolved to before the cutover.
@@ -872,14 +873,13 @@ class TutorSessionTests(SimpleTestCase):
                 self.assertIn(f"Softening Criticism ({level.capitalize()})", task_question)
 
     def test_analysis_task_2_context_reaches_the_llm_at_the_base_name(self):
-        """Spec #16 C1-6: the task-2 context resolves at the base state name.
+        """Spec #16 C1-6/C1-7: the task-2 context resolves at the base state name.
 
-        The feedback-2 row is still level-suffixed (C1-7 converts it), so
-        the state-name surgery in the session cannot rely on a suffixed
-        sibling name any more: it names the task-2 sibling by base and
-        the seam joins this session's level onto it. The LLM must get
-        this level's task-2 copy - byte for byte the entry the session's
-        own scenario carries.
+        The feedback-2 axis is converted in C1-7, so the state lands at
+        its base name and the task sibling is named by base, never by
+        surgery on a suffix: the seam joins this session's level onto
+        it. The LLM must get this level's task-2 copy - byte for byte
+        the entry the session's own scenario carries.
         """
         for level, digit in LEVEL_DIGITS:
             with self.subTest(level=level):
@@ -890,10 +890,8 @@ class TutorSessionTests(SimpleTestCase):
                     "Answer one", "next", "Answer two",
                 )
                 state = self.state_of(storage)
-                # feedback-2 converts in C1-7; it lands suffixed for now.
-                self.assertEqual(
-                    state.current_state, join_state("analysis_feedback_2", level)
-                )
+                # The converted row lands the base name (spec #16 C1-7).
+                self.assertEqual(state.current_state, "analysis_feedback_2")
 
                 user_answer, role_name, user_name, got_level, task_question = llm.calls[-1]
                 self.assertEqual(user_answer, "Answer two")

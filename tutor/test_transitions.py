@@ -756,3 +756,80 @@ class AxisScenarioCopyTests(SimpleTestCase):
         self.assertNotIn("**📋 Model answer:**", states["advanced"]["message"])
         # The axis carries three distinct texts, not one text three times.
         self.assertEqual(len({state["message"] for state in states.values()}), 3)
+
+    def test_feedback_2_message_is_byte_exact_per_level(self):
+        """The map replaces three modules; the words must not move.
+
+        The feedback-2 axis of spec #16 C1-7 pins its three texts whole,
+        byte for byte: the reading instruction naming the level, the
+        feedback line, the model answer (absent at the advanced level)
+        and the call to action. This is the feedback copy the generated
+        answer splices into, so the paragraph breaks sit exactly where
+        the marker of :data:`tutor.tutor_session._ANALYSIS_MARKERS`
+        looks for them.
+        """
+        expected = {
+            "beginner": "📖 **Read the feedback for you, {user_name} (Beginner), carefully and make notes:**\n\nYou're right! **ALL CAPS** feels like shouting online.\n\n**📋 Model answer:** 'The message uses ALL CAPS and multiple exclamation marks, which is like shouting online.'\n\n👇**Click the button below to proceed to Step 2: Role-play**",
+            "intermediate": "📖 **Read the feedback for you, {user_name} (Intermediate), carefully and make notes:**\n\nKey techniques: Alternating caps (mockery) and multiple exclamation marks (shouting).\n\n**📋 Model answer:** 'The message uses **tHaT's NoT** with alternating caps to mock, and **!!!** to shout.'\n\n👇**Tap *next* to proceed:**",
+            "advanced": "📖 **Read the feedback for you, {user_name} (Advanced), carefully and make notes:**\n\nTechniques: ALL CAPS (irony), ellipsis (dramatic pause), 🙄 emoji (sarcasm), #facepalm (meta-commentary).\n\n👇**Tap *next* to proceed:**",
+        }
+        for level, message in expected.items():
+            with self.subTest(level=level):
+                self.assertEqual(
+                    SCENARIO["states"][f"analysis_feedback_2_{level}"]["message"],
+                    message,
+                )
+
+    def test_feedback_2_framing_is_shared_across_the_axis(self):
+        """Only the level wording differs: the framing and the options are fixed.
+
+        The reading instruction naming the level, the model-answer
+        lead-in and the two scenario options are shared along the
+        feedback-2 axis (spec #16 C1-7). The model-answer lead-in is the
+        LLM injection marker: it sits in the two lower levels' copy and
+        is absent at the advanced one. The call to action is the
+        beginner's own — from this state the learner leaves the analysis
+        arc for the role-play step.
+        """
+        states = {
+            level: SCENARIO["states"][f"analysis_feedback_2_{level}"]
+            for level in LEVEL_SUFFIXES
+        }
+        for level in LEVEL_SUFFIXES:
+            with self.subTest(level=level):
+                message = states[level]["message"]
+                self.assertTrue(
+                    message.startswith(
+                        f"📖 **Read the feedback for you, {{user_name}} "
+                        f"({level.capitalize()}), carefully and make notes:**\n\n"
+                    )
+                )
+                self.assertEqual(
+                    states[level]["options"],
+                    # The label ends in one keycap: DIGIT TWO, VARIATION
+                    # SELECTOR-16, COMBINING ENCLOSING KEYCAP — the exact
+                    # codepoints the original copy carried.
+                    {"next": "Proceed to Step2️⃣", "back": "Back to menu"},
+                )
+        # The LLM injection marker sits in the two lower levels' copy, so
+        # the feedback the model generates lands where the old text did.
+        for level in ("beginner", "intermediate"):
+            with self.subTest(level=level):
+                self.assertIn("\n\n**📋 Model answer:**", states[level]["message"])
+        self.assertNotIn("**📋 Model answer:**", states["advanced"]["message"])
+        # The call to action: the beginner names the step it walks to,
+        # the two other levels share the tap invitation.
+        self.assertTrue(
+            states["beginner"]["message"].endswith(
+                "\n\n👇**Click the button below to proceed to Step 2: Role-play**"
+            )
+        )
+        for level in ("intermediate", "advanced"):
+            with self.subTest(level=level):
+                self.assertTrue(
+                    states[level]["message"].endswith(
+                        "\n\n👇**Tap *next* to proceed:**"
+                    )
+                )
+        # The axis carries three distinct texts, not one text three times.
+        self.assertEqual(len({state["message"] for state in states.values()}), 3)
