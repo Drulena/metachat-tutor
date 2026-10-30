@@ -7,7 +7,7 @@ Part of the pure-data transition table (ticket #8); see
 
 ROW = {
     "next": "roleplay_feedback_peacemaker",
-    "back": "after_registration_beginner",
+    "back": "after_registration",  # BASE: resolved with the session level (C1-8)
     "nav": {},
     "retryable": False,
     "item": "role_peacemaker",

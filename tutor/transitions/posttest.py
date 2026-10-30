@@ -7,7 +7,7 @@ Part of the pure-data transition table (ticket #8); see
 
 ROW = {
     "next": "data_collection",
-    "back": "after_registration_beginner",
+    "back": "after_registration",  # BASE: resolved with the session level (C1-8)
     "nav": {},
     "retryable": False,
     "item": "posttest",

@@ -15,7 +15,7 @@ ROW = {
         "2": "after_registration",
         "3": "after_registration",
     },
-    "back": "after_registration_beginner",  # placeholder; C1-8 retires the repair
+    "back": "pretest",  # true predecessor (C1-8)
     "nav": {},
     "retryable": False,
     "item": "level_assessment",

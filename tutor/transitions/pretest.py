@@ -7,7 +7,7 @@ Part of the pure-data transition table (ticket #8); see
 
 ROW = {
     "next": "level_assessment",
-    "back": "after_registration_beginner",
+    "back": "start",  # true predecessor: the name-and-group screen (C1-8)
     "nav": {},
     "retryable": False,
     "item": "pretest",

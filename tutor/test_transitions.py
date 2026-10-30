@@ -273,15 +273,23 @@ class ExpandedTableTests(SimpleTestCase):
 
     def test_unreachable_pair_is_rejected(self):
         table = copy.deepcopy(TRANSITIONS)
-        # The level_assessment next map is the only inbound edge to the
-        # advanced pair cluster: point every value at the intermediate
-        # one. The beginner cluster stays reachable through the
-        # single-form rows' shared back edge to after_registration_beginner.
-        table["level_assessment"]["next"] = {
-            value: "after_registration_intermediate" for value in ("1", "2", "3")
-        }
+        # Only two kinds of edges lead into the role-play cluster: the
+        # analysis arc's feedback_2 rows and registration's role-play
+        # option. Detour every level path's feedback_2 to the reflection
+        # and every registration's role-play option to the analysis arc —
+        # the cluster drops out of the BFS. (Registration's back is
+        # retired: point of no return; single-form rows' back spells the
+        # BASE name, so no back edge leads forward into the cluster.)
+        for level in LEVEL_SUFFIXES:
+            key = f"analysis_feedback_2_{level}"
+            table[key] = {**table[key], "next": "reflection"}
+            key = f"after_registration_{level}"
+            table[key] = {
+                **table[key],
+                "next": {"1": "analysis_intro", "2": "analysis_intro"},
+            }
         self.assertIn(
-            "expanded: pair ('after_registration', 'advanced') "
+            "expanded: pair ('roleplay_intro', None) "
             "is unreachable from ('start', None)",
             validate_expanded(table),
         )

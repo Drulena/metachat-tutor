@@ -542,12 +542,41 @@ class TutorSessionTests(SimpleTestCase):
         session.submit("back")
         self.assertEqual(self.state_of(storage).current_state, "roleplay_intro")
 
-    def test_back_from_pretest_lands_in_a_valid_state(self):
+    def test_back_from_pretest_lands_on_the_data_collection_screen(self):
+        """Ticket #24: back at pretest goes to its TRUE predecessor — the
+        name-and-group data-collection screen (``start``) — not a
+        registration screen of a level the learner never picked (the
+        silent-beginner-path hole closed, ADR-0006)."""
         session, storage, _ = self.make_session()
         session.submit("Alice")
         self.assertEqual(self.state_of(storage).current_state, "pretest")
         session.submit("back")
-        self.assertEqual(self.state_of(storage).current_state, "after_registration_beginner")
+        self.assertEqual(self.state_of(storage).current_state, "start")
+
+    def test_back_from_level_assessment_lands_on_pretest(self):
+        """Ticket #24: the pre-registration chain points at true
+        predecessors — level assessment backs to the pretest, so back
+        never teleports past the point of no return."""
+        session, storage, _ = self.make_session()
+        self.drive(session, "Alice", "3 4 5")
+        self.assertEqual(self.state_of(storage).current_state, "level_assessment")
+        session.submit("back")
+        self.assertEqual(self.state_of(storage).current_state, "pretest")
+
+    def test_back_from_reflection_lands_on_the_registration_base_name(self):
+        """Ticket #24: post-registration single-form rows spell the
+        registration BASE name — the construction point resolves it with
+        the session's level (the landing convention of spec #16 C1-2),
+        so back at intermediate lands on the intermediate registration,
+        not the beginner one."""
+        session, storage, _ = self.make_session()
+        self.drive_to_role_menu(session)
+        self.drive(session, "1", "I mediate", "next", "finish")
+        self.assertEqual(self.state_of(storage).current_state, "reflection")
+        session.submit("back")
+        self.assertEqual(self.state_of(storage).current_state, "after_registration")
+        # the landing resolves with THIS session's level, not a literal
+        self.assertIn("(Level: Intermediate)", session.turns()[-1].message)
 
     def test_back_at_start_is_unrecognized_input(self):
         session, storage, _ = self.make_session()
