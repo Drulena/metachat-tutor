@@ -103,14 +103,16 @@ class TransitionTableShapeTests(SimpleTestCase):
                 elif next_ is not None:
                     self.assertTrue(next_ in states or next_ in AXIS_BASES)
 
-    def test_back_target_is_none_only_at_start(self):
+    def test_back_target_is_none_only_at_start_and_registration(self):
         # Seam-aware (spec #16 C1-2): a bare axis base back target
-        # resolves through the seam at the row's level.
+        # resolves through the seam at the row's level. The registration
+        # axis joins ``start`` in declaring None — the point of no return
+        # (spec #16 C1-8, ADR-0006 decision 2).
         states = set(SCENARIO["states"])
         for state, row in TRANSITIONS.items():
             back = row["back"]
             with self.subTest(state=state):
-                if state == "start":
+                if state == "start" or split_state(state)[0] == "after_registration":
                     self.assertIsNone(back)
                 else:
                     self.assertTrue(back in states or back in AXIS_BASES)
@@ -481,8 +483,14 @@ class LegacyParityTests(SimpleTestCase):
     def test_back_targets_match_legacy_go_back(self):
         for name, row in TRANSITIONS.items():
             with self.subTest(state=name):
-                if name == "start":
+                if name == "start" or split_state(name)[0] == "after_registration":
+                    # Point of no return (spec #16 C1-8): no back edge,
+                    # so _go_back treats the typed command as rejected
+                    # input and the state stays put.
                     self.assertIsNone(row["back"])
+                    state = self._make_state(name, row)
+                    self._session()._go_back(state)
+                    self.assertEqual(state.current_state, name)
                     continue
                 state = self._make_state(name, row)
                 self._session()._go_back(state)
@@ -495,9 +503,11 @@ class LegacyParityTests(SimpleTestCase):
                 state = self._make_state(name, row)
                 nav = self._session()._navigation_options(state, entry)
                 # Typed contract (ADR-0005): every nav offer carries its kind;
-                # the synthesised back edge is nav too.
+                # the synthesised back edge is nav too. The offer follows the
+                # row's back edge (spec #16 C1-8): start and the registration
+                # axis (None) offer none; every other row offers one.
                 expected = {value: (label, "nav") for value, label in row["nav"].items()}
-                if name != "start":
+                if row["back"] is not None:
                     expected["back"] = (_BACK_LABEL, "nav")
                 self.assertEqual(nav, expected)
 

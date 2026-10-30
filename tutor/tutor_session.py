@@ -640,8 +640,8 @@ class TutorSession:
         entry right after it. The value counts when it matches one of the
         scenario options stored on the entry, one of the transition row's
         ``nav`` values for the entry's state (navigation options are not
-        stored on entries), or the synthesised edges — ``back`` (everywhere
-        but ``start``) and ``retry`` on a failed LLM entry (issue #15).
+        stored on entries), or the synthesised edges — ``back`` where the
+        row declares the edge and ``retry`` on a failed LLM entry (issue #15).
         The entry's state resolves through the seam: a suffixed name is
         self-describing, a bare base name (the registration landing,
         spec #16 C1-2) resolves with the session ``level``.
@@ -656,10 +656,13 @@ class TutorSession:
         stored = entry.get("options")
         if stored and value in stored:
             return value
-        nav = (row_for(entry.get("state", ""), level) or {}).get("nav", {})
-        if value in nav:
+        row = row_for(entry.get("state", ""), level) or {}
+        if value in row.get("nav", {}):
             return value
-        if value == "back" and entry.get("state") != "start":
+        # ``back`` marks an offer only where the row declares the edge:
+        # at ``start`` and at the registration axis (spec #16 C1-8) a
+        # typed "back" is rejected input, not an answer — it marks nothing.
+        if value == "back" and row.get("back") is not None:
             return value
         if value == "retry" and entry.get("llm_failed"):
             return value
@@ -671,21 +674,22 @@ class TutorSession:
         Every offer from the transition row's ``nav`` map and the synthesised
         ``back`` edge is kind ``nav`` (GLOSSARY "option kind" — the routing
         origin). On a failed LLM message the retry offer (kind ``retry``)
-        replaces the advance options (up to 3 tries). ``back`` is absent at
-        ``start`` — there is nothing to go back to on the welcome turn.
+        replaces the advance options (up to 3 tries). ``back`` is offered
+        only where the row declares a back edge: absent at ``start``
+        (nothing to go back to on the welcome turn) and at the
+        registration axis (the point of no return, spec #16 C1-8).
         """
-        current = state.current_state
-        row = row_for(current, state.user_data.get("level")) or {}
+        row = row_for(state.current_state, state.user_data.get("level")) or {}
         if entry.get("llm_failed") and state.retry_count < 3:
             navigation: dict[str, tuple[str, str]] = {}
-            if current != "start":
+            if row.get("back") is not None:
                 navigation["back"] = (_BACK_LABEL, "nav")
             navigation["retry"] = (f"🔄 Retry LLM ({max(state.retry_count, 1)}/3)", "retry")
             return navigation
         navigation = {
             value: (label, "nav") for value, label in row.get("nav", {}).items()
         }
-        if current != "start":
+        if row.get("back") is not None:
             navigation["back"] = (_BACK_LABEL, "nav")
         return navigation
 

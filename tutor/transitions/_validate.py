@@ -13,7 +13,8 @@ Each row is a plain mapping with the fields in :data:`ROW_FIELDS`:
   base for level-axis targets, resolved by the row registry with a
   level (spec #16 C1-2) — a dict keyed by accepted input value (when
   the target depends on the answer), or ``None`` (no transition).
-- ``back`` — the back target, or ``None`` at ``start``.
+- ``back`` — the back target, or ``None`` at ``start`` and at the
+  registration axis (the point of no return, spec #16 C1-8).
 - ``nav`` — the system-navigation option to offer (value → label);
   the universal ``back`` option is handled separately and not listed.
 - ``retryable`` — whether ``retry`` is a valid command in this state
@@ -132,6 +133,12 @@ def validate_transitions(table: dict[str, dict] | None = None) -> list[str]:
         if state == "start":
             if back is not None:
                 violations.append(f"{state}: back must be None")
+        elif back is None:
+            # The registration axis declares ``back: None`` — the point of
+            # no return (spec #16 C1-8, ADR-0006 decision 2); every other
+            # row must name a back target.
+            if split_state(state)[0] != "after_registration":
+                violations.append(f"{state}: back target None is not a scenario state")
         elif back not in states and back not in axis_names:
             violations.append(f"{state}: back target {back!r} is not a scenario state")
 

@@ -561,6 +561,36 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(turns[-1].role, "user")
         self.assertEqual(self.state_of(storage).current_state, "start")
 
+    def test_back_at_registration_is_unrecognized_input(self):
+        """Ticket #24 (spec #16, ADR-0006 decision 2): registration is the
+        point of no return — the registration row's ``back`` is None, so
+        typed "back" there is an unrecognized input exactly like at start:
+        the user turn is recorded, no assistant re-prompt is appended, and
+        the state stays at registration.
+        """
+        session, storage, _ = self.make_session()
+        self.drive(session, "Alice", "3 4 5", "2")
+        self.assertEqual(self.state_of(storage).current_state, "after_registration")
+        turns_before = len(session.turns())
+        session.submit("back")
+        turns = session.turns()
+        self.assertEqual(len(turns), turns_before + 1)
+        self.assertEqual(turns[-1].role, "user")
+        # the registration row's own copy, no longer inviting "back"
+        self.assertEqual(turns[-1].rejection, "Choose the level to continue with.")
+        self.assertEqual(self.state_of(storage).current_state, "after_registration")
+
+    def test_back_at_registration_offers_no_back_option(self):
+        """Ticket #24: with ``back: None`` the navigation panel must not
+        offer a back button the command line rejects — the offer follows
+        the row, so registration offers only its two options."""
+        session, _, _ = self.make_session()
+        self.drive(session, "Alice", "3 4 5", "2")
+        self.assertEqual(
+            offers(session.turns()[-1]),
+            {"1": ("Step1️⃣: ANALYSIS", "choice"), "2": ("Step2️⃣: ROLE-PLAY", "choice")},
+        )
+
     def test_rejection_pairs_the_row_copy_with_the_unanswered_user_turn(self):
         session, storage, _ = self.make_session()
         self.drive(session, *ROLE_MENU_INPUTS)
@@ -703,10 +733,9 @@ class TutorSessionTests(SimpleTestCase):
                     "3": "Advanced",
                 },
             ),
-            "after_registration": (  # base name lands (spec #16 C1-2)
+            "after_registration": (  # base name lands (spec #16 C1-2)  # no back offer: point of no return (C1-8)
                 ["Alice", "3 4 5", "2"],
                 {
-                    "back": "⬅️ Back",
                     "1": "Step1️⃣: ANALYSIS",
                     "2": "Step2️⃣: ROLE-PLAY",
                 },

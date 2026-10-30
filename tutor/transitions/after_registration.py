@@ -12,9 +12,9 @@ dict. Targets spell base names, resolved by the row registry at the
 row's own level (ADR-0002's mechanism built at the construction
 point): ``next`` names the base states the learner goes to from here
 — the analysis intro since spec #16 C1-3, the role-play intro being a
-single-form state — and ``back`` spells this row's own base state,
-landing on its own pair (the prefix-match repair no longer fires here;
-spec #16 C1-8 turns this into ``back: None``, the point of no return).
+single-form state — and ``back`` is ``None``: registration is the point
+of no return (spec #16 C1-8, ADR-0006 decision 2); the escape from a
+mis-pick is reset, not back.
 """
 
 from ._registry import LEVEL_SUFFIXES, with_fixture_level
@@ -62,7 +62,7 @@ def _row(level: str) -> dict:
             "1": "analysis_intro",
             "2": "roleplay_intro",
         },
-        "back": BASE,
+        "back": None,
         "nav": {},
         "retryable": False,
         "item": None,
@@ -72,7 +72,7 @@ def _row(level: str) -> dict:
             "1": [("set-item", "mode_analysis", "completed")],
             "2": [("set-item", "mode_roleplay", "completed")],
         },
-        "rejected": "Choose the level to continue with, or type 'back'.",
+        "rejected": "Choose the level to continue with.",
         "fixture": with_fixture_level(_FIXTURE, level),
     }
 
