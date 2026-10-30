@@ -421,6 +421,9 @@ class TutorSession:
         base (``"after_registration"`` + ``"beginner"`` →
         ``"after_registration_beginner"``). A suffix embedded in the
         name is self-describing and wins, as in :func:`row_for`.
+        Spec #16 C1-5 widens the lookup past the current state: the LLM
+        task-context read resolves the sibling task by base name through
+        here, so every scenario read rides the same join.
         Returns ``None`` for an unknown state, like :meth:`dict.get`.
         """
         states = state.scenario["states"]
@@ -434,14 +437,10 @@ class TutorSession:
                 return states.get(join_state(base, level))
         return None
 
-    def _scenario_state_data(self, state: State) -> Optional[dict]:
-        """The scenario entry for the current state (see _scenario_entry)."""
-        return self._scenario_entry(state, state.current_state)
-
     def _build_message(self, state: State) -> tuple[str, bool]:
         current = state.current_state
         ud = state.user_data
-        state_data = self._scenario_state_data(state)
+        state_data = self._scenario_entry(state, current)
         if state_data is None:
             raise KeyError(current)
         message = state_data["message"]
@@ -496,7 +495,7 @@ class TutorSession:
         return message, llm_failed
 
     def _append_assistant_turn(self, state: State) -> None:
-        state_data = self._scenario_state_data(state)
+        state_data = self._scenario_entry(state, state.current_state)
         if state_data is None:
             return
         message, llm_failed = self._build_message(state)
