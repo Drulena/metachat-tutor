@@ -11,9 +11,11 @@ names split into base + axis level, single-form names key as
 This is the EXPAND step of expand-contract: the suffix-name keys
 remain the storage of record, the pair keys are built alongside them,
 and nothing migrates. The base-name cutover of the scenario names is
-C1-9. The prefix-match back repair retired in C1-8 (ticket #24):
-back targets are true predecessors; a bare base name resolves with
-the session's level at this seam.
+C1-9. The prefix-match back repair retired in C1-8 (ticket #24): the
+pre-registration chain's back targets are true predecessors, the
+post-registration rows land the learner on the arc root — the
+registration base — and this seam resolves a bare base name with the
+session's level.
 
 Spec #16 C1-2 (ticket #18) adds the generation half of the same seam
 algebra: :func:`join_state` joins a pair into a suffixed name,

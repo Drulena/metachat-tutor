@@ -138,7 +138,10 @@ def validate_transitions(table: dict[str, dict] | None = None) -> list[str]:
             # no return (spec #16 C1-8, ADR-0006 decision 2); every other
             # row must name a back target.
             if split_state(state)[0] != "after_registration":
-                violations.append(f"{state}: back target None is not a scenario state")
+                violations.append(
+                    f"{state}: back target None is allowed only at start "
+                    "and the registration axis"
+                )
         elif back not in states and back not in axis_names:
             violations.append(f"{state}: back target {back!r} is not a scenario state")
 

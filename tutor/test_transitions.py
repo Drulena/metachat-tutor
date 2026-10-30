@@ -334,7 +334,7 @@ class ExpandedTableTests(SimpleTestCase):
             elif isinstance(nxt, dict):
                 targets.extend(nxt.values())
             if row.get("back") is not None:
-                targets.append(row["back"]);
+                targets.append(row["back"])
             targets.extend((row.get("nav") or {}).values())
         return targets
 
