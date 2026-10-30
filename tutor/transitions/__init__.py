@@ -47,6 +47,14 @@ axis, its back-target spells the intro base state, task-2's landing
 retires its level-named exception for the feedback-2 base, and the
 row's own ``next`` leaves the analysis arc for the single-form
 role-play intro — one node for every level, so it needs no join.
+
+Spec #16 C1-8 (ticket #24) makes registration the point of no return:
+the registration rows' back is None, the pre-registration chain points
+at true predecessors (pretest backs to the name-and-group screen, the
+level assessment backs to the pretest), and the post-registration
+single-form rows spell the registration base name. The placeholder
+back literals and the runtime prefix-match repair in
+:meth:`TutorSession._go_back` are gone.
 """
 
 from . import (
