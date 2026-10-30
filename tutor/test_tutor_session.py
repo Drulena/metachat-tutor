@@ -17,7 +17,7 @@ from .data import (
     STEP_KEYS,
 )
 from .session import MemoryStorage, State, Summary
-from .transitions import ROW_REGISTRY, row_for
+from .transitions import TRANSITIONS, join_state, row_for
 from .tutor_session import TutorSession
 
 #: Input sequence that drives a fresh session to the role menu.
@@ -355,12 +355,20 @@ class TutorSessionTests(SimpleTestCase):
                             "analysis_intro",
                             "analysis_task_1",
                         ):
-                            # The landed row is the one today's suffixed
-                            # name resolved before the cutover: the pair
-                            # registry keys it, the name no longer spells it.
+                            # "Asserting the row reached" is the row the
+                            # suffixed name resolved to before the cutover.
+                            # The seam must land on that same flat-table row,
+                            # and that row's fixture must carry this level -
+                            # checking row_for against its own registry would
+                            # be true by construction, so the flat table,
+                            # spelled with the level, is the oracle here.
+                            landed = row_for(reached, level)
                             self.assertIs(
-                                row_for(reached, level),
-                                ROW_REGISTRY[(reached, level)],
+                                landed,
+                                TRANSITIONS[join_state(reached, level)],
+                            )
+                            self.assertEqual(
+                                landed["fixture"]["user_data"]["level"], level
                             )
 
     def test_idea_generator_path_yields_the_feedback_turn(self):
