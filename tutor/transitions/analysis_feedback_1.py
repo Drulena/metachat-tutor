@@ -13,13 +13,13 @@ This is the retryable LLM-feedback row: the copy it renders, the
 follow from the level the seam resolved, so the row body itself carries
 no level. `back` spells the intro base state, converted in an earlier
 ticket (spec #16 C1-3), so the seam resolves it with the session's
-level. `next` is the target the cutover has not reached: the task-2
-axis joins the registry in the following ticket (spec #16 C1-6), so its
-row is named by :func:`join_state` with this row's own level, which is
-the level the seam resolves it to.
+level. `next` spells the task-2 base state, converted in the following
+ticket (spec #16 C1-6), so the seam resolves it with the session's
+level - the exception that named the task-2 axis by level inside this
+row retires there.
 """
 
-from ._registry import LEVEL_SUFFIXES, join_state, with_fixture_level
+from ._registry import LEVEL_SUFFIXES, with_fixture_level
 
 #: The base state name; :func:`axis_rows` generates the suffixed keys.
 BASE = "analysis_feedback_1"
@@ -60,7 +60,7 @@ _FIXTURE = {
 def _row(level: str) -> dict:
     """Build the axis row for one level; level targets come from the seam."""
     return {
-        "next": join_state("analysis_task_2", level),
+        "next": "analysis_task_2",
         "back": "analysis_intro",
         "nav": {"next": "Next"},
         "retryable": True,

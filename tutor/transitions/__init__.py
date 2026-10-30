@@ -34,6 +34,12 @@ Spec #16 C1-5 (ticket #21) folds the analysis-feedback-1 triplet into
 the same shape: the retryable LLM-feedback rows generate from the axis,
 its back-target spells the intro base state, and the landing target
 that spells this row's own level moves to the task-2 axis (C1-6).
+
+Spec #16 C1-6 (ticket #22) folds the analysis-task-2 triplet into the
+same shape: the task rows generate from the axis, its back-target
+spells the intro base state, feedback-1's landing retires its level-
+named exception for the task-2 base, and the session's task-context
+read names the task-2 sibling by base through the seam.
 """
 
 from . import (
@@ -43,9 +49,7 @@ from . import (
     after_registration,
     analysis_intro,
     analysis_task_1,
-    analysis_task_2_beginner,
-    analysis_task_2_intermediate,
-    analysis_task_2_advanced,
+    analysis_task_2,
     analysis_feedback_1,
     analysis_feedback_2_beginner,
     analysis_feedback_2_intermediate,
@@ -127,13 +131,15 @@ TRANSITIONS = {
     # the intro base state, the next target embeds the row level until the
     # feedback axis lands (spec #16 C1-5).
     **axis_rows(analysis_task_1.BASE, analysis_task_1.ROWS),
-    "analysis_task_2_beginner": analysis_task_2_beginner.ROW,
-    "analysis_task_2_intermediate": analysis_task_2_intermediate.ROW,
-    "analysis_task_2_advanced": analysis_task_2_advanced.ROW,
+    # The analysis-task-2 axis (spec #16 C1-6, ADR-0006): rows and
+    # fixtures generated from the level-keyed map by the seam; the back
+    # target spells the intro base state, and the next target embeds the
+    # row level until the feedback-2 axis lands (spec #16 C1-7).
+    **axis_rows(analysis_task_2.BASE, analysis_task_2.ROWS),
     # The analysis-feedback-1 axis (spec #16 C1-5, ADR-0006): the retryable
     # LLM-feedback rows and their fixtures generate from the level-keyed map
     # by the seam; the back target spells the intro base state, and the next
-    # target embeds the row level until the task-2 axis lands (spec #16 C1-6).
+    # target spells the task-2 base state (spec #16 C1-6).
     **axis_rows(analysis_feedback_1.BASE, analysis_feedback_1.ROWS),
     "analysis_feedback_2_beginner": analysis_feedback_2_beginner.ROW,
     "analysis_feedback_2_intermediate": analysis_feedback_2_intermediate.ROW,
