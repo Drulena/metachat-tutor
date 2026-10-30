@@ -638,6 +638,72 @@ class AxisScenarioCopyTests(SimpleTestCase):
         # The axis carries three distinct texts, not one text three times.
         self.assertEqual(len({state["message"] for state in states.values()}), 3)
 
+    def test_task_2_message_is_byte_exact_per_level(self):
+        """The map replaces three modules; the words must not move.
+
+        The task-2 axis of spec #16 C1-6 pins its three texts whole,
+        byte for byte: the heading, the message line (quoted at the
+        beginner level), the question, and the hint line present at the
+        two lower levels and absent at the advanced one.
+        """
+        expected = {
+            "beginner": "**📝 TASK 2: Recognizing Aggressive Formatting (Beginner)**\n\nMessage: *{message}*\n\n❓ **Question:** What makes this message feel aggressive? Identify ONE technique.\n\n💡*Hint: {hint}*\n\n⬇️**Type your answer and tap Enter:**",
+            "intermediate": "**📝 TASK 2: Recognizing Aggressive Formatting (Intermediate)**\n\nMessage: {message}\n\n❓ **Question:** Identify TWO metagrapheme techniques used here.\n\n💡*Hint: {hint}*\n\n⬇️**Type your answer and tap Enter:**",
+            "advanced": "**📝 TASK 2: Recognizing Aggressive Formatting (Advanced)**\n\nMessage: {message}\n\n❓ **Question:** Analyze ALL metagrapheme techniques used here.\n\n⌨️**Type your analysis:**",
+        }
+        for level, message in expected.items():
+            with self.subTest(level=level):
+                self.assertEqual(
+                    SCENARIO["states"][f"analysis_task_2_{level}"]["message"],
+                    message,
+                )
+
+    def test_task_2_framing_is_shared_across_the_axis(self):
+        """Only the level wording differs: the framing and the gate are fixed.
+
+        The heading, the message line and the question lead-in are shared
+        along the task-2 axis (spec #16 C1-6). The hint line and the
+        answer-and-Enter prompt belong to the two lower levels; the
+        advanced level swaps them for the free-text analysis prompt.
+        """
+        states = {
+            level: SCENARIO["states"][f"analysis_task_2_{level}"]
+            for level in LEVEL_SUFFIXES
+        }
+        for level in LEVEL_SUFFIXES:
+            with self.subTest(level=level):
+                message = states[level]["message"]
+                self.assertTrue(
+                    message.startswith(
+                        f"**📝 TASK 2: Recognizing Aggressive Formatting "
+                        f"({level.capitalize()})**\n\n"
+                    )
+                )
+                self.assertIn("\n\nMessage: ", message)
+                self.assertIn("\n\n❓ **Question:** ", message)
+                self.assertEqual(states[level]["validation"], ".+")
+        # The hint affordance is the two lower levels', not the advanced one's.
+        for level in ("beginner", "intermediate"):
+            with self.subTest(level=level):
+                self.assertIn("\n\n💡*Hint: {hint}*\n\n", states[level]["message"])
+        self.assertNotIn("*Hint:", states["advanced"]["message"])
+        # The prompt: answer-and-Enter at the two lower levels, analysis at the advanced.
+        for level in ("beginner", "intermediate"):
+            with self.subTest(level=level):
+                self.assertTrue(
+                    states[level]["message"].endswith(
+                        "\n\n⬇️**Type your answer and tap Enter:**"
+                    )
+                )
+        self.assertTrue(
+            states["advanced"]["message"].endswith("\n\n⌨️**Type your analysis:**")
+        )
+        # Only the beginner quotes the message the learner analyses.
+        self.assertIn("\n\nMessage: *{message}*\n\n", states["beginner"]["message"])
+        self.assertNotIn("Message: *{message}*", states["intermediate"]["message"])
+        # The axis carries three distinct texts, not one text three times.
+        self.assertEqual(len({state["message"] for state in states.values()}), 3)
+
     def test_feedback_1_message_is_byte_exact_per_level(self):
         """The map replaces three modules; the words must not move.
 

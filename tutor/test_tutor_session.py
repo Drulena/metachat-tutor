@@ -29,7 +29,7 @@ ROLE_MENU_INPUTS = [
     "1",                # -> analysis_intro (base name, C1-3)
     "yes",              # -> analysis_task_1 (base name, C1-4)
     "Answer to task one",   # -> analysis_feedback_1 (base name, C1-5)
-    "next",             # -> analysis_task_2_intermediate
+    "next",             # -> analysis_task_2 (base name, C1-6)
     "Answer to task two",   # -> analysis_feedback_2_intermediate
     "next",             # -> roleplay_intro
     "continue",         # -> role_menu
@@ -151,7 +151,7 @@ class TutorSessionTests(SimpleTestCase):
             session,
             "Alice", "3 4 5", "2", "1", "yes",
             "Answer to task one",  # -> analysis_feedback_1 (base name, C1-5): task 1 completed
-            "next",                # -> analysis_task_2_intermediate: task 2 in progress
+            "next",                # -> analysis_task_2 (base name, C1-6): task 2 in progress
         )
         sections = session.progress().sections
 
@@ -329,7 +329,7 @@ class TutorSessionTests(SimpleTestCase):
                 "analysis_intro",       # base name lands (spec #16 C1-3)
                 "analysis_task_1",        # base name lands (spec #16 C1-4)
                 "analysis_feedback_1",    # base name lands (spec #16 C1-5)
-                f"analysis_task_2_{level}",
+                "analysis_task_2",        # base name lands (spec #16 C1-6)
                 f"analysis_feedback_2_{level}",
                 "roleplay_intro",
                 "role_menu",
@@ -355,6 +355,7 @@ class TutorSessionTests(SimpleTestCase):
                             "analysis_intro",
                             "analysis_task_1",
                             "analysis_feedback_1",
+                            "analysis_task_2",
                         ):
                             # "Asserting the row reached" is the row the
                             # suffixed name resolved to before the cutover.
@@ -869,6 +870,43 @@ class TutorSessionTests(SimpleTestCase):
                 )
                 # The join landed on this level's copy, not a neighbour's.
                 self.assertIn(f"Softening Criticism ({level.capitalize()})", task_question)
+
+    def test_analysis_task_2_context_reaches_the_llm_at_the_base_name(self):
+        """Spec #16 C1-6: the task-2 context resolves at the base state name.
+
+        The feedback-2 row is still level-suffixed (C1-7 converts it), so
+        the state-name surgery in the session cannot rely on a suffixed
+        sibling name any more: it names the task-2 sibling by base and
+        the seam joins this session's level onto it. The LLM must get
+        this level's task-2 copy - byte for byte the entry the session's
+        own scenario carries.
+        """
+        for level, digit in LEVEL_DIGITS:
+            with self.subTest(level=level):
+                llm = FakeLLM()
+                session, storage, _ = self.make_session(llm=llm)
+                self.drive(
+                    session, "Alice", "3 4 5", digit, "1", "yes",
+                    "Answer one", "next", "Answer two",
+                )
+                state = self.state_of(storage)
+                # feedback-2 converts in C1-7; it lands suffixed for now.
+                self.assertEqual(
+                    state.current_state, join_state("analysis_feedback_2", level)
+                )
+
+                user_answer, role_name, user_name, got_level, task_question = llm.calls[-1]
+                self.assertEqual(user_answer, "Answer two")
+                self.assertIsNone(role_name)
+                self.assertEqual((user_name, got_level), ("Alice", level))
+                self.assertEqual(
+                    task_question,
+                    state.scenario["states"][join_state("analysis_task_2", level)]["message"],
+                )
+                # The join landed on this level's copy, not a neighbour's.
+                self.assertIn(
+                    f"Aggressive Formatting ({level.capitalize()})", task_question
+                )
 
     def test_feedback_not_called_outside_feedback_states(self):
         llm = FakeLLM()
