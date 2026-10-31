@@ -47,10 +47,11 @@ from .transitions import (
 )
 from .transitions._registry import LEVEL_KEYS
 from .transitions._validate import AXIS_BASES
-from .test_tutor_session import ROLE_MENU_COPY
+from .test_tutor_session import ROLE_MENU_CLOSING_LINE, ROLE_MENU_COPY
 from .tutor_session import (
     ITEM_KEYS,
     _BACK_LABEL,
+    _GENERIC_REJECTION,
     _LEVEL_BY_VALUE,
     TutorSession,
     _parse_scores,
@@ -655,6 +656,13 @@ class RoleMenuLabelAlignmentTests(SimpleTestCase):
         ]
         self.assertEqual(found, expected)
 
+    def test_message_ends_with_the_closing_line(self):
+        # The line is pinned once, in test_tutor_session.ROLE_MENU_CLOSING_LINE.
+        self.assertTrue(
+            SCENARIO["states"]["role_menu"]["message"].endswith(ROLE_MENU_CLOSING_LINE),
+            "the note under the role list must read exactly the shared copy",
+        )
+
 
 class RejectionCopyTests(SimpleTestCase):
     """Rows own their rejection copy; the validator checks its type (#15).
@@ -960,33 +968,42 @@ class AxisScenarioCopyTests(SimpleTestCase):
 
 
 class ScenarioCopyEscapeTests(SimpleTestCase):
-    r"""No learner-facing copy carries a stray backslash (issue #33).
+    r"""No copy the learner reads carries a backslash before a letter (#33).
 
-    A backslash before a letter is not a Python escape, so the character
-    survives into the string value; the Markdown filter passes it through
-    (only ASCII punctuation is escapable), and the learner sees the bare `\`
-    on the page — the role menu shipped `\Once completed…` that way.
-    Backslash-before-punctuation is legitimate copy: `\*` is Markdown's
-    literal asterisk, and the role prompts use it. Only letters are the tell.
+    Such a pair is not a Python escape, so the character survives into the
+    string value and the Markdown filter hands it to the page.
+    Backslash-before-punctuation is legitimate copy — `\*` is Markdown's
+    literal asterisk, and the role prompts use it — so letters alone are the
+    tell. The sweep reaches string *values* of the scenario data and the
+    module's rejection copy; templates and dict keys are out of its reach.
     """
 
-    def _strings(self, node):
+    def _leaf_strings(self, value):
         """Yield every string in a scenario data structure, depth first."""
-        if isinstance(node, str):
-            yield node
-        elif isinstance(node, dict):
-            for value in node.values():
-                yield from self._strings(value)
-        elif isinstance(node, (list, tuple, set)):
-            for value in node:
-                yield from self._strings(value)
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, dict):
+            for child in value.values():
+                yield from self._leaf_strings(child)
+        elif isinstance(value, (list, tuple)):
+            for child in value:
+                yield from self._leaf_strings(child)
 
     def test_no_copy_carries_a_backslash_before_a_letter(self):
-        """Every scenario, variant and row copy is free of the stray escape."""
-        offenders = []
-        for data in (SCENARIO, TASK_VARIANTS, ROW_REGISTRY):
-            for text in self._strings(data):
-                for match in re.finditer(r"\\[A-Za-z]", text):
-                    start = max(0, match.start() - 25)
-                    offenders.append(text[start:match.end() + 25])
-        self.assertEqual(offenders, [], f"stray backslash escapes: {offenders}")
+        """Every state, variant, row and rejection copy is free of a stray escape."""
+        # The registry holds rows, not state messages: it misses 72 of the 75
+        # strings the scenario carries, so each corpus walks on its own.
+        corpora = (
+            ("scenario", SCENARIO),
+            ("task variants", TASK_VARIANTS),
+            ("rows", ROW_REGISTRY),
+            ("module copy", (_GENERIC_REJECTION,)),
+        )
+        for name, data in corpora:
+            offenders = [
+                f"…{text[max(0, hit.start() - 25):hit.end() + 25]}…"
+                for text in self._leaf_strings(data)
+                for hit in re.finditer(r"\\[A-Za-z]", text)
+            ]
+            with self.subTest(corpus=name):
+                self.assertEqual(offenders, [], f"stray backslash escapes: {offenders}")

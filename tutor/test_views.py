@@ -20,6 +20,7 @@ from .test_tutor_session import (
     FakeLLM,
     GENERIC_REJECTION,
     REGISTRATION_OPTIONS,
+    ROLE_MENU_CLOSING_LINE,
     ROLE_MENU_COPY,
     ROLE_MENU_INPUTS,
 )
@@ -220,21 +221,17 @@ class ChatOptionRenderingTests(TestCase):
         self.assertNotIn("own row after them", page)
 
     def test_chat_role_menu_closing_line_has_no_backslash(self):
-        r"""Issue #33: the role menu's last line rendered a literal `\Once…`.
+        r"""Issue #33: the role menu's last line renders, with no stray `\`.
 
-        The scenario copy ran `…to choose a role**\n\n\Once completed…`. `\O`
-        is not a Python escape, so the backslash survives into the message
-        value, and the Markdown filter keeps it (only ASCII punctuation is
-        escapable) — the learner sees the stray `\` above the choices. The
-        rendered page pins it absent, the way the leaked-comment tests pin the
-        other page litter.
+        A backslash before a letter is not a Python escape and the Markdown
+        filter passes it through, so the rendered page is where the bug shows.
         """
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
         page = html_module.unescape(client.get("/").content.decode())
-        self.assertIn("Once completed all the roles", page,
-                      "the closing line must still render")
-        self.assertNotIn("\\Once", page, "no literal backslash before 'Once'")
+        rendered = ROLE_MENU_CLOSING_LINE.split(", tap")[0]
+        self.assertIn(rendered, page, "the closing line must still render")
+        self.assertNotIn("\\" + rendered, page, "no literal backslash before it")
 
     def test_options_block_has_a_single_separator(self):
         client = self.client

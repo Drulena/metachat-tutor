@@ -74,6 +74,14 @@ GENERIC_REJECTION = (
 #: The role-menu row's bespoke rejection copy (rows/role_menu.py).
 ROLE_MENU_COPY = "Choose one of the numbered roles, finish, or back."
 
+#: The role menu's closing line (scenarios/role_menu.py) — the note under the
+#: role list. Shared with :mod:`tutor.test_views`: every pinning of the line
+#: lives here, once. The Markdown filter spends `*Finish*`, so consumers that
+#: assert on a rendered page take the run before it.
+ROLE_MENU_CLOSING_LINE = (
+    "Once completed all the roles, tap *Finish* to proceed to Reflection🏁"
+)
+
 #: The registration row's own rejection copy (transitions/after_registration.py),
 #: worded away from the back invitation now that registration is the point of
 #: no return (spec #16 C1-8). Shared with :mod:`tutor.test_views`.
