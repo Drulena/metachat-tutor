@@ -38,6 +38,11 @@ def chat_view(request: HttpRequest):
     assistant turn; the template renders exactly one option list per turn.
     A rejected input is surfaced by the module too — the unanswered user
     turn carries its ``rejection`` copy and the template renders it.
+
+    Method shapes the response: a POST is a submission and is answered with a
+    redirect back to this page (POST-Redirect-GET, issue #34), so the page a
+    browser re-requests on reload is a GET that submits nothing. Only a GET
+    renders.
     """
     session = _started_session(request)
 
@@ -45,6 +50,9 @@ def chat_view(request: HttpRequest):
         text = request.POST.get("user_input", "").strip()
         if text:
             session.submit(text)
+        # Every submission answers with a redirect, blank text included; the
+        # docstring says why (issue #34).
+        return redirect("chat")
 
     summary = session.progress()
     turns = session.turns()

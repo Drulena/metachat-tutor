@@ -267,7 +267,9 @@ class ChatOptionRenderingTests(TestCase):
             done = [m for m in self._button_markup(html) if "option-completed" in m]
             self.assertEqual(len(done), 1)
             self.assertIn('data-value="1"', done[0], "the finished role stays clickable markup")
-            page = client.post("/", {"user_input": "1"}).content.decode()
+            # Issue #34: a submission answers with a redirect, so the page the
+            # click lands on is the one the redirect resolves to.
+            page = client.post("/", {"user_input": "1"}, follow=True).content.decode()
         self.assertIn("ROLE: Mediator", page, "the finished role re-opens on click")
         self.assertNotIn(ROLE_MENU_COPY, page)
 
@@ -399,6 +401,53 @@ class ChatRejectionTests(TestCase):
         client.post("/", {"user_input": "no such task"})
         html = html_module.unescape(client.get("/").content.decode())
         self.assertIn(GENERIC_REJECTION, html)
+
+
+class ChatSubmissionTests(TestCase):
+    """Issue #34: a page reload after submitting a message duplicated it.
+
+    The chat view answered a POST with a rendered page, so the entry in the
+    browser's history was the POST itself: reload re-submitted it, the module
+    ran ``submit()`` a second time and appended the exchange again. The view
+    now answers a submission with a redirect to the chat page
+    (POST-Redirect-GET, the shape the reset flow already used — all state
+    lives server-side in the ``TutorSession``), so the page a reload
+    re-requests is a GET that submits nothing.
+    """
+
+    def _turn_count(self, response) -> int:
+        """Count every chat message block rendered on the page (user + tutor)."""
+        return response.content.decode().count('<div class="message ')
+
+    def test_submit_redirects_to_the_chat_page(self):
+        client = self.client
+        _drive(client, ROLE_MENU_INPUTS)
+        resp = client.post("/", {"user_input": "1"})  # a role menu choice lands
+        self.assertEqual(resp.status_code, 302, "a submission must not render the page")
+        self.assertEqual(resp["Location"], "/")
+
+    def test_blank_submit_redirects_and_appends_nothing(self):
+        client = self.client
+        _drive(client, ROLE_MENU_INPUTS)
+        before = self._turn_count(client.get("/"))
+        resp = client.post("/", {"user_input": "   "})
+        self.assertEqual(resp.status_code, 302, "an empty submission redirects too")
+        self.assertEqual(self._turn_count(client.get("/")), before)
+
+    def test_reload_after_submit_appends_one_exchange(self):
+        client = self.client
+        _drive(client, ROLE_MENU_INPUTS)
+        before = self._turn_count(client.get("/"))
+        resp = client.post("/", {"user_input": "1"}, follow=True)
+        self.assertEqual(resp.redirect_chain, [("/", 302)])
+        self.assertEqual(
+            self._turn_count(resp), before + 2, "one user turn plus one tutor reply"
+        )
+        # The reload the reporter hit: the browser re-issues the page it landed
+        # on, which after the redirect is a GET of the chat page.
+        self.assertEqual(
+            self._turn_count(client.get("/")), before + 2, "the reload appended nothing"
+        )
 
 
 class ChatSidebarGateTests(TestCase):
