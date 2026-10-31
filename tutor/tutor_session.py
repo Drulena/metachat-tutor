@@ -81,6 +81,7 @@ _TASK_SIBLING_BY_FEEDBACK: dict[str, str] = {
     "analysis_feedback_2": "analysis_task_2",
 }
 
+
 def _row_has_back(row: dict) -> bool:
     """Returns whether the row declares a journey back.
 
