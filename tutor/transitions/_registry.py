@@ -14,7 +14,11 @@ base state once — an axis module keys its rows by bare level, single-
 form modules carry one row — and the assembly keys them by pair
 directly. :func:`axis_pairs` validates the axis covers exactly the
 level axis; :func:`with_fixture_level` injects the level into one
-per-base fixture dict.
+per-base fixture dict. Ticket #27 adds the shared builder behind that
+algebra: :func:`axis_rows` turns one declaration of the level-
+independent row fields plus a fixture into the level-keyed row map,
+and :func:`axis_fixture` spells a base's fixture as a delta on the
+shared analysis-arc shape.
 
 :func:`make_row_resolver` builds the ``row_for(state, level)`` seam:
 
@@ -72,6 +76,76 @@ def with_fixture_level(fixture: Mapping[str, Any], level: str) -> Row:
     generated = copy.deepcopy(dict(fixture))
     generated["user_data"]["level"] = level
     return generated
+
+
+#: The shared shape of the axis fixtures (ticket #27), spelled once:
+#: a learner at the start of the analysis arc — the assessment pair
+#: done, every task, role and mode item ``not_started``, the probe
+#: scores fixed. :func:`axis_fixture` expresses each axis base as a
+#: delta on this shape.
+_AXIS_FIXTURE_BASE: Row = {
+    "user_data": {
+        "user_name": "Test Learner",
+        "level": None,
+        "pretest_scores": [3, 4, 5],
+        "posttest_scores": None,
+        "current_role": None,
+        "current_role_variant": None,
+    },
+    "items": {
+        "pretest": "completed",
+        "level_assessment": "completed",
+        "analysis_task_1": "not_started",
+        "analysis_task_2": "not_started",
+        "role_mediator": "not_started",
+        "role_logical": "not_started",
+        "role_idea_generator": "not_started",
+        "role_researcher": "not_started",
+        "role_interpreter": "not_started",
+        "role_advocate": "not_started",
+        "role_judge": "not_started",
+        "role_peacemaker": "not_started",
+        "role_empath": "not_started",
+        "reflection": "not_started",
+        "posttest": "not_started",
+        "mode_analysis": "not_started",
+        "mode_roleplay": "not_started",
+    },
+}
+
+
+def axis_fixture(**item_statuses: str) -> Row:
+    """Fresh per-base axis fixture: the shared shape, delta-applied.
+
+    ADR-0006 decision 6 keeps one fixture dict per base state; ticket
+    #27 expresses the between-base delta as parameters: the shape of
+    the whole analysis arc lives in :data:`_AXIS_FIXTURE_BASE`, and a
+    base state names the item statuses that place it coherently *in*
+    that state (past registration: ``mode_analysis="completed"``;
+    mid-task: that task ``"in_progress"``). The seam injects the axis
+    level per row (:func:`with_fixture_level`).
+    """
+    fixture = copy.deepcopy(_AXIS_FIXTURE_BASE)
+    fixture["items"].update(item_statuses)
+    return fixture
+
+
+def axis_rows(fixture: Mapping[str, Any], **fields: Any) -> dict[str, Row]:
+    """Build a base state's level-keyed rows from its level-independent fields.
+
+    Ticket #27: the comprehension every axis module repeated lives
+    here — a module declares its targets, effects and the rest of the
+    row body once, and the builder clones the per-base fixture across
+    the axis (:func:`with_fixture_level`), so a state name never
+    carries the level. Field order follows the declaration order,
+    canonical per :data:`~tutor.transitions._validate.ROW_FIELDS`,
+    fixture slot last; the assembly keys the map by pair with
+    :func:`axis_pairs`.
+    """
+    return {
+        level: dict(fields, fixture=with_fixture_level(fixture, level))
+        for level in LEVEL_KEYS
+    }
 
 
 def make_row_resolver(
