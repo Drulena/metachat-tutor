@@ -219,6 +219,23 @@ class ChatOptionRenderingTests(TestCase):
         self.assertNotIn("Choices first in the scenario", page)
         self.assertNotIn("own row after them", page)
 
+    def test_chat_role_menu_closing_line_has_no_backslash(self):
+        r"""Issue #33: the role menu's last line rendered a literal `\Once…`.
+
+        The scenario copy ran `…to choose a role**\n\n\Once completed…`. `\O`
+        is not a Python escape, so the backslash survives into the message
+        value, and the Markdown filter keeps it (only ASCII punctuation is
+        escapable) — the learner sees the stray `\` above the choices. The
+        rendered page pins it absent, the way the leaked-comment tests pin the
+        other page litter.
+        """
+        client = self.client
+        _drive(client, ROLE_MENU_INPUTS)
+        page = html_module.unescape(client.get("/").content.decode())
+        self.assertIn("Once completed all the roles", page,
+                      "the closing line must still render")
+        self.assertNotIn("\\Once", page, "no literal backslash before 'Once'")
+
     def test_options_block_has_a_single_separator(self):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)

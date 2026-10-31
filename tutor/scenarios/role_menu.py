@@ -6,7 +6,7 @@ for the assembled ``SCENARIO`` dict and
 """
 
 STATE = {
-    "message": "**❇️ CONSTRUCTIVE COMMUNICATIVE ROLES**\n\n \n\n🔹1 - Mediator (de-escalates conflicts)\n🔹2 - Logical Expert (highlights contradictions)\n🔹3 - Idea Generator (sparks creative thinking)\n🔹4 - Researcher (conducts cultural inquiry)\n🔹5 - Interpreter (facilitates cultural bridging)\n🔹6 - Advocate (defends a person/idea)\n🔹7 - Judge (evaluates arguments from all the sides)\n🔹8 - Peacemaker (offers compromise)\n🔹9 - Empath (provides emotional support)\n\n📌 👇**Tap the button below to choose a role**\n\n\Once completed all the roles, tap *Finish* to proceed to Reflection🏁",
+    "message": "**❇️ CONSTRUCTIVE COMMUNICATIVE ROLES**\n\n \n\n🔹1 - Mediator (de-escalates conflicts)\n🔹2 - Logical Expert (highlights contradictions)\n🔹3 - Idea Generator (sparks creative thinking)\n🔹4 - Researcher (conducts cultural inquiry)\n🔹5 - Interpreter (facilitates cultural bridging)\n🔹6 - Advocate (defends a person/idea)\n🔹7 - Judge (evaluates arguments from all the sides)\n🔹8 - Peacemaker (offers compromise)\n🔹9 - Empath (provides emotional support)\n\n📌 👇**Tap the button below to choose a role**\n\nOnce completed all the roles, tap *Finish* to proceed to Reflection🏁",
     "options": {
         "1": "Mediator",
         "2": "Logical Expert",
