@@ -10,7 +10,12 @@ keys each entry under the base state name with the level as a key, not a
 suffix, so level copy cannot drift: the framing of the task — the heading, the context line, the
 question lead-in and the answer prompt — is shared, and only the
 wording that differs between the levels sits in the map.
+Ticket #27: the axis is the one scenario constant — the ``LEVELS``
+keys of :mod:`tutor.scenarios.common` — and :data:`_COPY` supplies the
+level wording at each point of it.
 """
+
+from .common import LEVELS
 
 #: The shared framing of the task copy (spec #16 C1-4): the heading
 #: names the level, then the context and the message under review, then
@@ -67,10 +72,11 @@ _COPY: dict[str, dict[str, str]] = {
     },
 }
 
-#: The task states, keyed by level (spec #16 C1-4). The assembly keys
-#: this map under the base state name (C1-9); a state carries no options
-#: — the answer is free text.
+#: The task states, keyed by level (spec #16 C1-4), the axis read from
+#: :data:`LEVELS` over the wording map (ticket #27). The assembly keys
+#: this map under the base state name (C1-9); a state carries no
+#: options — the answer is free text.
 STATE: dict[str, dict] = {
-    level: {"message": _text(level, wording), "validation": _VALIDATION}
-    for level, wording in _COPY.items()
+    level: {"message": _text(level, _COPY[level]), "validation": _VALIDATION}
+    for level in LEVELS
 }

@@ -13,7 +13,12 @@ differs between the levels sits in the map: the question, the quoted
 message at the beginner level, the hint line (the bulb marks the two
 lower levels, the advanced one gets no hint) and the answer prompt
 (the advanced level asks for a full analysis, not a short answer).
+Ticket #27: the axis is the one scenario constant — the ``LEVELS``
+keys of :mod:`tutor.scenarios.common` — and :data:`_COPY` supplies the
+level wording at each point of it.
 """
+
+from .common import LEVELS
 
 #: The shared framing of the task copy (spec #16 C1-6): the heading
 #: names the level, then the message under review, then the question,
@@ -71,10 +76,11 @@ _COPY: dict[str, dict[str, str]] = {
     },
 }
 
-#: The task states, keyed by level (spec #16 C1-6). The assembly keys
-#: this map under the base state name (C1-9); a state carries no options
-#: — the answer is free text.
+#: The task states, keyed by level (spec #16 C1-6), the axis read from
+#: :data:`LEVELS` over the wording map (ticket #27). The assembly keys
+#: this map under the base state name (C1-9); a state carries no
+#: options — the answer is free text.
 STATE: dict[str, dict] = {
-    level: {"message": _text(level, wording), "validation": _VALIDATION}
-    for level, wording in _COPY.items()
+    level: {"message": _text(level, _COPY[level]), "validation": _VALIDATION}
+    for level in LEVELS
 }
