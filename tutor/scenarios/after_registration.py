@@ -6,8 +6,8 @@ for the assembled ``SCENARIO`` dict and
 
 Spec #16 C1-2 (ADR-0006): the level axis is a parameter. The three
 level texts live side by side in a level-keyed map and the assembly
-keys the entry under the base state name, the level a key, not a suffix,, so level copy cannot
-drift: the strings are byte-identical at every level except the level
+keys each entry under the base state name with the level as a key, not a
+suffix, so level copy cannot drift: the strings are byte-identical at every level except the level
 word embedded in the greeting, which :func:`_text` embeds from the
 axis value.
 """

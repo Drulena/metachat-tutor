@@ -6,8 +6,8 @@ for the assembled ``SCENARIO`` dict and
 
 Spec #16 C1-3 (ADR-0006): the level axis is a parameter. The three
 level texts live side by side in a level-keyed map and the assembly
-keys the entry under the base state name, the level a key, not a suffix,, so level copy cannot
-drift: the framing of the intro, the step heading and the *yes*
+keys each entry under the base state name with the level as a key, not a
+suffix, so level copy cannot drift: the framing of the intro, the step heading and the *yes*
 invitation, is shared; only the level body sits in the map.
 """
 

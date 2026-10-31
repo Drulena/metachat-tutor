@@ -6,8 +6,8 @@ for the assembled ``SCENARIO`` dict and
 
 Spec #16 C1-7 (ADR-0006): the level axis is a parameter. The three
 level texts live side by side in one level-keyed map and the assembly
-keys the entry under the base state name, the level a key, not a suffix,, so level copy cannot
-drift: the framing of the feedback — the reading instruction naming
+keys each entry under the base state name with the level as a key, not a
+suffix, so level copy cannot drift: the framing of the feedback — the reading instruction naming
 the level, the model-answer lead-in and the option map — is shared,
 and only the wording that differs between the levels sits in the map:
 the feedback line, the model answer (the advanced level has none) and
