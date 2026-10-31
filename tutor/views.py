@@ -2,7 +2,6 @@ import logging
 from dataclasses import asdict
 from datetime import datetime
 
-from django.conf import settings
 from django.http import HttpRequest, JsonResponse
 from django.shortcuts import redirect, render
 
@@ -57,7 +56,6 @@ def chat_view(request: HttpRequest):
             "turns": turns,
             "summary": summary,
             "is_end": summary.finished,
-            "debug": settings.DEBUG,
         },
     )
 
@@ -101,7 +99,7 @@ def main_menu_view(request: HttpRequest):
     return render(
         request,
         "tutor/main_menu.html",
-        {"summary": summary, "debug": settings.DEBUG},
+        {"summary": summary},
     )
 
 
