@@ -409,16 +409,20 @@ class ChatSidebarGateTests(TestCase):
         Reset is the documented escape from a wrong level pick (GLOSSARY
         "point of no return"), so a registered learner reaches the
         reset-confirm page from the chat page: the link pairs with the export
-        entry -- same block, same registration gate, ``.reset-btn`` styling --
+        entry — same block, same registration gate, ``.reset-btn`` styling —
         and targets the confirm view, never the wipe endpoint itself. (#26)
         """
         client = self.client
         _drive(client, ["Alice"])
-        html = client.get("/").content.decode()
-        self.assertIn('<a href="/reset/confirm/" class="reset-btn">', html)
-        self.assertNotIn('href="/reset/"', html)
+        page = html_module.unescape(client.get("/").content.decode())
+        self.assertIn("Reset Session", page)
+        self.assertIn('href="/reset/confirm/"', page)
+        self.assertIn('class="reset-btn"', page)
+        self.assertNotIn('href="/reset/"', page)  # the confirm page, not the wipe
         # "beside": the reset link follows the export entry it pairs with
-        self.assertLess(html.index("Export Chat History"), html.index("Reset Session"))
+        self.assertLess(page.index("Export Chat History"), page.index("Reset Session"))
+        # {# … #} is single-line: the block's header must not reach the learner
+        self.assertNotIn("Utility offers, paired", page, "the template comment leaked")
 
     def test_chat_hides_the_reset_link_before_registration(self):
         """The reset offer shares export's gate: registration, not ``debug``.
@@ -430,6 +434,7 @@ class ChatSidebarGateTests(TestCase):
         """
         html = self.client.get("/").content.decode()  # auto-start, unregistered
         self.assertNotIn("Reset Session", html)
+        self.assertNotIn("Export Chat History", html)
 
     def test_main_menu_shows_the_same_zero_state_panel_as_chat(self):
         # The pages cannot disagree (Q6 #15): the main menu gates its
