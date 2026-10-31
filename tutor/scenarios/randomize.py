@@ -11,7 +11,7 @@ import random
 
 from typing import Any
 
-from .common import ROLE_STATE_KEYS
+from .common import LEVELS, ROLE_STATE_KEYS
 from .tasks import TASK_VARIANTS
 
 def randomize_scenario(
@@ -63,8 +63,9 @@ def randomize_scenario(
     # --- 2. Analysis tasks (all levels) ---
     # The task states are keyed by base name (spec #16 C1-9); the entry
     # carries the level-keyed copy map, and this pass fills the
-    # placeholders in every level's copy under it.
-    for lvl in ("beginner", "intermediate", "advanced"):
+    # placeholders in every level's copy under it. The axis is the one
+    # scenario constant, :data:`LEVELS` (ticket #27).
+    for lvl in LEVELS:
         for task_num in (1, 2):
             base = f"analysis_task_{task_num}"
             variants = TASK_VARIANTS.get(f"analysis_task_{task_num}", {}).get(lvl, [])

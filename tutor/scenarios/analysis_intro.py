@@ -9,7 +9,12 @@ level texts live side by side in a level-keyed map and the assembly
 keys each entry under the base state name with the level as a key, not a
 suffix, so level copy cannot drift: the framing of the intro, the step heading and the *yes*
 invitation, is shared; only the level body sits in the map.
+Ticket #27: the axis is the one scenario constant — the ``LEVELS``
+keys of :mod:`tutor.scenarios.common` — and :data:`_BODIES` supplies
+the level body at each point of it.
 """
+
+from .common import LEVELS
 
 #: The shared framing of the intro copy: the heading, then the level
 #: body, then the call to action (spec #16 C1-3).
@@ -28,10 +33,12 @@ _BODIES: dict[str, str] = {
 #: The shared option map of the intro state (all levels).
 _OPTIONS = {"yes": "Yes, proceed", "back": "Back to menu"}
 
-#: The intro states, keyed by level (spec #16 C1-3). The assembly keys
+#: The intro states, keyed by level (spec #16 C1-3), the axis read
+#: from :data:`LEVELS` over the bodies map (ticket #27): a missing
+#: body is an import-time crash, not a silent gap. The assembly keys
 #: this map under the base state name (C1-9); the options are shared
 #: (``dict`` copies guard every mutation).
 STATE: dict[str, dict] = {
-    level: {"message": _HEAD + body + _TAIL, "options": _OPTIONS}
-    for level, body in _BODIES.items()
+    level: {"message": _HEAD + _BODIES[level] + _TAIL, "options": _OPTIONS}
+    for level in LEVELS
 }

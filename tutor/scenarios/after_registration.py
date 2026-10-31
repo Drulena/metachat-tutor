@@ -9,8 +9,12 @@ level texts live side by side in a level-keyed map and the assembly
 keys each entry under the base state name with the level as a key, not a
 suffix, so level copy cannot drift: the strings are byte-identical at every level except the level
 word embedded in the greeting, which :func:`_text` embeds from the
-axis value.
+axis value. Ticket #27: the axis is the one scenario constant — the
+``LEVELS`` keys of :mod:`tutor.scenarios.common` — not a spelled-out
+tuple.
 """
+
+from .common import LEVELS
 
 #: The shared option map of the registration state (all levels).
 _OPTIONS = {"1": "Step1️⃣: ANALYSIS", "2": "Step2️⃣: ROLE-PLAY"}
@@ -27,10 +31,11 @@ def _text(level_word: str) -> str:
     )
 
 
-#: The registration states, keyed by level (spec #16 C1-2). The
-#: assembly keys this map under the base state name (C1-9); the
-#: options are shared (``dict`` copies guard every mutation).
+#: The registration states, keyed by level (spec #16 C1-2), the axis
+#: read from :data:`LEVELS` (ticket #27). The assembly keys this map
+#: under the base state name (C1-9); the options are shared (``dict``
+#: copies guard every mutation).
 STATE: dict[str, dict] = {
     level: {"message": _text(level.capitalize()), "options": _OPTIONS}
-    for level in ("beginner", "intermediate", "advanced")
+    for level in LEVELS
 }
