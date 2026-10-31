@@ -12,62 +12,34 @@ Targets resolve through the row registry: `back` spells the intro base
 state, converted in the preceding ticket (spec #16 C1-3), and `next`
 spells the feedback base state, converted in the following ticket
 (spec #16 C1-5), so the seam resolves both with the session's level.
+Ticket #27: the row body is declared once and :func:`axis_rows` builds
+the level-keyed map; the fixture delta is the mode pick plus the task
+in progress.
 """
 
-from ._registry import LEVEL_KEYS, with_fixture_level
+from ._registry import axis_fixture, axis_rows
 
 #: The base state name; :func:`axis_pairs` generates the pair keys.
 BASE = "analysis_task_1"
 
-#: The one per-base fixture dict (ADR-0006 decision 6): the seam
-#: generates the axis by injecting ``user_data["level"]`` per level.
-_FIXTURE = {
-    "user_data": {
-        "user_name": "Test Learner",
-        "level": None,
-        "pretest_scores": [3, 4, 5],
-        "posttest_scores": None,
-        "current_role": None,
-        "current_role_variant": None,
-    },
-    "items": {
-        "pretest": "completed",
-        "level_assessment": "completed",
-        "analysis_task_1": "in_progress",
-        "analysis_task_2": "not_started",
-        "role_mediator": "not_started",
-        "role_logical": "not_started",
-        "role_idea_generator": "not_started",
-        "role_researcher": "not_started",
-        "role_interpreter": "not_started",
-        "role_advocate": "not_started",
-        "role_judge": "not_started",
-        "role_peacemaker": "not_started",
-        "role_empath": "not_started",
-        "reflection": "not_started",
-        "posttest": "not_started",
-        "mode_analysis": "completed",
-        "mode_roleplay": "not_started",
-    },
-}
+#: The one per-base fixture dict (ADR-0006 decision 6), as a delta on
+#: the shared analysis-arc shape (:func:`axis_fixture`, ticket #27):
+#: the mode is picked and task 1 is in progress — coherent answers
+#: land in this state.
+_FIXTURE = axis_fixture(mode_analysis="completed", analysis_task_1="in_progress")
 
-
-def _row(level: str) -> dict:
-    """Build the axis row for one level; level targets come from the seam."""
-    return {
-        "next": "analysis_feedback_1",
-        "back": "analysis_intro",
-        "nav": {},
-        "retryable": False,
-        "item": "analysis_task_1",
-        "phase": "analysis",
-        "accept": None,
-        "effects": [("set-item", "analysis_task_1", "completed")],
-        "rejected": None,
-        "fixture": with_fixture_level(_FIXTURE, level),
-    }
-
-
-#: The level-keyed row map: the assembly generates the pair keys with
-#: :func:`axis_pairs` — a state name never carries the level.
-ROWS: dict[str, dict] = {level: _row(level) for level in LEVEL_KEYS}
+#: The level-keyed row map, built by the shared builder (ticket #27):
+#: the row body carries no level, and the assembly generates the pair
+#: keys with :func:`axis_pairs` — a state name never carries the level.
+ROWS: dict[str, dict] = axis_rows(
+    _FIXTURE,
+    next="analysis_feedback_1",
+    back="analysis_intro",
+    nav={},
+    retryable=False,
+    item="analysis_task_1",
+    phase="analysis",
+    accept=None,
+    effects=[("set-item", "analysis_task_1", "completed")],
+    rejected=None,
+)
