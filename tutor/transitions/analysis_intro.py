@@ -15,7 +15,7 @@ the following ticket (spec #16 C1-4) — the seam resolves both with the
 session's level.
 """
 
-from ._registry import LEVEL_SUFFIXES, with_fixture_level
+from ._registry import LEVEL_KEYS, with_fixture_level
 
 #: The base state name; :func:`axis_pairs` generates the pair keys.
 BASE = "analysis_intro"
@@ -71,4 +71,4 @@ def _row(level: str) -> dict:
 
 #: The level-keyed row map: the assembly generates the pair keys with
 #: :func:`axis_pairs` — a state name never carries the level.
-ROWS: dict[str, dict] = {level: _row(level) for level in LEVEL_SUFFIXES}
+ROWS: dict[str, dict] = {level: _row(level) for level in LEVEL_KEYS}

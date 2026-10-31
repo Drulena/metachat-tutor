@@ -36,7 +36,7 @@ from typing import Any
 from ..data import LEVELS
 
 #: The level-axis values, in scenario order: the levels the axis keys carry.
-LEVEL_SUFFIXES: tuple[str, ...] = tuple(LEVELS)
+LEVEL_KEYS: tuple[str, ...] = tuple(LEVELS)
 
 #: One row of the transition table (schema: :mod:`._validate`).
 Row = dict[str, Any]
@@ -52,12 +52,12 @@ def axis_pairs(base: str, rows_by_level: Mapping[str, Row]) -> dict[tuple[str, s
     when the map is not keyed by exactly the axis levels: a partial
     axis is a bug, not a row set.
     """
-    if set(rows_by_level) != set(LEVEL_SUFFIXES):
+    if set(rows_by_level) != set(LEVEL_KEYS):
         raise ValueError(
-            f"axis map for {base!r} must cover exactly {LEVEL_SUFFIXES}, "
+            f"axis map for {base!r} must cover exactly {LEVEL_KEYS}, "
             f"got {tuple(sorted(rows_by_level))}"
         )
-    return {(base, level): rows_by_level[level] for level in LEVEL_SUFFIXES}
+    return {(base, level): rows_by_level[level] for level in LEVEL_KEYS}
 
 
 def with_fixture_level(fixture: Mapping[str, Any], level: str) -> Row:

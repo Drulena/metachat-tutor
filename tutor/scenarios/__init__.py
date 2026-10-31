@@ -7,6 +7,7 @@ substitutes random variant data into a deep copy of the scenario template.
 
 from __future__ import annotations
 
+import copy
 from typing import Any
 
 from . import (
@@ -76,15 +77,17 @@ SCENARIO: dict[str, Any] = {
         "level_assessment": level_assessment.STATE,
         # The level axes (spec #16 C1-2..C1-7, ADR-0006): keyed by base
         # state name (spec #16 C1-9) — the entry is the module's
-        # level-keyed copy map; the construction point flattens one
+        # level-keyed copy map (detached with deepcopy so the validator's
+        # axis_copy_violations can report drift against the module's
+        # source copy); the construction point flattens one
         # (base, level) entry into the learner-facing shape. The axis
         # is spelled once, as a name, in no comprehension.
-        "after_registration": after_registration.STATE,
-        "analysis_intro": analysis_intro.STATE,
-        "analysis_task_1": analysis_task_1.STATE,
-        "analysis_feedback_1": analysis_feedback_1.STATE,
-        "analysis_task_2": analysis_task_2.STATE,
-        "analysis_feedback_2": analysis_feedback_2.STATE,
+        "after_registration": copy.deepcopy(after_registration.STATE),
+        "analysis_intro": copy.deepcopy(analysis_intro.STATE),
+        "analysis_task_1": copy.deepcopy(analysis_task_1.STATE),
+        "analysis_feedback_1": copy.deepcopy(analysis_feedback_1.STATE),
+        "analysis_task_2": copy.deepcopy(analysis_task_2.STATE),
+        "analysis_feedback_2": copy.deepcopy(analysis_feedback_2.STATE),
         "roleplay_intro": roleplay_intro.STATE,
         "role_menu": role_menu.STATE,
         "role_mediator": role_mediator.STATE,

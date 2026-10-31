@@ -46,7 +46,7 @@ scenario modules (spec #16 C1-9 AC2: the copy survives the cutover).
 from collections.abc import Iterator
 
 from ..data import SCENARIO
-from ._registry import LEVEL_SUFFIXES
+from ._registry import LEVEL_KEYS
 
 #: The fields every row carries, in canonical order.
 ROW_FIELDS = (
@@ -97,14 +97,14 @@ AXIS_BASES = (
 )
 
 
-def _ends_with_level(name: str) -> tuple[str, str | None]:
+def _retired_spelling(name: str) -> tuple[str, str | None]:
     """Split a name spelling the level as a suffix (the retired shape).
 
     The cutover retires suffixed spellings; this only exists so the
     validator can report a target that (mis)spells one (spec #16 C1-9:
     a suffixed literal must never enter the graph).
     """
-    for suffix in LEVEL_SUFFIXES:
+    for suffix in LEVEL_KEYS:
         if name.endswith(f"_{suffix}"):
             return name[: -len(suffix) - 1], suffix
     return name, None
@@ -139,7 +139,7 @@ def _resolve_target(
     suffix is self-describing so the caller reports the pair with no
     row; anything else unresolvable keys to ``(base, None)``.
     """
-    base, embedded = _ends_with_level(target)
+    base, embedded = _retired_spelling(target)
     if embedded is not None:
         return [(base, embedded)]
     if (base, None) in pairs:
@@ -147,7 +147,7 @@ def _resolve_target(
     if base in axis_bases:
         if row_level is not None:
             return [(base, row_level)]
-        return [(base, level) for level in LEVEL_SUFFIXES]
+        return [(base, level) for level in LEVEL_KEYS]
     return [(base, None)]
 
 
@@ -169,7 +169,7 @@ def validate_transitions(
     valid item or user-data key, and effects aligned with the ``next``
     map. The graph checks (closure, reachability from
     ``("start", None)``, level coverage) run over the same pairs and
-    their violations — prefixed ``expanded:`` — join the same list.
+    their violations — prefixed ``graph:`` — join the same list.
     """
     from ..tutor_session import ITEM_KEYS  # deferred: avoids a circular import
 
@@ -190,9 +190,7 @@ def validate_transitions(
         violations.append(f"row for unknown state {base!r}")
 
     for pair in sorted(pairs, key=_pair_sort):
-        base, level = pair
-        if pair not in table:
-            continue
+        base = pair[0]
         if base not in non_terminal:
             continue
         row = table[pair]
@@ -288,7 +286,7 @@ def _graph_checks(
     """Closure, reachability and level coverage over the pair registry.
 
     Spec #16 C1-1 raised these checks over the expand; C1-9 folds them
-    into the single registry walk, keeping the ``expanded:`` message
+    into the single registry walk, keeping the ``graph:`` message
     prefix. Three checks run over the whole pair set:
 
     - graph closure: every next/back target resolves to a pair that
@@ -296,7 +294,7 @@ def _graph_checks(
     - reachability: every pair is reachable from ``("start", None)``
       along next/back edges;
     - level coverage: a base carrying any axis row must carry every
-      :data:`~tutor.transitions._registry.LEVEL_SUFFIXES` level, so a
+      :data:`~tutor.transitions._registry.LEVEL_KEYS` level, so a
       row module missing an axis level is rejected.
     """
     violations: list[str] = []
@@ -307,7 +305,7 @@ def _graph_checks(
             for node in _resolve_target(target, pair[1], pairs, axis_bases):
                 if node not in pairs and node != terminal:
                     violations.append(
-                        f"expanded: {pair!r}: target {target!r} resolves to "
+                        f"graph: {pair!r}: target {target!r} resolves to "
                         f"pair {node!r} with no row"
                     )
 
@@ -316,10 +314,10 @@ def _graph_checks(
         if level is not None:
             axis_levels.setdefault(base, set()).add(level)
     for base in sorted(axis_levels):
-        for level in LEVEL_SUFFIXES:
+        for level in LEVEL_KEYS:
             if level not in axis_levels[base]:
                 violations.append(
-                    f"expanded: row module {base!r} misses axis level {level!r}"
+                    f"graph: row module {base!r} misses axis level {level!r}"
                 )
 
     start = ("start", None)
@@ -335,33 +333,30 @@ def _graph_checks(
                         queue.append(pair)
         for pair in sorted(set(pairs) - seen, key=_pair_sort):
             violations.append(
-                f"expanded: pair {pair!r} is unreachable from {start!r}"
+                f"graph: pair {pair!r} is unreachable from {start!r}"
             )
 
     return violations
 
 
-def axis_copy_violations(
-    states: dict[str, dict] | None = None,
-    axis_entries: dict[str, object] | None = None,
-) -> list[str]:
+def axis_copy_violations() -> list[str]:
     """Check the scenario's axis copy against the scenario modules (C1-9).
 
     The scenario keys its states by base name; an axis entry is the
     scenario module's level-keyed copy map spelled under the base
-    name, and the construction point flattens one ``(base, level)``
-    entry into the learner-facing shape. This check pins that every
-    axis entry carries every level's copy — byte-identical to the
-    module (spec #16 C1-9 AC2: the copy survives the cutover) — and
-    that single-form entries stay flat. Violations are prefixed
-    ``scenario:``; an empty list means the copy is carried exactly.
+    name (assembled with ``deepcopy`` so this check is not vacuous —
+    the entry and the module's copy are distinct objects), and the
+    construction point flattens one ``(base, level)`` entry into the
+    learner-facing shape. This check pins that every axis entry
+    carries every level's copy — byte-identical to the module
+    (spec #16 C1-9 AC2: the copy survives the cutover). Violations
+    are prefixed ``scenario:``; an empty list means the copy is
+    carried exactly.
     """
     from .. import scenarios as scenario_modules  # deferred: import cycle
 
-    if states is None:
-        states = SCENARIO["states"]
-    if axis_entries is None:
-        axis_entries = {base: getattr(scenario_modules, base) for base in AXIS_BASES}
+    states = SCENARIO["states"]
+    axis_entries = {base: getattr(scenario_modules, base) for base in AXIS_BASES}
 
     violations: list[str] = []
     for base in sorted(axis_entries):
@@ -375,7 +370,7 @@ def axis_copy_violations(
                 f"scenario: axis base {base!r} carries a flattened single-form entry"
             )
             continue
-        for level in LEVEL_SUFFIXES:
+        for level in LEVEL_KEYS:
             want = getattr(state_module, "STATE").get(level)
             got = entry.get(level)
             if want is None:

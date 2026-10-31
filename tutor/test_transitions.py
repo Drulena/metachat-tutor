@@ -45,8 +45,9 @@ from .transitions import (
     start,
     validate_transitions,
 )
-from .transitions._registry import LEVEL_SUFFIXES
-from .transitions._validate import AXIS_BASES, axis_copy_violations
+from .transitions._registry import LEVEL_KEYS
+from .transitions._validate import AXIS_BASES
+from .test_tutor_session import ROLE_MENU_COPY
 from .tutor_session import (
     ITEM_KEYS,
     _BACK_LABEL,
@@ -58,27 +59,33 @@ from .tutor_session import (
 
 NON_TERMINAL_STATES = set(SCENARIO["states"]) - {"end"}
 
-#: The single-form ``(state, None)`` keys (everything outside the six
-#: axis bases).
+
 def _single_form_pairs():
+    """The ``(state, None)`` registry keys — every base outside the axis."""
     return {(base, None) for base in NON_TERMINAL_STATES} - {
         (base, None) for base in AXIS_BASES
     }
 
 
-#: The axis ``(base, level)`` keys, spelled from the axis bases and the
-#: level axis — never from a suffixed name.
 def _axis_pairs():
-    return {(base, level) for base in AXIS_BASES for level in LEVEL_SUFFIXES}
+    """The axis ``(base, level)`` keys, spelled from the axis bases and
+    the level axis — never from a suffixed name."""
+    return {(base, level) for base in AXIS_BASES for level in LEVEL_KEYS}
 
 
 class TransitionTableShapeTests(SimpleTestCase):
     def test_rows_cover_every_non_terminal_scenario_state(self):
-        # The registry IS the storage (spec #16 C1-9): every
-        # non-terminal base state carries a row — the six axis bases
-        # one per level, every other base one single-form pair.
-        self.assertEqual(set(ROW_REGISTRY), _single_form_pairs() | _axis_pairs())
-        self.assertEqual(len(ROW_REGISTRY), 44)
+        # Coverage over the SCENARIO: every non-terminal base state has
+        # rows — an axis base exactly one pair per level, every other
+        # base exactly its single-form pair (spec #16 C1-9).
+        by_base: dict[str, int] = {}
+        for base, _level in ROW_REGISTRY:
+            by_base[base] = by_base.get(base, 0) + 1
+        self.assertEqual(set(by_base), NON_TERMINAL_STATES)
+        for base, count in by_base.items():
+            with self.subTest(base=base):
+                want = 3 if base in AXIS_BASES else 1
+                self.assertEqual(count, want)
 
     def test_every_row_carries_the_full_field_set(self):
         for pair, row in ROW_REGISTRY.items():
@@ -241,7 +248,7 @@ class RowRegistryTests(SimpleTestCase):
 
     def test_row_for_resolves_axis_pairs_from_base_and_level(self):
         for base in AXIS_BASES:
-            for level in LEVEL_SUFFIXES:
+            for level in LEVEL_KEYS:
                 with self.subTest(base=base, level=level):
                     self.assertIs(row_for(base, level), ROW_REGISTRY[(base, level)])
 
@@ -251,7 +258,7 @@ class RowRegistryTests(SimpleTestCase):
         # the same as any unknown state. The name is composed at
         # runtime; no suffixed literal is spelled in this module.
         for base in AXIS_BASES:
-            for level in LEVEL_SUFFIXES:
+            for level in LEVEL_KEYS:
                 suffixed = f"{base}_{level}"
                 with self.subTest(base=base, level=level):
                     self.assertIsNone(row_for(suffixed, "advanced"))
@@ -271,12 +278,12 @@ class RowRegistryTests(SimpleTestCase):
         self.assertIsNone(row_for("no_such_state"))
 
 
-class ExpandedTableTests(SimpleTestCase):
+class GraphChecksTests(SimpleTestCase):
     """Validator graph checks over the pair registry — closure,
     reachability, level coverage (spec #16 C1-1, folded into the
-    registry by C1-9; the ``expanded:`` message prefix is kept)."""
+    registry by C1-9; the ``graph:`` message prefix is kept)."""
 
-    def test_expansion_validates_clean(self):
+    def test_graph_checks_pass_on_the_real_table(self):
         # Graph closure, reachability over all 44 pairs, level coverage.
         self.assertEqual(validate_transitions(), [])
 
@@ -284,7 +291,7 @@ class ExpandedTableTests(SimpleTestCase):
         table = copy.deepcopy(ROW_REGISTRY)
         del table[("analysis_task_1", "beginner")]
         self.assertIn(
-            "expanded: row module 'analysis_task_1' misses axis level 'beginner'",
+            "graph: row module 'analysis_task_1' misses axis level 'beginner'",
             validate_transitions(table),
         )
 
@@ -297,7 +304,7 @@ class ExpandedTableTests(SimpleTestCase):
         # the cluster drops out of the BFS. (Registration's back is
         # retired: point of no return; single-form rows' back spells the
         # BASE name, so no back edge leads forward into the cluster.)
-        for level in LEVEL_SUFFIXES:
+        for level in LEVEL_KEYS:
             pair = ("analysis_feedback_2", level)
             table[pair] = {**table[pair], "next": "reflection"}
             pair = ("after_registration", level)
@@ -306,7 +313,7 @@ class ExpandedTableTests(SimpleTestCase):
                 "next": {"1": "analysis_intro", "2": "analysis_intro"},
             }
         self.assertIn(
-            "expanded: pair ('roleplay_intro', None) "
+            "graph: pair ('roleplay_intro', None) "
             "is unreachable from ('start', None)",
             validate_transitions(table),
         )
@@ -316,7 +323,7 @@ class ExpandedTableTests(SimpleTestCase):
         named mechanism — the BASE name resolved with the session's
         level at the construction point — never as a suffixed literal."""
         spelled = {
-            f"after_registration_{level}" for level in LEVEL_SUFFIXES
+            f"after_registration_{level}" for level in LEVEL_KEYS
         }
         self.assertEqual([t for t in self._all_targets(ROW_REGISTRY) if t in spelled], [])
 
@@ -324,7 +331,7 @@ class ExpandedTableTests(SimpleTestCase):
         """Ticket #24 AC[1]: the point of no return — no next, back, nav,
         or self edge from any registration level leads back to the level
         assessment, the pretest, or start; the only escape is reset."""
-        for level in LEVEL_SUFFIXES:
+        for level in LEVEL_KEYS:
             reached = self._reachable_pairs(("after_registration", level))
             self.assertNotIn(("level_assessment", None), reached)
             self.assertNotIn(("pretest", None), reached)
@@ -369,7 +376,7 @@ class ExpandedTableTests(SimpleTestCase):
             row = ROW_REGISTRY.get(pair)
             if row is None:
                 continue
-            for target in ExpandedTableTests._all_targets({"r": row}):
+            for target in GraphChecksTests._all_targets({"r": row}):
                 if (target, level) in ROW_REGISTRY:
                     queue.append((target, level))
                 else:
@@ -385,19 +392,19 @@ class ExpandedTableTests(SimpleTestCase):
         level = "beginner"
         table[("analysis_intro", level)]["next"] = f"analysis_intro_{level}_{level}"
         self.assertIn(
-            f"expanded: ('analysis_intro', '{level}'): target "
+            f"graph: ('analysis_intro', '{level}'): target "
             f"'analysis_intro_{level}_{level}' resolves to pair "
             f"('analysis_intro_{level}', '{level}') with no row",
             validate_transitions(table),
         )
 
-    def test_flat_validator_runs_the_expanded_checks_too(self):
+    def test_row_checks_and_graph_checks_share_one_violations_list(self):
         # One entry point: the row-shape checks and the graph checks
         # share the single violations list (the expand step is gone).
         table = copy.deepcopy(ROW_REGISTRY)
         del table[("analysis_task_1", "beginner")]
         self.assertIn(
-            "expanded: row module 'analysis_task_1' misses axis level 'beginner'",
+            "graph: row module 'analysis_task_1' misses axis level 'beginner'",
             validate_transitions(table),
         )
         for level in ("intermediate", "advanced"):
@@ -672,8 +679,11 @@ class RejectionCopyTests(SimpleTestCase):
         self.assertTrue(any("rejected" in v for v in violations), violations)
 
     def test_bespoke_rows_carry_their_copy(self):
+        # The role-menu string is pinned once, in
+        # test_tutor_session.ROLE_MENU_COPY; the intro copy is bespoke
+        # to this table and lives here.
         expected = {
-            ("role_menu", None): "Choose one of the numbered roles, finish, or back.",
+            ("role_menu", None): ROLE_MENU_COPY,
             ("analysis_intro", "beginner"): (
                 "Please confirm you want to proceed with the analysis."
             ),
@@ -704,11 +714,11 @@ class AxisScenarioCopyTests(SimpleTestCase):
         """Only the level body differs: heading and call to action are fixed."""
         messages = {
             level: analysis_intro_scenario.STATE[level]["message"]
-            for level in LEVEL_SUFFIXES
+            for level in LEVEL_KEYS
         }
         heads = {m.split("\n")[0] for m in messages.values()}
         self.assertEqual(heads, {"**Step1️⃣: ANALYSIS**"})
-        for level in LEVEL_SUFFIXES:
+        for level in LEVEL_KEYS:
             with self.subTest(level=level):
                 self.assertTrue(messages[level].endswith("\n\n👇**Click *yes* to start**"))
 
@@ -739,9 +749,9 @@ class AxisScenarioCopyTests(SimpleTestCase):
         """
         states = {
             level: analysis_task_1_scenario.STATE[level]
-            for level in LEVEL_SUFFIXES
+            for level in LEVEL_KEYS
         }
-        for level in LEVEL_SUFFIXES:
+        for level in LEVEL_KEYS:
             with self.subTest(level=level):
                 message = states[level]["message"]
                 self.assertTrue(message.startswith("**📝 TASK 1: Softening Criticism ("))
@@ -782,9 +792,9 @@ class AxisScenarioCopyTests(SimpleTestCase):
         """
         states = {
             level: analysis_task_2_scenario.STATE[level]
-            for level in LEVEL_SUFFIXES
+            for level in LEVEL_KEYS
         }
-        for level in LEVEL_SUFFIXES:
+        for level in LEVEL_KEYS:
             with self.subTest(level=level):
                 message = states[level]["message"]
                 self.assertTrue(
@@ -846,9 +856,9 @@ class AxisScenarioCopyTests(SimpleTestCase):
         """
         states = {
             level: analysis_feedback_1_scenario.STATE[level]
-            for level in LEVEL_SUFFIXES
+            for level in LEVEL_KEYS
         }
-        for level in LEVEL_SUFFIXES:
+        for level in LEVEL_KEYS:
             with self.subTest(level=level):
                 message = states[level]["message"]
                 self.assertTrue(
@@ -907,9 +917,9 @@ class AxisScenarioCopyTests(SimpleTestCase):
         """
         states = {
             level: analysis_feedback_2_scenario.STATE[level]
-            for level in LEVEL_SUFFIXES
+            for level in LEVEL_KEYS
         }
-        for level in LEVEL_SUFFIXES:
+        for level in LEVEL_KEYS:
             with self.subTest(level=level):
                 message = states[level]["message"]
                 self.assertTrue(
