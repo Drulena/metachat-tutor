@@ -130,6 +130,97 @@
     });
   });
 
+  // Session ID info button (issue #32): the id reaches the page only as this
+  // button's data attribute, never as page text. Hover and keyboard focus
+  // reveal it in the tooltip; a click copies it and the tooltip confirms.
+  // The menu fragment renders twice (sidebar, mobile menu), so this covers
+  // both controls.
+  function selectAndCopy(value) {
+    // navigator.clipboard needs a secure context; on plain http a selection
+    // is what copies at all. The field is off-screen, not display:none —
+    // a hidden field cannot be selected.
+    var field = document.createElement('textarea');
+    field.value = value;
+    field.setAttribute('readonly', '');
+    field.style.position = 'fixed';
+    field.style.top = '-2em';
+    field.style.opacity = '0';
+    document.body.appendChild(field);
+    field.select();
+    var copied = false;
+    try {
+      copied = document.execCommand('copy');
+    } catch (err) {
+      copied = false;
+    }
+    document.body.removeChild(field);
+    return copied;
+  }
+
+  function copySessionId(value) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(value).then(function() {
+        return true;
+      }, function() {
+        return selectAndCopy(value);
+      });
+    }
+    return Promise.resolve(selectAndCopy(value));
+  }
+
+  document.querySelectorAll('.session-id-btn').forEach(function(btn, index) {
+    var tooltip = btn.nextElementSibling;
+    if (!tooltip) return;
+    // One fragment, two renderings: a fixed id would collide, so the
+    // index is the only disambiguator the page needs.
+    tooltip.id = 'session-id-tooltip-' + index;
+    btn.setAttribute('aria-describedby', tooltip.id);
+    var confirmTimer = null;
+
+    function reveal(text) {
+      tooltip.textContent = text;
+      tooltip.classList.add('revealed');
+    }
+
+    function conceal() {
+      tooltip.classList.remove('revealed');
+      tooltip.textContent = '';
+    }
+
+    function confirm(copied) {
+      // The confirmation is the only moment the tooltip speaks to a reader:
+      // while it just mirrors what a sighted visitor hovers over, aria-hidden
+      // keeps it out of the way.
+      reveal(copied ? 'Session ID copied' : 'Copy blocked by the browser');
+      btn.classList.add('copied');
+      tooltip.setAttribute('aria-hidden', 'false');
+      tooltip.setAttribute('role', 'status');
+      if (confirmTimer) clearTimeout(confirmTimer);
+      confirmTimer = setTimeout(function() {
+        btn.classList.remove('copied');
+        tooltip.setAttribute('aria-hidden', 'true');
+        tooltip.setAttribute('role', 'tooltip');
+        if (document.activeElement !== btn) conceal();
+      }, 1600);
+    }
+
+    btn.addEventListener('mouseenter', function() {
+      reveal(btn.getAttribute('data-session-id'));
+    });
+    btn.addEventListener('mouseleave', function() {
+      if (!btn.classList.contains('copied')) conceal();
+    });
+    btn.addEventListener('focus', function() {
+      reveal(btn.getAttribute('data-session-id'));
+    });
+    btn.addEventListener('blur', function() {
+      if (!btn.classList.contains('copied')) conceal();
+    });
+    btn.addEventListener('click', function() {
+      copySessionId(btn.getAttribute('data-session-id')).then(confirm);
+    });
+  });
+
   // Burger menu toggle
   var burgerBtn = document.getElementById('burger-btn');
   var mobileMenu = document.getElementById('mobile-menu');

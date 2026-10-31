@@ -87,6 +87,79 @@ html, body {
   border-top: 1px solid var(--md-outline-variant);
 }
 
+/* The Participant row and its Session ID control (#32): the id is not printed
+   on the menu — the info button reveals it on hover/focus and copies it on
+   click, so a shared screen never shows it. The row is the tooltip's anchor
+   (the control's own box is icon-sized), so the id gets the sidebar's width
+   and a 32-character hex wraps inside it. */
+.participant-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.session-id-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-shape-full);
+  background: var(--md-surface-container);
+  color: var(--md-on-surface-variant);
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.session-id-btn:hover {
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+
+.session-id-btn:focus-visible {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 2px;
+}
+
+/* Copied is a state mark: a muted tonal confirmation, never a shape change. */
+.session-id-btn.copied {
+  background: var(--md-success-container);
+  color: var(--md-on-success-container);
+  border-color: transparent;
+}
+
+.session-id-tooltip {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-shape-sm);
+  background: var(--md-surface-container-highest);
+  color: var(--md-on-surface);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  word-break: break-all;
+  box-shadow: var(--md-elevation-1);
+  pointer-events: none;
+}
+
+.session-id-tooltip.revealed {
+  display: block;
+}
+
 /* The sidebar's paired utility pills (#26): one shared shape and type, role
    colour per entry — export is the primary pill, reset the destructive one. */
 .export-btn,

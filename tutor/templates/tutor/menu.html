@@ -6,9 +6,15 @@
 
 <div class="menu-section">
   <h2>📊 Session Info</h2>
-  <p><strong>Session ID:</strong> {{ summary.session_id }}</p>
+  {# The Session ID is not printed: an info button on the Participant row #}
+  {# reveals it on hover/focus and copies it on click, so a shared screen #}
+  {# never shows it, and the page text never carries it (issue #32). #}
   {% if summary.user_name %}
-    <p><strong>Participant:</strong> {{ summary.user_name }}</p>
+    <p class="participant-row">
+      <strong>Participant:</strong> {{ summary.user_name }}
+      <button type="button" class="session-id-btn" aria-label="Session ID — hover to reveal, click to copy" data-session-id="{{ summary.session_id }}">ⓘ</button>
+      <span class="session-id-tooltip" role="tooltip" aria-hidden="true"></span>
+    </p>
   {% endif %}
   {% if summary.level %}
     <p><strong>Level:</strong> {{ summary.level|title }}</p>

@@ -10,6 +10,7 @@ public HTTP boundary. The module itself is tested in ``test_tutor_session.py``.
 """
 
 import html as html_module
+import re
 from dataclasses import asdict
 from unittest import mock
 
@@ -49,6 +50,19 @@ def _task_cell(html: str, label: str) -> str:
     begin = html.rindex('<li class="task-item">', 0, start)
     end = html.index("</li>", start)
     return html[begin:end]
+
+
+def _visible_text(html: str) -> str:
+    """The page's rendered text: script and style blocks and every tag removed.
+
+    The Session ID control (issue #32) keeps the id in an attribute, so an
+    assertion on the raw body passes while the id is still on screen. What the
+    learner reads is the text, and that is the surface the ticket's "not shown
+    by default" question is about.
+    """
+    stripped = re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", html)
+    stripped = re.sub(r"(?s)<[^>]*>", " ", stripped)
+    return html_module.unescape(stripped)
 
 
 def _fake_feedback(*args, **kwargs):
@@ -534,3 +548,96 @@ class FaviconTests(TestCase):
             html = self.client.get(path).content.decode()
             self.assertIn('rel="icon"', html, path)
             self.assertIn("/static/tutor/favicon.svg", html, path)
+
+class SessionIdInfoControlTests(TestCase):
+    """Issue #32: the menu keeps the Session ID off the page, beside an info
+    button on the Participant row.
+
+    The report: the id printed as a plain line above Participant is noise the
+    learner never needs and a string anyone looking at their screen reads. The
+    fragment now offers an info control on the Participant row - the id reveals
+    on hover/focus and lands on the clipboard on click. It reaches the page as
+    the control's data attribute only, so no page text carries it.
+
+    The fragment is included twice on the chat page (sidebar and mobile menu),
+    so every assertion here is a claim about both instances.
+    """
+
+    def _registered_chat(self, client):
+        """Drive a registered session and return (page html, the session id)."""
+        _drive(client, ["Alice"])
+        sid = client.get("/export/").json()["session_id"]
+        self.assertTrue(sid, "the module's id is what the control carries")
+        return client.get("/").content.decode(), sid
+
+    def _participant_row(self, html):
+        """The Participant row's markup, control included."""
+        start = html.index('<p class="participant-row">')
+        return html[start:html.index("</p>", start)]
+
+    def test_the_plain_session_id_line_left_the_menu(self):
+        client = self.client
+        html, sid = self._registered_chat(client)
+        self.assertNotIn(sid, _visible_text(html), "the id must not be on screen by default")
+        self.assertNotIn("Session ID", _visible_text(html), "no label line left above Participant")
+        self.assertIn("Participant:", _visible_text(html), "the Participant row itself stays")
+        self.assertIn("Alice", _visible_text(html))
+
+    def test_the_id_reaches_the_page_only_as_the_controls_data(self):
+        client = self.client
+        html, sid = self._registered_chat(client)
+        self.assertEqual(
+            html.count(f'data-session-id="{sid}"'), 2,
+            "the id rides the control of each menu instance, and nothing else",
+        )
+        self.assertNotIn("<strong>Session ID:</strong>", html)
+        # The reveal is JS-fed: an empty tooltip is the page's default text.
+        self.assertIn('<span class="session-id-tooltip" role="tooltip"', html)
+        self.assertNotIn(f">{sid}<", html, "no element's text carries the id")
+
+    def test_the_control_sits_on_the_participant_row(self):
+        client = self.client
+        html, _ = self._registered_chat(client)
+        row = self._participant_row(html)
+        self.assertIn("Participant:", row)
+        self.assertIn("Alice", row)
+        self.assertIn('class="session-id-btn"', row, "the control belongs to this row")
+
+    def test_the_control_is_a_real_button_with_an_accessible_name(self):
+        client = self.client
+        html, _ = self._registered_chat(client)
+        row = self._participant_row(html)
+        self.assertIn('<button type="button" class="session-id-btn"', row)
+        self.assertIn('aria-label="Session ID', row, "the control names itself to a reader")
+
+    def test_the_control_is_gated_on_the_participant_row(self):
+        """No Participant row, no control: an unregistered session has the
+        summary's empty name, and the row it hangs on is absent."""
+        html = self.client.get("/").content.decode()  # auto-started, unregistered
+        self.assertNotIn("Participant:", _visible_text(html))
+        # Asserted as rendered markup: the page's script block names both the
+        # row's class and the control's, and it ships on an unregistered page.
+        self.assertNotIn('<p class="participant-row">', html)
+        self.assertNotIn('<button type="button" class="session-id-btn"', html)
+
+    def test_both_menu_instances_carry_the_control(self):
+        """The sidebar and the mobile menu include one fragment: the control
+        behaves the same in both, so both must render it."""
+        client = self.client
+        html, _ = self._registered_chat(client)
+        sidebar = html[html.index('<aside class="sidebar">'):html.index("</aside>")]
+        mobile = html[html.index('<div id="mobile-menu"'):html.index("<script>")]
+        self.assertIn('class="session-id-btn"', sidebar, "the desktop sidebar lost the control")
+        self.assertIn('class="session-id-btn"', mobile, "the mobile menu lost the control")
+
+    def test_the_reveal_and_copy_handlers_ship_with_the_page(self):
+        """chat.html's script block is the app's only JS home; the control's
+        reveal and clipboard behaviour is declared there, on the same page the
+        fragment renders on."""
+        client = self.client
+        html, _ = self._registered_chat(client)
+        script = html[html.index("<script>"):html.index("</script>")]
+        self.assertIn(".session-id-btn", script, "the control has no handler")
+        self.assertIn("data-session-id", script, "the handler never reads the id")
+        self.assertIn("navigator.clipboard", script, "nothing writes the clipboard")
+
