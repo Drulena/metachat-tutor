@@ -408,7 +408,8 @@ class ChatSubmissionTests(TestCase):
 
     The chat view answered a POST with a rendered page, so the entry in the
     browser's history was the POST itself: reload re-submitted it, the module
-    ran ``submit()`` a second time and appended the exchange again. The view
+    ran ``submit()`` a second time and appended the learner turn and its
+    tutor reply again. The view
     now answers a submission with a redirect to the chat page
     (POST-Redirect-GET, the shape the reset flow already used — all state
     lives server-side in the ``TutorSession``), so the page a reload
@@ -425,6 +426,16 @@ class ChatSubmissionTests(TestCase):
         resp = client.post("/", {"user_input": "1"})  # a role menu choice lands
         self.assertEqual(resp.status_code, 302, "a submission must not render the page")
         self.assertEqual(resp["Location"], "/")
+        # Nothing to re-issue: the history entry is a header, not a form page.
+        self.assertEqual(resp.content, b"")
+
+    def test_cached_restore_clears_the_loading_overlay(self):
+        """A submission redirects, so Back/Forward restores the chat page from
+        the bfcache: a snapshot taken mid-submission, loading overlay included.
+        The page the browser restores ships the handler that clears it."""
+        html = self.client.get("/").content.decode()
+        self.assertIn("pageshow", html)
+        self.assertIn("persisted", html)
 
     def test_blank_submit_redirects_and_appends_nothing(self):
         client = self.client

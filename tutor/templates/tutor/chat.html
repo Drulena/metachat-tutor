@@ -105,6 +105,18 @@
     });
   }
 
+
+  // A submission ends on a redirected GET, so Back/Forward restores this page
+  // from the bfcache - as a snapshot taken mid-submission, overlay included,
+  // and that restored 'active' overlay would cover the input for good. Clear
+  // it whenever the page comes back out of the cache.
+  window.addEventListener('pageshow', function(event) {
+    if (event.persisted) {
+      var overlay = document.getElementById('loading-overlay');
+      if (overlay) overlay.classList.remove('active');
+    }
+  });
+
   // Inline option buttons — fill input and submit form
   document.querySelectorAll('.option-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
