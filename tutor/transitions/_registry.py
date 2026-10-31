@@ -81,8 +81,10 @@ def with_fixture_level(fixture: Mapping[str, Any], level: str) -> Row:
 #: The shared shape of the axis fixtures (ticket #27), spelled once:
 #: a learner at the start of the analysis arc — the assessment pair
 #: done, every task, role and mode item ``not_started``, the probe
-#: scores fixed. :func:`axis_fixture` expresses each axis base as a
-#: delta on this shape.
+#: scores fixed. This is the registration shape: registration sits
+#: before the arc, so its fixture is the empty delta (:func:`axis_fixture`
+#: with no statuses); every arc base spells its progress as the delta.
+#: :func:`axis_fixture` expresses each axis base against this shape.
 _AXIS_FIXTURE_BASE: Row = {
     "user_data": {
         "user_name": "Test Learner",

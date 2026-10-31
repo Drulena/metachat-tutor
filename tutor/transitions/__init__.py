@@ -96,7 +96,8 @@ __all__ = [
 #: the level axis generated from the six axis modules' level-keyed
 #: maps, plus 26 single-form ``(state, None)`` entries. Suffixed
 #: state-name keys are retired: the level is a value in the pair,
-#: never a suffix inside a name.
+#: never a suffix inside a name. Effects align with the ``next`` map
+#: (checked by :mod:`tutor.transitions._validate`).
 ROW_REGISTRY: dict[tuple[str, str | None], dict] = {
     (start.BASE, None): start.ROW,
     (pretest.BASE, None): pretest.ROW,
