@@ -114,7 +114,7 @@ html, body {
   font-size: 0.75rem;
   line-height: 1;
   cursor: pointer;
-  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 .session-id-btn:hover {

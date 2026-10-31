@@ -187,7 +187,7 @@
       tooltip.textContent = '';
     }
 
-    function confirm(copied) {
+    function confirmCopy(copied) {
       // The confirmation is the only moment the tooltip speaks to a reader:
       // while it just mirrors what a sighted visitor hovers over, aria-hidden
       // keeps it out of the way.
@@ -200,6 +200,9 @@
         btn.classList.remove('copied');
         tooltip.setAttribute('aria-hidden', 'true');
         tooltip.setAttribute('role', 'tooltip');
+        // A tap leaves the control focused (touch has no hover to leave) and
+        // the confirmation carries no id, so it stays up until the learner
+        // moves focus; only then is there nothing left to show.
         if (document.activeElement !== btn) conceal();
       }, 1600);
     }
@@ -217,7 +220,7 @@
       if (!btn.classList.contains('copied')) conceal();
     });
     btn.addEventListener('click', function() {
-      copySessionId(btn.getAttribute('data-session-id')).then(confirm);
+      copySessionId(btn.getAttribute('data-session-id')).then(confirmCopy);
     });
   });
 
