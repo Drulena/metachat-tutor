@@ -115,6 +115,7 @@ html, body {
   border-radius: var(--md-shape-full);
   font-size: 0.85rem;
   font-weight: 500;
+  margin-top: 8px; /* pairs with .export-btn, the entry it sits beside */
 }
 
 .reset-btn:hover {

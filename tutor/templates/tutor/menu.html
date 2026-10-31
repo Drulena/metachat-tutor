@@ -2,7 +2,7 @@
 {% load chat_tags %}
 
 {# Reusable menu fragment showing task list with status badges #}
-{# Required context: summary (from TutorSession.progress()), debug #}
+{# Required context: summary (from TutorSession.progress()) #}
 
 <div class="menu-section">
   <h2>📊 Session Info</h2>
@@ -31,11 +31,11 @@
 
   <hr>
 
+  {# Utility offers, paired (#26): export and reset share this block and the #}
+  {# registration gate. Reset routes to the confirm page, which shows the #}
+  {# learner what a reset would wipe; it is the escape from a wrong level pick. #}
   {% if summary.user_name %}
     <a href="{% url 'export' %}" class="export-btn" target="_blank">📥 Export Chat History</a>
-  {% endif %}
-  {% if debug %}
-    <hr>
     <a href="{% url 'reset_confirm' %}" class="reset-btn">🔄 Reset Session</a>
   {% endif %}
 </div>

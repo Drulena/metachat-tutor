@@ -403,6 +403,34 @@ class ChatSidebarGateTests(TestCase):
         _drive(client, ["Alice"])
         self.assertIn("Export Chat History", client.get("/").content.decode())
 
+    def test_registered_chat_offers_reset_beside_export(self):
+        """The chat side panel offers reset, beside export, to the confirm page.
+
+        Reset is the documented escape from a wrong level pick (GLOSSARY
+        "point of no return"), so a registered learner reaches the
+        reset-confirm page from the chat page: the link pairs with the export
+        entry -- same block, same registration gate, ``.reset-btn`` styling --
+        and targets the confirm view, never the wipe endpoint itself. (#26)
+        """
+        client = self.client
+        _drive(client, ["Alice"])
+        html = client.get("/").content.decode()
+        self.assertIn('<a href="/reset/confirm/" class="reset-btn">', html)
+        self.assertNotIn('href="/reset/"', html)
+        # "beside": the reset link follows the export entry it pairs with
+        self.assertLess(html.index("Export Chat History"), html.index("Reset Session"))
+
+    def test_chat_hides_the_reset_link_before_registration(self):
+        """The reset offer shares export's gate: registration, not ``debug``.
+
+        An auto-started, unregistered session has nothing to wipe, so the
+        pair is absent together; both land once the Summary carries a
+        participant name. The gate is the Summary, never Django's debug flag.
+        (#26)
+        """
+        html = self.client.get("/").content.decode()  # auto-start, unregistered
+        self.assertNotIn("Reset Session", html)
+
     def test_main_menu_shows_the_same_zero_state_panel_as_chat(self):
         # The pages cannot disagree (Q6 #15): the main menu gates its
         # progress block on started like the chat sidebar — an
