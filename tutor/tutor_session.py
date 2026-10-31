@@ -73,6 +73,14 @@ _ROLEPLAY_MARKERS = ("\n\n▶️",)
 
 _BACK_LABEL = "⬅️ Back"
 
+# Spec #16 C1-5: an analysis-feedback turn asks the LLM with the task
+# question of its sibling task — named by base, resolved at the
+# construction point with this session's level (spec #16 C1-9).
+_TASK_SIBLING_BY_FEEDBACK: dict[str, str] = {
+    "analysis_feedback_1": "analysis_task_1",
+    "analysis_feedback_2": "analysis_task_2",
+}
+
 def _row_has_back(row: dict) -> bool:
     """Returns whether the row declares a journey back.
 
@@ -456,12 +464,9 @@ class TutorSession:
         # every row lands a base state name (spec #16 C1-9), so the
         # sibling task is named by base and _scenario_entry picks this
         # session's level out of the axis map (spec #16 C1-5).
-        if current == "analysis_feedback_1":
-            entry = self._scenario_entry(state, "analysis_task_1")
-            if entry is not None:
-                task_context = entry["message"]
-        elif current == "analysis_feedback_2":
-            entry = self._scenario_entry(state, "analysis_task_2")
+        sibling = _TASK_SIBLING_BY_FEEDBACK.get(current)
+        if sibling is not None:
+            entry = self._scenario_entry(state, sibling)
             if entry is not None:
                 task_context = entry["message"]
         elif "roleplay_feedback" in current:
