@@ -854,6 +854,9 @@ class TutorSessionTests(SimpleTestCase):
                 self.drive(session, *path)
                 self.assertEqual(self.state_of(storage).current_state, state)
                 current = session.turns()[-1]
+                # The turn string carries the base name (spec #16 C1-9 AC2):
+                # axis states landed suffixed before the cutover.
+                self.assertEqual(current.state, state)
                 self.assertEqual(current.role, "assistant")
                 self.assertEqual(
                     {opt.value: opt.label for opt in current.options},
