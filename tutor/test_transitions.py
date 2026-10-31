@@ -22,7 +22,7 @@ import re
 
 from django.test import SimpleTestCase
 
-from .data import ROLE_BY_VALUE, ROLE_LABELS, ROLE_STEP_KEYS, SCENARIO
+from .data import ROLE_BY_VALUE, ROLE_LABELS, ROLE_STEP_KEYS, SCENARIO, TASK_VARIANTS
 from .scenarios import (
     after_registration as after_registration_scenario,
     analysis_feedback_1 as analysis_feedback_1_scenario,
@@ -957,3 +957,36 @@ class AxisScenarioCopyTests(SimpleTestCase):
                 )
         # The axis carries three distinct texts, not one text three times.
         self.assertEqual(len({state["message"] for state in states.values()}), 3)
+
+
+class ScenarioCopyEscapeTests(SimpleTestCase):
+    r"""No learner-facing copy carries a stray backslash (issue #33).
+
+    A backslash before a letter is not a Python escape, so the character
+    survives into the string value; the Markdown filter passes it through
+    (only ASCII punctuation is escapable), and the learner sees the bare `\`
+    on the page — the role menu shipped `\Once completed…` that way.
+    Backslash-before-punctuation is legitimate copy: `\*` is Markdown's
+    literal asterisk, and the role prompts use it. Only letters are the tell.
+    """
+
+    def _strings(self, node):
+        """Yield every string in a scenario data structure, depth first."""
+        if isinstance(node, str):
+            yield node
+        elif isinstance(node, dict):
+            for value in node.values():
+                yield from self._strings(value)
+        elif isinstance(node, (list, tuple, set)):
+            for value in node:
+                yield from self._strings(value)
+
+    def test_no_copy_carries_a_backslash_before_a_letter(self):
+        """Every scenario, variant and row copy is free of the stray escape."""
+        offenders = []
+        for data in (SCENARIO, TASK_VARIANTS, ROW_REGISTRY):
+            for text in self._strings(data):
+                for match in re.finditer(r"\\[A-Za-z]", text):
+                    start = max(0, match.start() - 25)
+                    offenders.append(text[start:match.end() + 25])
+        self.assertEqual(offenders, [], f"stray backslash escapes: {offenders}")
