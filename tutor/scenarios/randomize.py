@@ -49,16 +49,29 @@ def randomize_scenario(
     pretest_variants = TASK_VARIANTS.get("pretest_messages", [])
     if pretest_variants:
         pretest = random.choice(pretest_variants)
+        # Literal anchor -> variant. The trio lives in the rating rows'
+        # prompts since ticket #48; it used to sit in the message, so both
+        # surfaces are swept and a copy that carries the lines in either
+        # place still randomizes.
+        swaps = (
+            ("'Your idea is wrong. Fix it.'", pretest["message1"]),
+            (
+                "'I see your point, but have you considered... 🤔'",
+                pretest["message2"],
+            ),
+            ("'THIS IS TERRIBLE!!!'", pretest["message3"]),
+        )
         for state_name in ("pretest", "posttest"):
             if state_name in scenario_copy["states"]:
-                msg = scenario_copy["states"][state_name]["message"]
-                msg = msg.replace("'Your idea is wrong. Fix it.'", pretest["message1"])
-                msg = msg.replace(
-                    "'I see your point, but have you considered... 🤔'",
-                    pretest["message2"],
-                )
-                msg = msg.replace("'THIS IS TERRIBLE!!!'", pretest["message3"])
-                scenario_copy["states"][state_name]["message"] = msg
+                entry = scenario_copy["states"][state_name]
+                msg = entry["message"]
+                for anchor, replacement in swaps:
+                    msg = msg.replace(anchor, replacement)
+                entry["message"] = msg
+                for scale in entry.get("scales", []):
+                    for anchor, replacement in swaps:
+                        if scale.get("prompt") == anchor:
+                            scale["prompt"] = replacement
 
     # --- 2. Analysis tasks (all levels) ---
     # The task states are keyed by base name (spec #16 C1-9); the entry

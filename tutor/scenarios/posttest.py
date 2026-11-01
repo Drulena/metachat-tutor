@@ -6,13 +6,13 @@ for the assembled ``SCENARIO`` dict and
 """
 
 STATE = {
-    "message": "**📋 POST-TEST**\n\nRate the same three messages again:\n\nA▪️*'Your idea is wrong. Fix it.'*\n\nB▪️*'I see your point, but have you considered... 🤔'*\n\nC▪️*'THIS IS TERRIBLE!!!'*\n\n⬇️**Tap a number under each message.**",
+    "message": "**📋 POST-TEST**\n\nRate the same three messages again:\n\n⬇️**Tap a number under each message.**",
     "validation": "^[1-5] [1-5] [1-5]$",
-    # The prompts the gate offers as one 1-5 chip row each, in the order they
-    # submit (ticket #48). "prompt" quotes the line from the message above, so
-    # the page can put the control under the question it answers; the picks go
-    # out as the string the validation regex above and the row's "accept"
-    # pattern already read (ADR-0007 decision 6).
+    # The same three task lines the pretest rated, printed inside the rows
+    # below the message (ticket #48); the posttest asks for the SAME messages,
+    # so these literals match the pretest's exactly. The picks go out as the
+    # string the validation regex above and the row's "accept" pattern already
+    # read (ADR-0007 decision 6).
     "scales": [
         {"letter": "A", "prompt": "'Your idea is wrong. Fix it.'"},
         {"letter": "B", "prompt": "'I see your point, but have you considered... 🤔'"},

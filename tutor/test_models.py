@@ -136,6 +136,31 @@ class AssessmentTests(TestCase):
         self.assertEqual(kinds["posttest"].scores, [4, 5, 5])
         self.assertIsNotNone(kinds["pretest"].created_at)
 
+    def test_rated_records_the_lines_an_answer_gave(self):
+        """An answer names the task lines it rated; a bare answer has none.
+
+        The lines print in the answer form and the chat transcript does not
+        carry them, so the row is the one place a research record can keep the
+        stimulus a learner saw (#48).
+        """
+        record = SessionRecord.objects.create(
+            session_id=uuid7(), level="beginner", user_name="Stacy"
+        )
+        bare = Assessment.objects.create(
+            session=record, kind="pretest", raw_answer="1 2 3", scores=[1, 2, 3]
+        )
+        bare.refresh_from_db()
+        self.assertEqual(bare.rated, [])
+        row = Assessment.objects.create(
+            session=record,
+            kind="posttest",
+            raw_answer="4 5 5",
+            scores=[4, 5, 5],
+            rated=[{"letter": "A", "prompt": "'x'"}, {"letter": "B", "prompt": "'y'"}],
+        )
+        row.refresh_from_db()
+        self.assertEqual([item["letter"] for item in row.rated], ["A", "B"])
+
     def test_kind_stays_open_for_future_tests(self):
         """The kind column is not locked to the two current assessments."""
         record = SessionRecord.objects.create(
@@ -190,10 +215,17 @@ class FreshDatabaseMigrateTests(SimpleTestCase):
         self.assertIn("tutor_sessionrecord", tables)
         self.assertIn("tutor_assessment", tables)
 
-    def test_the_app_has_one_initial_migration_and_nothing_older(self):
-        """The greenfield history starts at 0001_initial with no shim migrations."""
+    def test_the_history_starts_at_the_initial_migration(self):
+        """The greenfield history opens at 0001_initial, with no shim migrations.
+
+        A schema change is always a new migration: an existing file is never
+        edited, because the environments that already ran it must stay able to
+        rebuild the same schema. What the greenfield promise pins is that
+        nothing precedes the initial migration - a fresh database is built by
+        applying the app's own history from the top.
+        """
         loader = MigrationLoader(connections["default"])
         names = sorted(
             name for (app, name) in loader.disk_migrations if app == "tutor"
         )
-        self.assertEqual(names, ["0001_initial"])
+        self.assertEqual(names[0], "0001_initial")

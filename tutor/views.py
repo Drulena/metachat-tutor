@@ -74,7 +74,16 @@ def _mirror_to_ledger(request: HttpRequest, entries_before: int) -> None:
     state_name = answered.get("state")
     if state_name in GATE_SCORE_KEYS:
         scores = (state.user_data or {}).get(GATE_SCORE_KEYS[state_name])
-        record_assessment(session_id, state_name, answered.get("content", ""), scores or [])
+        record_assessment(
+            session_id,
+            state_name,
+            answered.get("content", ""),
+            scores or [],
+            # The lines the gate offered, read at the moment they were answered
+            # (ticket #48): the form prints them, the chat transcript does not,
+            # so the research record has to carry them.
+            _session_for(request).scales_for(state_name),
+        )
     elif state_name == "reflection":
         fill_reflection(session_id, answered.get("content", ""))
 

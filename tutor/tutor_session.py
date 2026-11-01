@@ -239,8 +239,21 @@ class TutorSession:
         from a branch on the state).
         """
         state = self._require_state()
-        entry = self._scenario_entry(state, state.current_state)
-        return list(entry.get("scales", [])) if entry else []
+        return self.scales_for(state.current_state)
+
+    def scales_for(self, state_name: str) -> list[dict]:
+        """The chip rows a NAMED state offers, in the order they submit.
+
+        The page reads :meth:`scales` for the state it is showing. The ledger
+        needs the rows of the state an accepted answer was given in, which is
+        this same list read by name at the moment of acceptance (ticket #48).
+        A state that names no rows has none, and an unknown name is answered
+        the same way: an empty list, so a writer records an answer with no
+        prompts rather than raising over a research record.
+        """
+        state = self._require_state()
+        entry = self._scenario_entry(state, state_name)
+        return [dict(scale) for scale in entry.get("scales", [])] if entry else []
 
     def progress(self) -> Summary:
         """Every progress figure, derived from the canonical items model.

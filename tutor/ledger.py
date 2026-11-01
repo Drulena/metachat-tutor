@@ -3,15 +3,15 @@
 The ledger is a research artefact: the intake form opens a row, every
 submission appends to it, and no page reads it - the Summary stays the sole
 presentation source (decision 1). The single read is the export, which hands
-the gate answers to the uploaded artefact (decision 6). Every function here is therefore tolerant
-of a missing row: a learner never loses a chat to a database hiccup, and the
-miss is logged for the maintainer to see.
+the gate answers to the uploaded artefact (decision 6). Every function here is
+therefore tolerant of a missing row: a learner never loses a chat to a
+database hiccup, and the miss is logged for the maintainer to see.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 from django.db import transaction
 from django.utils import timezone
@@ -88,20 +88,30 @@ def append_entries(session_id: str, entries: Sequence[dict]) -> None:
 
 
 def record_assessment(
-    session_id: str, kind: str, raw_answer: str, scores: Sequence[int]
+    session_id: str,
+    kind: str,
+    raw_answer: str,
+    scores: Sequence[int],
+    rated: Sequence[Mapping[str, Any]] = (),
 ) -> None:
     """Append a gate's answer as a child row, at acceptance (decision 6).
 
-    The raw answer is what the learner typed and the scores are the ints the
-    gate parsed from it, so a later analysis can re-read the answer itself.
-    A new selector test is a new kind string; the model's choices document
-    the set, the database does not close it.
+    The raw answer is what the learner submitted, the scores are the ints the
+    gate parsed from it, and rated is the task lines the gate offered them in
+    - written at acceptance, because that is the one moment the copy a learner
+    saw is known for certain (ticket #48: the lines print in the form, not in
+    the chat transcript). A new selector test is a new kind string; the model's
+    choices document the set, the database does not close it.
     """
     row = _row(session_id)
     if row is None:
         return
     Assessment.objects.create(
-        session=row, kind=kind, raw_answer=raw_answer, scores=list(scores)
+        session=row,
+        kind=kind,
+        raw_answer=raw_answer,
+        scores=list(scores),
+        rated=[dict(item) for item in rated],
     )
 
 
@@ -139,10 +149,11 @@ def fill_reflection(session_id: str, text: str) -> None:
 def assessment_rows(session_id: str) -> list[dict]:
     """The gate answers a session left behind, oldest first (decision 6).
 
-    The export's one read of the ledger: the uploaded artefact carries the
-    answers, so an analysis needs no database to re-read them. A session the
-    ledger never heard of has no answers to hand over - an empty list, the
-    tolerance the writers keep, and no log line: nothing was lost to find.
+    The export's one read of the ledger: the uploaded artefact carries every
+    answer with its numbers and the lines it rated, so an analysis needs no
+    database to re-read it. A session the ledger never heard of has no answers
+    to hand over - an empty list, the tolerance the writers keep, and no log
+    line: nothing was lost to find.
     """
     row = SessionRecord.objects.filter(session_id=session_id).first()
     if row is None:
@@ -152,6 +163,7 @@ def assessment_rows(session_id: str) -> list[dict]:
             "kind": answer.kind,
             "raw_answer": answer.raw_answer,
             "scores": list(answer.scores),
+            "rated": list(answer.rated),
             "created_at": answer.created_at.isoformat(),
         }
         for answer in Assessment.objects.filter(session=row).order_by(

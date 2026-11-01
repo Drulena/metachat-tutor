@@ -31,28 +31,27 @@
             {% if scales and forloop.counter0 == scale_anchor %}
               {% comment %}
                 The gate's answer form, under the message that asks (ticket #48):
-                one row per prompt the module names (scales()): the letter the
-                gate's own message puts on the line, and five 1-5 chips in the
-                filled tonal idiom of the option buttons. The prompt text is the
-                row's accessible name, so a screen reader reads the question with
-                the row and the page shows the line exactly once. The rows ride the newest assistant turn: an
+                one row per task line the module names (scales()) - the letter,
+                the line itself, and five 1-5 chips in the filled tonal idiom of
+                the option buttons. The line left the gate message for this row,
+                so the learner reads a question exactly once, next to the numbers
+                that answer it. The rows ride the newest assistant turn: an
                 answered gate keeps no live control behind it in the transcript,
-                and a refused answer leaves the rows under the question they
-                answer. The script
-                at the foot of this page sends the picks joined by spaces - the
-                string the gate already accepts - so a form answer is the same
-                submission as a typed one: a pick left out arrives as the short
-                string a half-typed answer is, and the gate's own copy refuses it.
-                Touching no chip leaves the typed input alone (ADR-0007 d6).
+                and a refused answer leaves them in place. The script at the foot
+                of this page sends the picks joined by spaces - the string the
+                gate already accepts - so a form answer is the same submission as
+                a typed one: a pick left out arrives as the short string a
+                half-typed answer is, and the gate's own copy refuses it. Touching
+                no chip leaves the typed input alone (ADR-0007 d6).
               {% endcomment %}
               <div class="scale-form" id="scale-form">
                 {% for scale in scales %}
-                  <div class="scale-row" data-letter="{{ scale.letter }}"
-                       aria-label="{{ scale.letter }}: {{ scale.prompt }}">
+                  <div class="scale-row" data-letter="{{ scale.letter }}">
                     <span class="scale-letter">{{ scale.letter }}</span>
+                    <span class="scale-prompt">{{ scale.prompt }}</span>
                     <span class="scale-chips">
                       {% for score in "12345" %}
-                        <button class="scale-chip" type="button" data-score="{{ score }}" aria-label="{{ scale.letter }}: {{ score }} of 5">{{ score }}</button>
+                        <button class="scale-chip" type="button" data-score="{{ score }}" aria-label="Rate {{ scale.letter }} {{ score }} out of 5">{{ score }}</button>
                       {% endfor %}
                     </span>
                   </div>

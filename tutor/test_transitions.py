@@ -1099,11 +1099,13 @@ class ScenarioPlaceholderIntegrityTests(SimpleTestCase):
     def test_pretest_posttest_anchors_are_present(self):
         """The pretest sweep replaces by literal anchor, so the anchors must live.
 
-        The three messages are ONE canonical trio (the Streamlit original
+        The three task lines are ONE canonical trio (the Streamlit original
         of the initial commit): the posttest asks the learner to rate the
         SAME messages as the pretest, so a drifted literal on either side
         breaks the research contract AND silently disables the sweep for
-        every future variant (the replace hits nothing).
+        every future variant (the replace hits nothing). Since ticket #48
+        the lines are the rating rows' prompts, not message text, and a
+        line reaches the learner exactly once - in the row that rates it.
         """
         trio = (
             "'Your idea is wrong. Fix it.'",
@@ -1111,11 +1113,32 @@ class ScenarioPlaceholderIntegrityTests(SimpleTestCase):
             "'THIS IS TERRIBLE!!!'",
         )
         for state in ("pretest", "posttest"):
-            message = SCENARIO["states"][state]["message"]
+            entry = SCENARIO["states"][state]
+            shown = "\n".join([entry["message"], *[scale["prompt"] for scale in entry["scales"]]])
             for anchor in trio:
                 with self.subTest(state=state, anchor=anchor):
-                    self.assertIn(anchor, message)
+                    self.assertEqual(
+                        shown.count(anchor), 1, "a task line must print exactly once"
+                    )
         source = inspect.getsource(randomize_module)
         for anchor in trio:
             with self.subTest(anchor=anchor):
                 self.assertIn(anchor, source)
+
+    def test_the_randomizer_swaps_the_prompts_the_rows_print(self):
+        """The pretest sweep has to reach the rating rows, not only the message.
+
+        The trio moved out of the message into the rows' prompts (ticket
+        #48). A sweep that rewrote only the message would leave the learner
+        rating the canonical trio forever while every future variant
+        silently dropped out of the form: the rows are the one surface the
+        learner sees these lines on.
+        """
+        randomized = randomize_scenario(SCENARIO)["states"]
+        variant = TASK_VARIANTS["pretest_messages"][0]
+        expected = [variant["message1"], variant["message2"], variant["message3"]]
+        for state in ("pretest", "posttest"):
+            with self.subTest(state=state):
+                self.assertEqual(
+                    [scale["prompt"] for scale in randomized[state]["scales"]], expected
+                )

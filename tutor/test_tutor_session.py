@@ -1118,17 +1118,20 @@ class TutorSessionTests(SimpleTestCase):
         session, _, _ = self.make_session()
         self.assertEqual(session.scales(), ASSESSMENT_SCALES)
 
-    def test_every_prompt_is_quoted_from_the_message_it_rates(self):
-        """The control sits under its own question, so a prompt that drifts
-        from the message would point at a line that is not there: each quoted
-        prompt is a piece of the gate message, byte for byte (#48)."""
+    def test_a_task_line_is_not_repeated_by_the_gate_message(self):
+        """The rows print their own task line, and the message above does not:
+        the learner reads each line exactly once, in the row that rates it. A
+        line in the message AND in a row is the same question twice, which is
+        what the reporter saw and refused (#48)."""
         for inputs, expected in [((), "pretest"), (WALK_TO_POSTTEST, "posttest")]:
             session, storage, _ = self.make_session()
             self.drive(session, *inputs)
             self.assertEqual(self.state_of(storage).current_state, expected)
             message = session.turns()[-1].message
+            self.assertEqual(len(session.scales()), 3)
             for scale in session.scales():
-                self.assertIn(scale["prompt"], message)
+                self.assertTrue(scale["prompt"], "a row that quotes nothing asks nothing")
+                self.assertNotIn(scale["prompt"], message)
 
     def test_the_posttest_gate_offers_the_same_rows(self):
         """One instrument at both ends (spec #29): the same prompts in the same
@@ -1145,6 +1148,16 @@ class TutorSessionTests(SimpleTestCase):
         self.drive(session, "3 4 5")
         self.assertEqual(self.state_of(storage).current_state, "after_registration")
         self.assertEqual(session.scales(), [])
+
+    def test_the_rows_of_a_named_state_reach_the_writer(self):
+        """scales_for reads a state by name, the way the ledger needs it: the
+        answer was given in the gate, and the page has moved past it (#48)."""
+        session, storage, _ = self.make_session()
+        self.drive(session, "3 4 5")
+        self.assertEqual(self.state_of(storage).current_state, "after_registration")
+        self.assertEqual(session.scales(), [])
+        self.assertEqual(session.scales_for("pretest"), ASSESSMENT_SCALES)
+        self.assertEqual(session.scales_for("no_such_state"), [])
 
     def test_the_chip_form_lands_the_scores_the_gate_reads(self):
         """The three picks joined by spaces are the string the regex matches:

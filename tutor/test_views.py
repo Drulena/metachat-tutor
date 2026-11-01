@@ -357,8 +357,9 @@ class ExportViewTests(TestCase):
 
     def test_the_export_carries_the_gate_answers(self):
         """ADR-0007 decision 6: the artefact a learner uploads is self-
-        contained. The pretest answer rides along with the raw string and the
-        ints the gate parsed, so an analysis needs no database."""
+        contained. The pretest answer rides along with the raw string, the ints
+        the gate parsed and the lines it rated, so an analysis needs no
+        database."""
         client = self.client
         client.post("/", {"name": "Alice", "group": "Alpha", "level": "beginner"})
         client.post("/chat/", {"user_input": " ".join(SELECTOR_PICKS)})
@@ -372,6 +373,10 @@ class ExportViewTests(TestCase):
             " ".join(SELECTOR_PICKS),
         )
         self.assertEqual(data["assessments"][0]["scores"], SELECTOR_PICKS_SCORES)
+        self.assertEqual(
+            [item["prompt"] for item in data["assessments"][0]["rated"]],
+            [scale["prompt"] for scale in ASSESSMENT_SCALES],
+        )
 
     def test_the_assessments_key_is_there_before_the_first_gate(self):
         """The payload shape never depends on how far the learner got: a
@@ -480,10 +485,10 @@ class AssessmentFormTests(TestCase):
     def setUp(self):
         self.client = Client()
 
-    def test_the_pretest_page_offers_a_chip_row_per_prompt(self):
-        """The gate arrives as a form: one row per prompt, five 1-5 chips each,
-        the row carrying the letter the message puts on that line, so a tap
-        lands under the line it rates (#48)."""
+    def test_the_pretest_page_offers_a_chip_row_per_task_line(self):
+        """The gate arrives as a form: one row per task line, five 1-5 chips
+        each, and the row prints the line it rates - the control sits under its
+        own question, not in a bar at the bottom of the page (#48)."""
         _drive(self.client, [])
         html = self.client.get("/chat/").content.decode()
         self.assertEqual(html.count('class="scale-row"'), len(ASSESSMENT_SCALES))
@@ -492,22 +497,25 @@ class AssessmentFormTests(TestCase):
         )
         for scale in ASSESSMENT_SCALES:
             self.assertIn(f'data-letter="{scale["letter"]}"', html)
+            # Django escapes the apostrophes the task lines quote with.
             self.assertIn(
-                f'aria-label="{scale["letter"]}: '
+                '<span class="scale-prompt">'
                 + html_module.escape(scale["prompt"])
-                + '"',
+                + "</span>",
                 html,
             )
+            self.assertIn(f'aria-label="Rate {scale["letter"]} 3 out of 5"', html)
+            self.assertIn(f'aria-label="Rate {scale["letter"]} 5 out of 5"', html)
         self.assertIn('data-score="1"', html)
         self.assertIn('data-score="5"', html)
         # The typed answer stays: the composer is on the page beside the form.
         self.assertIn('name="user_input"', html)
 
     def test_the_question_is_printed_once(self):
-        """The learner reads every line of the task once: a row's letter points
-        at the line in the message, and the prompt text is only the row's
-        accessible name - never a second copy of the question on the page (the
-        learner's own read of the first chip form, #48)."""
+        """The learner reads every task line exactly once: the line lives in the
+        row that rates it, and the gate's opening copy stays prose. The line sat
+        in the message AND in the row in the first chip form, which is the
+        duplication the reporter refused (#48)."""
         _drive(self.client, [])
         html = self.client.get("/chat/").content.decode()
         # Tags stripped and entities restored, so what is counted is what the
@@ -539,6 +547,7 @@ class AssessmentFormTests(TestCase):
             ".scale-form",
             ".scale-row",
             ".scale-letter",
+            ".scale-prompt",
             ".scale-chips",
             ".scale-chip",
             ".scale-chip.picked",

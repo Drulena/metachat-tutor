@@ -119,7 +119,9 @@ class Assessment(models.Model):
     ``kind`` stays open - the two choices are what the chat flow scores
     today, and a future test adds a value without touching the schema.
     ``raw_answer`` is what the learner submitted ("a b c"); ``scores`` are
-    the numbers derived from it. The selector UI is a later ticket (#40).
+    the numbers derived from it, and ``rated`` the task lines they rate
+    (ticket #48) - the export is self-contained, so a research record reads
+    back the stimulus the learner saw, not only the numbers they chose.
     """
 
     KIND_PRETEST = "pretest"
@@ -135,6 +137,11 @@ class Assessment(models.Model):
     kind: models.CharField = models.CharField(max_length=32, choices=KIND_CHOICES)
     raw_answer: models.TextField = models.TextField(blank=True, default="")
     scores: models.JSONField = models.JSONField(default=list, blank=True)
+    rated: models.JSONField = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="The task lines this answer rated, in submission order.",
+    )
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -11,7 +11,11 @@ from django.test import Client, TestCase
 
 from .ledger import assessment_rows
 from .models import Assessment, SessionRecord
-from .test_tutor_session import SELECTOR_PICKS, SELECTOR_PICKS_SCORES
+from .test_tutor_session import (
+    ASSESSMENT_SCALES,
+    SELECTOR_PICKS,
+    SELECTOR_PICKS_SCORES,
+)
 from .testing import (
     INTAKE,
     OTHER_INTAKE,
@@ -165,7 +169,17 @@ class AssessmentReaderTests(TestCase):
         self.assertEqual(answers[0]["scores"], SELECTOR_PICKS_SCORES)
         self.assertEqual(
             sorted(answers[0]),
-            ["created_at", "kind", "raw_answer", "scores"],
+            ["created_at", "kind", "rated", "raw_answer", "scores"],
+        )
+        # The lines the gate printed under its message, in the order the picks
+        # went out: the transcript does not carry them, so the row does (#48).
+        self.assertEqual(
+            [item["letter"] for item in answers[0]["rated"]],
+            [scale["letter"] for scale in ASSESSMENT_SCALES],
+        )
+        self.assertEqual(
+            [item["prompt"] for item in answers[0]["rated"]],
+            [scale["prompt"] for scale in ASSESSMENT_SCALES],
         )
 
     def test_a_session_the_ledger_never_heard_of_has_no_answers(self):

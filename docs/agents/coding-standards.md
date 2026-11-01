@@ -50,6 +50,16 @@ shipped on both pages that way. Block comments use `{% comment %}…{% endcommen
 A rendered-page test (assert the words absent from the response) catches what
 unit tests of the module never see.
 
+## Migrations are append-only
+
+An existing migration file is never edited (owner standing rule, 2026-11-01).
+A schema change is a new migration on top of the history: every environment
+that already ran the old file rebuilds the same schema from it, and an edited
+file breaks that rebuild silently — the deployed database carries no signal
+that the file under it changed. `0001_initial` was squashed once, at
+greenfield, and stays as written; the app's history only grows forward.
+`tutor/test_models.py` pins that the history starts at the initial migration.
+
 ## LLM output contract
 
 The learner-facing answer is the parsed `content` field only. Chain-of-thought

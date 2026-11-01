@@ -869,12 +869,15 @@ html, body {
 /* ------------------------------------------ assessment rating chips (#48) */
 
 /* The gate's answer form, under the message that asks: one row per prompt the
-   module names, quoting the line above it, and five 1-5 chips beside it in the
-   filled tonal idiom of the option buttons (the shape the learner picked on the
-   live page over the dropdown strip of ticket #40: the strip sat far from the
-   prompts, and an empty dropdown advertised nothing). Unpicked chips are quiet
-   tonal, the picked one is the filled control, and the anchors under the rows
-   spell the scale the chips answer. All colours are the :root tonal tokens. */
+   module names — the letter the message already carries, five 1-5 chips beside
+   it in the filled tonal idiom of the option buttons, and the anchors under the
+   rows spelling the scale (the shape the learner picked on the live page over
+   the dropdown strip of ticket #40: the strip sat far from the prompts, and an
+   empty dropdown advertised nothing). The task line itself prints in the row
+   (ticket #48): question and numbers share one block, and the gate message does
+   not repeat the line, so it is read exactly once. Unpicked chips are quiet
+   tonal, the picked one is the filled control. All colours are the :root tonal
+   tokens. */
 .scale-form {
   display: flex;
   flex-direction: column;
@@ -905,14 +908,16 @@ html, body {
 }
 
 .scale-prompt {
+  /* The line the learner rates, quoted from the scenario (scales()). */
   flex: 1 1 120px;
-  min-width: 0;
-  font-size: 0.85rem;
-  color: var(--md-on-surface-variant);
+  color: var(--md-on-surface);
 }
 
 .scale-chips {
   display: flex;
+  /* flex-basis 100%: the numbers take the line under the question they rate,
+     at every width, so the control never sits away from its prompt. */
+  flex: 1 1 100%;
   gap: 6px;
 }
 
@@ -956,14 +961,8 @@ html, body {
 }
 
 @media (max-width: 768px) {
-  /* The research phone (spec #26): five chips at thumb size fit the message
-     width, so the prompt moves above them on its own line. */
-  .scale-prompt {
-    order: -1;
-    flex: 1 1 100%;
-    font-size: 0.9rem;
-  }
-
+  /* The research phone (spec #26): five chips at thumb size plus the letter
+     badge fit the message width. */
   .scale-chips {
     gap: 8px;
   }
