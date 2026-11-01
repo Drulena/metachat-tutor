@@ -1,0 +1,26 @@
+[project]
+name = "metachat-tutor"
+version = "0.0.0"
+description = """Django web app for linguodidactics research - teaches constructive
+communication roles, tactics and metagrapheme use (emojis, formatting, hashtags) in
+online polylogues."""
+#: The interpreter the research data was collected under. Django 5.0.9 supports
+#: 3.10-3.12; 3.11 is the version README.md documents and the project venv uses.
+requires-python = ">=3.11"
+dependencies = [
+    "Django==5.0.9",
+    "python-dotenv==1.0.0",
+    "requests==2.31.0",
+    "markdown==3.6",
+]
+
+[dependency-groups]
+#: Drives an installed browser channel (tutor/test_browser.py paints the learner
+#: pages in headless Edge). "uv run playwright install chromium" is the fallback
+#: for a machine with neither Edge nor Chrome.
+dev = ["playwright==1.57.0"]
+
+[tool.uv]
+#: A Django project is an application, not a distribution: uv installs the
+#: dependencies into the project environment and never builds a package.
+package = false

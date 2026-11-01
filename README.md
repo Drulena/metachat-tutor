@@ -5,11 +5,15 @@ Django web app for linguodidactics research — teaches constructive communicati
 ## Run
 
 ```powershell
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
+uv sync                       # builds .venv from pyproject.toml + uv.lock
+uv run manage.py migrate
+uv run manage.py runserver
 ```
+
+uv manages the project environment: `pyproject.toml` lists the dependencies,
+`uv.lock` pins them, `uv sync` creates `.venv`, and `uv run <command>` runs one
+command inside it. `requirements.txt` is a pinned `uv export` for pip users -
+regenerate it with the command written in its own header, never edit it by hand.
 
 Open `http://127.0.0.1:8000` in a browser.
 
@@ -24,18 +28,19 @@ Django project `tutor_project/` with a single app `tutor/`:
 - `tutor/scenarios.py` — scenario content and variants
 - `tutor/llm.py` — optional LLM feedback via `get_llm_feedback()`
 - `tutor/templates/tutor/chat.html` — UI template (uses ChatML-style HTML)
-- `requirements.txt` — `Django`, `python-dotenv`, `requests`, `markdown`
+- `requirements.txt` — pinned `uv export` of the runtime lock, for pip users
+- `pyproject.toml` + `uv.lock` — the dependencies and their pins, managed by uv
+- `tutor/test_browser.py` — the learner pages painted by a real headless browser
 
 ## Session Flow
 
-1. **Registration** — name + group
+1. **Intake form** — name, group and level on one page; the chat opens behind it
 2. **Pre-Test** — rate 3 messages (1–5 scale)
-3. **Self-Assessment** — choose level (Beginner / Intermediate / Advanced)
-4. **Step 1: Analysis** — 2 tasks per level (softening criticism + recognizing aggressive formatting)
-5. **Step 2: Role-Play** — choose from constructive roles (e.g. Mediator, Logical Expert, Idea Generator, Empath)
-6. **Reflection** — brief written reflection
-7. **Post-Test** — rate the same 3 messages again
-8. **Export** — download session JSON and submit via Google Form
+3. **Step 1: Analysis** — 2 tasks per level (softening criticism + recognizing aggressive formatting)
+4. **Step 2: Role-Play** — choose from constructive roles (e.g. Mediator, Logical Expert, Idea Generator, Empath)
+5. **Reflection** — brief written reflection
+6. **Post-Test** — rate the same 3 messages again
+7. **Last screen** — download the session JSON and submit it via the Google Form
 
 ## Configuration
 

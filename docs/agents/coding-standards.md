@@ -60,12 +60,19 @@ not what it thought").
 
 ## Commands
 
-Tests run on the project venv, from the repo root, Django's runner:
+Tests run in the uv environment, from the repo root, Django's runner:
 
 ```
-.\venv\Scripts\python.exe manage.py test tutor          # full suite
-.\venv\Scripts\python.exe manage.py test tutor.test_tutor_session.TutorSessionTests.test_<name>
+uv run manage.py test tutor              # full suite, browser paints included
+uv run manage.py test tutor.test_tutor_session.TutorSessionTests.test_<name>
 ```
+
+`uv sync` first: it builds `.venv` from `uv.lock`. `uv run` spawns the
+interpreter, so an agent sandbox that denies child processes needs the
+escalation for every test command (the browser tests spawn a browser too).
+The paint tests drive an installed browser channel (Edge by default,
+`BROWSER_CHANNEL` to override) and skip the module when the machine has
+neither Edge nor Chrome, so a bare container still reports one green run.
 
 The method label keeps its `test_` prefix in the dotted form — the runner
 treats the last segment as a file import without it.
