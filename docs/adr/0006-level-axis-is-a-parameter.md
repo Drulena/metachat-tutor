@@ -1,6 +1,6 @@
 # 0006. The level axis is a parameter of the row registry
 
-- **Status:** accepted
+- **Status:** accepted (amended 2026-11-01 — the level's writer moves to the intake form; see the amendment at the foot of this document)
 - **Date:** 2026-10-26
 
 ## Context
@@ -35,3 +35,10 @@ ADR-0002 (one module per state) stands: this removes the level suffix, not the p
 - **Rewrite stored state strings with a data migration** — rejected: script + deploy routine to rescue sessions the attestation calls worthless; strictly dominated by the cutover.
 - **Suffix-parse as the canonical level source, with per-entry fidelity for history** — dissolved: the immutability rule makes the session field unambiguous, so parsing survives nowhere.
 - **Mid-session level change kept as the escape for a wrong pick** — rejected: it requires the fidelity machinery and inherits the broken pre-registration back edges; the owner chose reset as the escape and flow-edge enforcement.
+
+## Amendment (2026-11-01) — the writer becomes the intake form (ADR-0007, issue #28)
+
+- Decision 2 amended: **the level is still set exactly once and immutable**, but the writer is the **intake form**'s submission (the intake view), not the chat level-assessment row. The form is the start page: name, group and level in one submit; every rule of Decision 2 — immutability, `back: None` enforcement, reset as the sole escape — carries over unchanged.
+- The chat **registration** (`start`, the name-and-group screen) and **level_assessment** states leave the flow: the entry state is `pretest`, and the **point of no return** is the intake submission itself — chat opens with no back edge to before it.
+- The row registry, scenario states and fixtures shrink by the retired states at implementation — the same mechanical fixture rewrite Decision 3's test-surface clause already prices; no prose count (32 bases / 44 pairs) is pinned by a test.
+- The reset escape now leaves a trail: the abandoned ledger row records its successor (ADR-0007 `previous_session`), so the cohort-time trade in the Consequences section becomes per-chain visible data instead of silence.
