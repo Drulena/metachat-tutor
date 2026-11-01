@@ -204,6 +204,14 @@ def chat_view(request: HttpRequest):
 
     summary = session.progress()
     turns = session.turns()
+    # The gate's form belongs under the message that asks — the newest
+    # assistant turn. After a refused answer the newest turn is the learner's
+    # own, and the form the gate refused stays where the question is
+    # (ticket #48).
+    scale_anchor = max(
+        (index for index, turn in enumerate(turns) if turn.role == "assistant"),
+        default=-1,
+    )
 
     return render(
         request,
@@ -215,6 +223,9 @@ def chat_view(request: HttpRequest):
             # The state's answer form is the module's to name, not the
             # view's to decide: an empty list leaves the typed input alone.
             "scales": session.scales(),
+            # Which turn carries that form: an index, so the template never
+            # searches for the newest message of a kind.
+            "scale_anchor": scale_anchor,
         },
     )
 

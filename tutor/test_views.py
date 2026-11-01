@@ -482,8 +482,8 @@ class AssessmentFormTests(TestCase):
 
     def test_the_pretest_page_offers_a_chip_row_per_prompt(self):
         """The gate arrives as a form: one row per prompt, five 1-5 chips each,
-        and the prompt quoted beside its own row, so a tap lands under the line
-        it rates (#48)."""
+        the row carrying the letter the message puts on that line, so a tap
+        lands under the line it rates (#48)."""
         _drive(self.client, [])
         html = self.client.get("/chat/").content.decode()
         self.assertEqual(html.count('class="scale-row"'), len(ASSESSMENT_SCALES))
@@ -492,11 +492,29 @@ class AssessmentFormTests(TestCase):
         )
         for scale in ASSESSMENT_SCALES:
             self.assertIn(f'data-letter="{scale["letter"]}"', html)
-            self.assertIn(html_module.escape(scale["prompt"]), html)
+            self.assertIn(
+                f'aria-label="{scale["letter"]}: '
+                + html_module.escape(scale["prompt"])
+                + '"',
+                html,
+            )
         self.assertIn('data-score="1"', html)
         self.assertIn('data-score="5"', html)
         # The typed answer stays: the composer is on the page beside the form.
         self.assertIn('name="user_input"', html)
+
+    def test_the_question_is_printed_once(self):
+        """The learner reads every line of the task once: a row's letter points
+        at the line in the message, and the prompt text is only the row's
+        accessible name - never a second copy of the question on the page (the
+        learner's own read of the first chip form, #48)."""
+        _drive(self.client, [])
+        html = self.client.get("/chat/").content.decode()
+        # Tags stripped and entities restored, so what is counted is what the
+        # learner's eyes get, in whatever markup the message arrives in.
+        visible = html_module.unescape(re.sub(r"<[^>]+>", " ", html))
+        for scale in ASSESSMENT_SCALES:
+            self.assertEqual(visible.count(scale["prompt"]), 1, scale["prompt"])
 
     def test_the_rows_sit_under_the_message_that_asks(self):
         """Placement is the complaint this ticket answers (#48): the rows come
@@ -521,7 +539,6 @@ class AssessmentFormTests(TestCase):
             ".scale-form",
             ".scale-row",
             ".scale-letter",
-            ".scale-prompt",
             ".scale-chips",
             ".scale-chip",
             ".scale-chip.picked",
@@ -553,6 +570,19 @@ class AssessmentFormTests(TestCase):
             SessionStorage(self.client.session).load().current_state, "pretest"
         )
         self.assertIn("pretest task", self.client.get("/chat/").content.decode())
+
+    def test_a_refused_answer_keeps_the_rows_under_the_question(self):
+        """The learner is mid-answer: the gate refused a short string, and the
+        form it refused is still under the question, not gone with it."""
+        _drive(self.client, [])
+        self.client.post(
+            "/chat/", {"user_input": " ".join(SELECTOR_PICKS[:2])}
+        )
+        html = self.client.get("/chat/").content.decode()
+        self.assertIn("pretest task", html)
+        self.assertEqual(
+            html.count('class="scale-row"'), len(ASSESSMENT_SCALES)
+        )
 
     def test_a_state_that_takes_a_typed_answer_offers_no_chips(self):
         """The chips are the gate's, not the app's: one step past the pretest
