@@ -866,75 +866,111 @@ html, body {
   text-decoration: none;
 }
 
-/* --------------------------------------- assessment selector form (#40) */
+/* ------------------------------------------ assessment rating chips (#48) */
 
-/* The gate's answer form: one 1-5 dropdown per prompt the module names, above
-   the typed input the form keeps as its fallback. The row wraps, so the three
-   fields take a row of their own. The prompts label the fields, they are not
-   choices: quiet text in the variant tone, while the choices that answer the
-   gate are the controls (MD3: learner choices are the filled tonal controls).
-   All colours are the :root tonal tokens. */
-.input-area form.has-rating {
-  flex-wrap: wrap;
-  height: auto;
-  row-gap: 10px;
-}
-
-.rating-form {
-  display: flex;
-  gap: 10px;
-  width: 100%;
-}
-
-.rating-field {
-  flex: 1 1 0;
-  min-width: 0;
+/* The gate's answer form, under the message that asks: one row per prompt the
+   module names, quoting the line above it, and five 1-5 chips beside it in the
+   filled tonal idiom of the option buttons (the shape the learner picked on the
+   live page over the dropdown strip of ticket #40: the strip sat far from the
+   prompts, and an empty dropdown advertised nothing). Unpicked chips are quiet
+   tonal, the picked one is the filled control, and the anchors under the rows
+   spell the scale the chips answer. All colours are the :root tonal tokens. */
+.scale-form {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--md-outline-variant);
 }
 
-.rating-prompt {
+.scale-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.scale-letter {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  border-radius: var(--md-shape-full);
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
   font-size: 0.8rem;
-  font-weight: 500;
-  letter-spacing: 0.4px;
+  font-weight: 600;
+}
+
+.scale-prompt {
+  flex: 1 1 120px;
+  min-width: 0;
+  font-size: 0.85rem;
   color: var(--md-on-surface-variant);
 }
 
-.rating-select {
+.scale-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.scale-chip {
+  min-width: 40px;
   height: 40px;
-  padding: 0 10px;
+  padding: 0;
   background: var(--md-surface-container);
   color: var(--md-on-surface);
-  border: 1px solid var(--md-outline);
-  border-radius: var(--md-shape-md);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-shape-sm);
   font-size: 0.95rem;
+  font-weight: 500;
   cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
 }
 
-.rating-select:hover {
-  border-color: var(--md-on-surface-variant);
+.scale-chip:hover {
+  background: var(--md-surface-container-high);
+  border-color: var(--md-outline);
 }
 
-.rating-select:focus {
-  outline: none;
+.scale-chip:focus-visible {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 2px;
+}
+
+.scale-chip.picked {
+  background: var(--md-primary);
+  color: var(--md-on-primary);
   border-color: var(--md-primary);
-  box-shadow: 0 0 0 1px var(--md-primary);
+}
+
+.scale-anchors {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.75rem;
+  letter-spacing: 0.3px;
+  color: var(--md-on-surface-variant);
 }
 
 @media (max-width: 768px) {
-  /* The research phone (spec #26): the three fields stay on one row at
-     thumb-target height, and the typed fallback drops to a row of its own. */
-  .rating-form {
-    gap: 6px;
+  /* The research phone (spec #26): five chips at thumb size fit the message
+     width, so the prompt moves above them on its own line. */
+  .scale-prompt {
+    order: -1;
+    flex: 1 1 100%;
+    font-size: 0.9rem;
   }
 
-  .rating-select {
+  .scale-chips {
+    gap: 8px;
+  }
+
+  .scale-chip {
+    min-width: 44px;
     height: 44px;
     font-size: 1rem;
-  }
-
-  .input-area form.has-rating input[type="text"] {
-    flex: 1 1 100%;
   }
 }

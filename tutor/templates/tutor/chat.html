@@ -28,6 +28,37 @@
         <div class="message {{ turn.role }}">
           {% if turn.role == 'assistant' %}
             {{ turn.message|markdown }}
+            {% if scales and forloop.last %}
+              {% comment %}
+                The gate's answer form, under the message that asks (ticket #48):
+                one row per prompt the module names (scales()), each quoting the
+                line above it, and five 1-5 chips in the filled tonal idiom of the
+                option buttons. The rows ride the LAST turn only, so an answered
+                gate keeps no live control behind it in the transcript. The script
+                at the foot of this page sends the picks joined by spaces - the
+                string the gate already accepts - so a form answer is the same
+                submission as a typed one: a pick left out arrives as the short
+                string a half-typed answer is, and the gate's own copy refuses it.
+                Touching no chip leaves the typed input alone (ADR-0007 d6).
+              {% endcomment %}
+              <div class="scale-form" id="scale-form">
+                {% for scale in scales %}
+                  <div class="scale-row" data-letter="{{ scale.letter }}">
+                    <span class="scale-letter">{{ scale.letter }}</span>
+                    <span class="scale-prompt">{{ scale.prompt }}</span>
+                    <span class="scale-chips">
+                      {% for score in "12345" %}
+                        <button class="scale-chip" type="button" data-score="{{ score }}" aria-label="{{ scale.letter }}: {{ score }} of 5">{{ score }}</button>
+                      {% endfor %}
+                    </span>
+                  </div>
+                {% endfor %}
+                <div class="scale-anchors">
+                  <span>1 - destructive</span>
+                  <span>5 - constructive</span>
+                </div>
+              </div>
+            {% endif %}
             {% if turn.options %}
               {% comment %} Choices first in the scenario's order; the module's
                  nav/retry offers get their own row after them (issue #15 owner
@@ -61,34 +92,8 @@
     </div>
     <div class="input-area">
       {% if not is_end %}
-        <form method="post" autocomplete="off" id="main-form"{% if scales %} class="has-rating"{% endif %}>
+        <form method="post" autocomplete="off" id="main-form">
           {% csrf_token %}
-          {% if scales %}
-            {% comment %}
-              The assessment gates' answer form (ticket #40): one 1-5 dropdown per
-              prompt the module names, in submission order, beside the typed input.
-              The script at the foot of this page joins the picks into the one string
-              the gate already accepts, so a form answer is the same submission as a
-              typed one: a selection left short arrives as the short string a
-              half-typed answer is, and the gate's own copy refuses it. Touching no
-              dropdown leaves the typed answer untouched.
-            {% endcomment %}
-            <div class="rating-form" id="rating-form">
-              {% for prompt in scales %}
-                <label class="rating-field">
-                  <span class="rating-prompt">{{ prompt }}</span>
-                  <select class="rating-select" aria-label="Rating for {{ prompt }}: 1 (destructive) to 5 (constructive)">
-                    <option value="" selected></option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                  </select>
-                </label>
-              {% endfor %}
-            </div>
-          {% endif %}
           <input type="text" name="user_input" placeholder="Type your answer here..." autofocus>
           <button type="submit">Send</button>
           <div class="loading-overlay" id="loading-overlay">
@@ -124,23 +129,52 @@
     });
   }
 
+  // The gate's chip rows (ticket #48): a tap sets that prompt's pick. Three
+  // picks ARE the Send - the gate takes exactly one answer per prompt, so the
+  // page sends the moment every row has one, composing the 'a b c' string the
+  // gate reads. A Send tap before the last pick composes the short string with
+  // the empty picks kept, which is what a half-typed answer is; touching no
+  // chip at all leaves the typed line alone (ADR-0007 decision 6).
+  var scaleForm = document.getElementById('scale-form');
+  var scaleLetters = [];
+  var scalePicks = {};
+  if (scaleForm) {
+    scaleForm.querySelectorAll('.scale-row').forEach(function(row) {
+      var letter = row.getAttribute('data-letter');
+      scaleLetters.push(letter);
+      row.querySelectorAll('.scale-chip').forEach(function(chip) {
+        chip.addEventListener('click', function() {
+          scalePicks[letter] = chip.getAttribute('data-score');
+          row.querySelectorAll('.scale-chip').forEach(function(other) {
+            other.classList.toggle('picked', other === chip);
+          });
+          if (scaleLetters.every(function(item) { return scalePicks[item]; })) {
+            var sent = document.querySelector('#main-form input[name="user_input"]');
+            if (sent) {
+              sent.value = scaleLetters.map(function(item) { return scalePicks[item]; }).join(' ');
+              // form.submit() bypasses the submit listener, so the overlay is
+              // raised here - the option buttons do the same.
+              document.getElementById('loading-overlay').classList.add('active');
+              document.getElementById('main-form').submit();
+            }
+          }
+        });
+      });
+    });
+  }
+
   var mainForm = document.getElementById('main-form');
   if (mainForm) {
     mainForm.addEventListener('submit', function() {
-      var rating = document.getElementById('rating-form');
-      if (rating) {
-        // The dropdowns answer the gate once the learner touches one of them:
-        // their picks are joined with the empty picks kept, so a selection left
-        // short reaches the gate as the same short string a half-typed answer
-        // does. An untouched set leaves the typed line alone — the typed answer
-        // stays exactly the answer it was (ticket #40).
-        var picks = [];
-        rating.querySelectorAll('select').forEach(function(select) {
-          picks.push(select.value);
-        });
-        if (picks.some(function(pick) { return pick !== ''; })) {
+      if (scaleForm) {
+        var touched = scaleLetters.some(function(item) { return scalePicks[item]; });
+        if (touched) {
           var field = mainForm.querySelector('input[name="user_input"]');
-          if (field) field.value = picks.join(' ');
+          if (field) {
+            field.value = scaleLetters.map(function(item) {
+              return scalePicks[item] || '';
+            }).join(' ');
+          }
         }
       }
       document.getElementById('loading-overlay').classList.add('active');

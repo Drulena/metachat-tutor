@@ -67,9 +67,9 @@ WALK_TO_END = (
     "4 4 4",  # -> data collection, the terminal screen
 )
 
-#: A pick per prompt for the assessment gates' rating form (ticket #40): the
-#: three dropdowns compose into this string joined with spaces, the answer the
-#: gate has always taken.
+#: A pick per prompt for the assessment gates' chip form (tickets #40 and #48):
+#: the taps compose into this string joined with spaces, the answer the gate has
+#: always taken.
 RATING_PICKS = ("2", "4", "5")
 
 #: The phone width the research participants use (spec #26).
@@ -329,60 +329,75 @@ class BrowserPaintTests(StaticLiveServerTestCase):
         self.drive(scenario)
 
 
-    def test_the_rating_form_answers_on_the_research_phone(self):
-        """The gates' dropdowns fit the phone the research uses and answer the
-        gate: three fields inside the 420px viewport with nothing cut off, the
-        picks composed into the string the gate has always taken, and the page
-        moved on with no rejection note (ticket #40, AC1 and AC5).
+    def test_the_chip_form_answers_on_the_research_phone(self):
+        """The gates' chips fit the phone the research uses and answer the gate:
+        a row per prompt under the message that asks, every 40px target inside
+        the 420px viewport with nothing cut off, and the third tap IS the Send -
+        the picks compose into the string the gate has always taken and the page
+        moves on with no rejection note (ticket #48, AC2 and AC3; the mobile
+        check ticket #40 left unrun for want of a browser here).
         """
 
         def scenario(page):
             self.open_intake(page)
-            self.assertPainted(page, "pretest rating form", TITLES["chat"], min_text=200)
-            fields = page.locator(".rating-select")
-            self.assertEqual(fields.count(), len(RATING_PICKS))
+            self.assertPainted(page, "pretest chip form", TITLES["chat"], min_text=200)
+            rows = page.locator(".scale-row")
+            self.assertEqual(rows.count(), len(RATING_PICKS))
+            chips = page.locator(".scale-chip")
+            self.assertEqual(chips.count(), 5 * len(RATING_PICKS))
             width = VIEWPORT["width"]
-            for index in range(fields.count()):
-                box = fields.nth(index).bounding_box()
-                self.assertGreaterEqual(box["height"], 40, f"field {index}: height")
-                self.assertGreaterEqual(box["x"], 0, f"field {index}: off the left edge")
+            for index in range(chips.count()):
+                box = chips.nth(index).bounding_box()
+                self.assertGreaterEqual(box["height"], 40, f"chip {index}: height")
+                self.assertGreaterEqual(box["width"], 40, f"chip {index}: width")
+                self.assertGreaterEqual(box["x"], 0, f"chip {index}: off the left edge")
                 self.assertLessEqual(
                     box["x"] + box["width"],
                     width,
-                    f"field {index}: cut off at the right edge",
+                    f"chip {index}: cut off at the right edge",
                 )
             self.assertLessEqual(
                 page.evaluate("() => document.documentElement.scrollWidth"),
                 width,
-                "the rating row overflows the phone's width",
+                "the chip rows overflow the phone's width",
             )
             for index, pick in enumerate(RATING_PICKS):
-                fields.nth(index).select_option(pick)
-            page.click("#main-form button" + attribute("type", "submit"))
+                rows.nth(index).locator(".scale-chip").nth(int(pick) - 1).click()
+                if index + 1 < len(RATING_PICKS):
+                    # The third tap submits; nothing before it may.
+                    self.assertEqual(page.locator(".scale-row").count(), len(RATING_PICKS))
             page.wait_for_load_state("load")
             self.assertEqual(
-                page.locator(".rating-select").count(),
+                page.locator(".scale-form").count(),
                 0,
                 "the gate is still asking after a full selection",
             )
             self.assertEqual(page.locator(".rejection-note").count(), 0)
+            self.assertPainted(page, "the gate answered", TITLES["chat"], min_text=200)
 
         self.drive(scenario)
 
     def test_a_selection_left_short_shows_the_gate_s_own_copy(self):
         """A learner who picks two of three is answered by the gate's own
-        copy — the copy a half-typed answer gets — and the fields stay, so the
-        missing pick is the one thing left to do (ticket #40, AC1).
+        copy — the copy a half-typed answer gets — and the rows stay, so the
+        missing pick is the one thing left to do (ticket #48, AC3).
         """
 
         def scenario(page):
             self.open_intake(page)
-            fields = page.locator(".rating-select")
-            fields.nth(0).select_option(RATING_PICKS[0])
-            fields.nth(1).select_option(RATING_PICKS[1])
+            rows = page.locator(".scale-row")
+            rows.nth(0).locator(".scale-chip").nth(int(RATING_PICKS[0]) - 1).click()
+            rows.nth(1).locator(".scale-chip").nth(int(RATING_PICKS[1]) - 1).click()
+            self.assertEqual(
+                rows.count(),
+                len(RATING_PICKS),
+                "two taps already submitted the gate",
+            )
+            picked = page.locator(".scale-chip.picked")
+            self.assertEqual(picked.count(), 2, "the taps are not marked as picked")
             page.click("#main-form button" + attribute("type", "submit"))
             page.wait_for_load_state("load")
             self.assertIn("pretest task", page.locator(".rejection-note").inner_text())
-            self.assertEqual(page.locator(".rating-select").count(), len(RATING_PICKS))
+            self.assertEqual(page.locator(".scale-row").count(), len(RATING_PICKS))
 
         self.drive(scenario)

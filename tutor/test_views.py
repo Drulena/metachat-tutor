@@ -467,47 +467,67 @@ class ChatRejectionTests(TestCase):
 
 
 class AssessmentFormTests(TestCase):
-    """The gates' answer form: three 1-5 dropdowns, not a typed line (#40).
+    """The gates' answer form: one row of 1-5 chips per prompt (#40, shaped by #48).
 
-    The page asks the module which form the state takes (``scales()``); the
-    prompts, a pick per prompt and the route to the posttest are shared from
-    :mod:`tutor.test_tutor_session`. The submitted string is the picks joined
-    by spaces, which is what the browser composes from the dropdowns — the
-    gate, its regex and its parser are untouched (ADR-0007 decision 6).
+    The page asks the module which form the state takes (``scales()``) and
+    renders one row per prompt under the message that asks. The prompts, a pick
+    per prompt and the route to the posttest are shared from
+    :mod:`tutor.test_tutor_session`. The submitted string is the picks joined by
+    spaces, which is what the browser composes from the chips - the gate, its
+    regex and its parser are untouched (ADR-0007 decision 6).
     """
 
     def setUp(self):
         self.client = Client()
 
-    def test_the_pretest_page_offers_one_dropdown_per_prompt(self):
-        """The gate arrives as a form: a select per prompt, the five points
-        each, and the prompt named in the control's own label."""
+    def test_the_pretest_page_offers_a_chip_row_per_prompt(self):
+        """The gate arrives as a form: one row per prompt, five 1-5 chips each,
+        and the prompt quoted beside its own row, so a tap lands under the line
+        it rates (#48)."""
         _drive(self.client, [])
         html = self.client.get("/chat/").content.decode()
-        self.assertEqual(html.count('class="rating-select"'), len(ASSESSMENT_SCALES))
-        for prompt in ASSESSMENT_SCALES:
-            self.assertIn(
-                f'aria-label="Rating for {prompt}: 1 (destructive) to 5 (constructive)"',
-                html,
-            )
-        self.assertIn('<option value="1">1</option>', html)
-        self.assertIn('<option value="5">5</option>', html)
+        self.assertEqual(html.count('class="scale-row"'), len(ASSESSMENT_SCALES))
+        self.assertEqual(
+            html.count('class="scale-chip"'), 5 * len(ASSESSMENT_SCALES)
+        )
+        for scale in ASSESSMENT_SCALES:
+            self.assertIn(f'data-letter="{scale["letter"]}"', html)
+            self.assertIn(html_module.escape(scale["prompt"]), html)
+        self.assertIn('data-score="1"', html)
+        self.assertIn('data-score="5"', html)
         # The typed answer stays: the composer is on the page beside the form.
         self.assertIn('name="user_input"', html)
 
-    def test_the_form_marks_itself_for_the_stylesheet(self):
-        """Every class the template renders has a rule in style.css (the
-        pairing rule): the row is marked by an id and a form class."""
+    def test_the_rows_sit_under_the_message_that_asks(self):
+        """Placement is the complaint this ticket answers (#48): the rows come
+        after the gate's own message, not in the bar under the chat - the
+        control is beside the question it answers."""
         _drive(self.client, [])
         html = self.client.get("/chat/").content.decode()
-        self.assertIn('id="rating-form"', html)
-        self.assertIn('class="has-rating"', html)
+        self.assertLess(html.index("PRE-TEST"), html.index('id="scale-form"'))
+        self.assertLess(html.index('id="scale-form"'), html.index('id="main-form"'))
+
+    def test_the_form_marks_itself_for_the_stylesheet(self):
+        """Every class the template renders has a rule in style.css (the
+        pairing rule), the picked state of a chip included - the chips are
+        controls, and a control's states are styled."""
+        _drive(self.client, [])
+        html = self.client.get("/chat/").content.decode()
+        self.assertIn('id="scale-form"', html)
         css = (Path(__file__).parent / "static" / "tutor" / "style.css").read_text(
             encoding="utf-8"
         )
-        for selector in (".rating-form", ".rating-field", ".rating-prompt", ".rating-select"):
+        for selector in (
+            ".scale-form",
+            ".scale-row",
+            ".scale-letter",
+            ".scale-prompt",
+            ".scale-chips",
+            ".scale-chip",
+            ".scale-chip.picked",
+            ".scale-anchors",
+        ):
             self.assertIn(selector + " {", css, selector)
-        self.assertIn(".input-area form.has-rating {", css)
 
     def test_a_full_selection_lands_the_gate(self):
         """The three picks joined by spaces are the string the gate reads:
@@ -534,22 +554,23 @@ class AssessmentFormTests(TestCase):
         )
         self.assertIn("pretest task", self.client.get("/chat/").content.decode())
 
-    def test_a_state_that_takes_a_typed_answer_offers_no_dropdowns(self):
-        """The selector is the gate's, not the app's: one step past the
-        pretest the composer is the only answer field on the page."""
+    def test_a_state_that_takes_a_typed_answer_offers_no_chips(self):
+        """The chips are the gate's, not the app's: one step past the pretest
+        the composer is the only answer field on the page, and the answered
+        gate leaves no live control behind it in the transcript."""
         _drive(self.client, ["3 4 5"])
         html = self.client.get("/chat/").content.decode()
-        self.assertNotIn('class="rating-select"', html)
-        self.assertNotIn("has-rating", html)
+        self.assertNotIn('id="scale-form"', html)
+        self.assertNotIn('class="scale-chip"', html)
 
     def test_the_posttest_page_offers_the_same_form(self):
         """One instrument at both ends (spec #29): the walk to the posttest
         lands on the same three prompts in the same order."""
         _drive(self.client, WALK_TO_POSTTEST)
         html = self.client.get("/chat/").content.decode()
-        self.assertEqual(html.count('class="rating-select"'), len(ASSESSMENT_SCALES))
+        self.assertEqual(html.count('class="scale-row"'), len(ASSESSMENT_SCALES))
         order = [
-            html.index(f'aria-label="Rating for {prompt}:') for prompt in ASSESSMENT_SCALES
+            html.index(f'data-letter="{scale["letter"]}"') for scale in ASSESSMENT_SCALES
         ]
         self.assertEqual(order, sorted(order), "the prompts are out of order")
 
