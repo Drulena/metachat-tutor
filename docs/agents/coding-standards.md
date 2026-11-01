@@ -58,6 +58,20 @@ page — a `content`-missing answer is treated as a miss and falls through to th
 demo-failure path, not to the thinking text (owner: "I want only result of llm,
 not what it thought").
 
+## Dependencies
+
+uv is the package manager: `pyproject.toml` declares the dependencies,
+`uv.lock` pins the whole graph, `uv sync` builds `.venv`. Grow the set with
+`uv add <package>` (dev tooling with `uv add --group dev <package>`) and
+commit the lock file. `requirements.txt` is a pip compatibility artifact, not
+a second source of truth: regenerate the whole file after any lock change and
+never edit it by hand, or a pin drifts the first time a dependency moves.
+
+```
+uv export --no-emit-project --no-dev --no-hashes \
+    --format requirements-txt -o requirements.txt
+```
+
 ## Commands
 
 Tests run in the uv environment, from the repo root, Django's runner:
