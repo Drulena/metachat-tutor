@@ -22,7 +22,17 @@ import re
 
 from django.test import SimpleTestCase
 
-from .data import ROLE_BY_VALUE, ROLE_LABELS, ROLE_STEP_KEYS, SCENARIO, TASK_VARIANTS
+from .data import (
+    LEVELS,
+    ROLE_BY_VALUE,
+    ROLE_LABELS,
+    ROLE_STEP_KEYS,
+    SCENARIO,
+    TASK_VARIANTS,
+    randomize_scenario,
+)
+from .scenarios import ROLE_STATE_KEYS
+from .scenarios import randomize as randomize_module
 from .scenarios import (
     after_registration as after_registration_scenario,
     analysis_feedback_1 as analysis_feedback_1_scenario,
@@ -1021,3 +1031,91 @@ class ScenarioCopyEscapeTests(SimpleTestCase):
             ]
             with self.subTest(corpus=name):
                 self.assertEqual(offenders, [], f"stray backslash escapes: {offenders}")
+
+
+class ScenarioPlaceholderIntegrityTests(SimpleTestCase):
+    """Randomized copy carries no unsubstituted placeholder (the leak bug).
+
+    ``randomize_scenario`` fills a state message by walking its variant's
+    keys: a placeholder with no variant key is never touched and reaches
+    the learner verbatim, and a variant key with no placeholder is shown
+    nowhere — the content silently drops. So the two sets must agree,
+    exactly, per role and per analysis level; the rendered sweep is the
+    learner-visible net that catches the leak itself.
+    """
+
+    _PH_RE = re.compile(r"\{([a-z_0-9]+)\}")
+
+    def _states_with_variants(self):
+        """Yield ``(label, template, variant)`` for every randomized state.
+
+        The nine role states and the six (analysis base, level) pairs:
+        exactly the states :func:`randomize_scenario` fills from
+        :data:`TASK_VARIANTS`.
+        """
+        for role_key in ROLE_STATE_KEYS:
+            for i, variant in enumerate(TASK_VARIANTS[role_key]):
+                yield (role_key, SCENARIO["states"][role_key]["message"], variant)
+        for task_num in (1, 2):
+            base = f"analysis_task_{task_num}"
+            for level in LEVELS:
+                template = SCENARIO["states"][base][level]["message"]
+                for variant in TASK_VARIANTS[base][level]:
+                    yield (f"{base}.{level}", template, variant)
+
+    def test_template_placeholders_have_a_variant_key(self):
+        """No template placeholder can leak to the page unfilled."""
+        for label, template, variant in self._states_with_variants():
+            missing = set(self._PH_RE.findall(template)) - set(variant)
+            with self.subTest(state=label):
+                self.assertEqual(
+                    missing, set(), f"placeholders with no variant key: {sorted(missing)}"
+                )
+
+    def test_variant_keys_reach_the_template(self):
+        """No variant content is silently dropped from the page."""
+        for label, template, variant in self._states_with_variants():
+            unused = set(variant) - set(self._PH_RE.findall(template))
+            with self.subTest(state=label):
+                self.assertEqual(
+                    unused, set(), f"variant keys the template never shows: {sorted(unused)}"
+                )
+
+    def test_randomized_messages_carry_no_leftover_placeholder(self):
+        """The rendered sweep: after randomization no ``{token}`` survives."""
+        randomized = randomize_scenario(SCENARIO)["states"]
+        bases = [key for key in randomized if key.startswith("analysis_task_")]
+        for label, *_ in self._states_with_variants():
+            if label.startswith("analysis_task_"):
+                level = label.rsplit(".", 1)[1]
+                message = randomized[label.rsplit(".", 1)[0]][level]["message"]
+            else:
+                message = randomized[label]["message"]
+            leftovers = self._PH_RE.findall(message)
+            with self.subTest(state=label):
+                self.assertEqual(leftovers, [], f"unsubstituted placeholders: {leftovers}")
+        self.assertTrue(bases, "the sweep must reach the analysis bases")
+
+    def test_pretest_posttest_anchors_are_present(self):
+        """The pretest sweep replaces by literal anchor, so the anchors must live.
+
+        The three messages are ONE canonical trio (the Streamlit original
+        of the initial commit): the posttest asks the learner to rate the
+        SAME messages as the pretest, so a drifted literal on either side
+        breaks the research contract AND silently disables the sweep for
+        every future variant (the replace hits nothing).
+        """
+        trio = (
+            "'Your idea is wrong. Fix it.'",
+            "'I see your point, but have you considered... 🤔'",
+            "'THIS IS TERRIBLE!!!'",
+        )
+        for state in ("pretest", "posttest"):
+            message = SCENARIO["states"][state]["message"]
+            for anchor in trio:
+                with self.subTest(state=state, anchor=anchor):
+                    self.assertIn(anchor, message)
+        source = inspect.getsource(randomize_module)
+        for anchor in trio:
+            with self.subTest(anchor=anchor):
+                self.assertIn(anchor, source)
