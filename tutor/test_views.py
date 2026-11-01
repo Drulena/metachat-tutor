@@ -12,12 +12,14 @@ public HTTP boundary. The module itself is tested in ``test_tutor_session.py``.
 import html as html_module
 import re
 from dataclasses import asdict
+from pathlib import Path
 from unittest import mock
 
 from django.test import Client, TestCase
 
 from .session import SessionStorage
 from .test_tutor_session import (
+    ASSESSMENT_SCALES,
     FakeLLM,
     INTAKE,
     GENERIC_REJECTION,
@@ -25,6 +27,8 @@ from .test_tutor_session import (
     ROLE_MENU_CLOSING_LINE,
     ROLE_MENU_COPY,
     ROLE_MENU_INPUTS,
+    SELECTOR_PICKS,
+    WALK_TO_POSTTEST,
 )
 from .tutor_session import TutorSession
 
@@ -434,6 +438,94 @@ class ChatRejectionTests(TestCase):
         client.post("/chat/", {"user_input": "no such task"})
         html = html_module.unescape(client.get("/chat/").content.decode())
         self.assertIn(GENERIC_REJECTION, html)
+
+
+class AssessmentFormTests(TestCase):
+    """The gates' answer form: three 1-5 dropdowns, not a typed line (#40).
+
+    The page asks the module which form the state takes (``scales()``); the
+    prompts, a pick per prompt and the route to the posttest are shared from
+    :mod:`tutor.test_tutor_session`. The submitted string is the picks joined
+    by spaces, which is what the browser composes from the dropdowns — the
+    gate, its regex and its parser are untouched (ADR-0007 decision 6).
+    """
+
+    def setUp(self):
+        self.client = Client()
+
+    def test_the_pretest_page_offers_one_dropdown_per_prompt(self):
+        """The gate arrives as a form: a select per prompt, the five points
+        each, and the prompt named in the control's own label."""
+        _drive(self.client, [])
+        html = self.client.get("/chat/").content.decode()
+        self.assertEqual(html.count('class="rating-select"'), len(ASSESSMENT_SCALES))
+        for prompt in ASSESSMENT_SCALES:
+            self.assertIn(
+                f'aria-label="Rating for {prompt}: 1 (destructive) to 5 (constructive)"',
+                html,
+            )
+        self.assertIn('<option value="1">1</option>', html)
+        self.assertIn('<option value="5">5</option>', html)
+        # The typed answer stays: the composer is on the page beside the form.
+        self.assertIn('name="user_input"', html)
+
+    def test_the_form_marks_itself_for_the_stylesheet(self):
+        """Every class the template renders has a rule in style.css (the
+        pairing rule): the row is marked by an id and a form class."""
+        _drive(self.client, [])
+        html = self.client.get("/chat/").content.decode()
+        self.assertIn('id="rating-form"', html)
+        self.assertIn('class="has-rating"', html)
+        css = (Path(__file__).parent / "static" / "tutor" / "style.css").read_text(
+            encoding="utf-8"
+        )
+        for selector in (".rating-form", ".rating-field", ".rating-prompt", ".rating-select"):
+            self.assertIn(selector + " {", css, selector)
+        self.assertIn(".input-area form.has-rating {", css)
+
+    def test_a_full_selection_lands_the_gate(self):
+        """The three picks joined by spaces are the string the gate reads:
+        the state moves on and no rejection copy appears (AC1)."""
+        _drive(self.client, [])
+        response = self.client.post(
+            "/chat/", {"user_input": " ".join(SELECTOR_PICKS)}
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            SessionStorage(self.client.session).load().current_state, "after_registration"
+        )
+        self.assertNotIn("pretest task", self.client.get("/chat/").content.decode())
+
+    def test_a_selection_left_short_is_refused_as_a_typed_one_is(self):
+        """An empty pick leaves a hole in the string: the gate's own copy
+        answers and the state stays put, exactly as a typed half-answer."""
+        _drive(self.client, [])
+        self.client.post(
+            "/chat/", {"user_input": " ".join(SELECTOR_PICKS[:2])}
+        )
+        self.assertEqual(
+            SessionStorage(self.client.session).load().current_state, "pretest"
+        )
+        self.assertIn("pretest task", self.client.get("/chat/").content.decode())
+
+    def test_a_state_that_takes_a_typed_answer_offers_no_dropdowns(self):
+        """The selector is the gate's, not the app's: one step past the
+        pretest the composer is the only answer field on the page."""
+        _drive(self.client, ["3 4 5"])
+        html = self.client.get("/chat/").content.decode()
+        self.assertNotIn('class="rating-select"', html)
+        self.assertNotIn("has-rating", html)
+
+    def test_the_posttest_page_offers_the_same_form(self):
+        """One instrument at both ends (spec #29): the walk to the posttest
+        lands on the same three prompts in the same order."""
+        _drive(self.client, WALK_TO_POSTTEST)
+        html = self.client.get("/chat/").content.decode()
+        self.assertEqual(html.count('class="rating-select"'), len(ASSESSMENT_SCALES))
+        order = [
+            html.index(f'aria-label="Rating for {prompt}:') for prompt in ASSESSMENT_SCALES
+        ]
+        self.assertEqual(order, sorted(order), "the prompts are out of order")
 
 
 class ChatSubmissionTests(TestCase):

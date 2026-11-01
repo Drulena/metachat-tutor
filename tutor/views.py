@@ -173,7 +173,10 @@ def chat_view(request: HttpRequest):
     navigation options are available and attaches them to the current
     assistant turn; the template renders exactly one option list per turn.
     A rejected input is surfaced by the module too — the unanswered user
-    turn carries its ``rejection`` copy and the template renders it.
+    turn carries its ``rejection`` copy and the template renders it. The
+    answer form follows the same rule: the module names the prompts a state
+    offers as 1-5 dropdowns (``scales()``) and the template renders one per
+    prompt beside the typed input (ticket #40).
 
     Method shapes the response: a POST is a submission and is answered with a
     redirect back to this page (POST-Redirect-GET, issue #34), so the page a
@@ -208,6 +211,9 @@ def chat_view(request: HttpRequest):
             "turns": turns,
             "summary": summary,
             "is_end": summary.finished,
+            # The state's answer form is the module's to name, not the
+            # view's to decide: an empty list leaves the typed input alone.
+            "scales": session.scales(),
         },
     )
 

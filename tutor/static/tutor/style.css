@@ -865,3 +865,76 @@ html, body {
   font-weight: 500;
   text-decoration: none;
 }
+
+/* --------------------------------------- assessment selector form (#40) */
+
+/* The gate's answer form: one 1-5 dropdown per prompt the module names, above
+   the typed input the form keeps as its fallback. The row wraps, so the three
+   fields take a row of their own. The prompts label the fields, they are not
+   choices: quiet text in the variant tone, while the choices that answer the
+   gate are the controls (MD3: learner choices are the filled tonal controls).
+   All colours are the :root tonal tokens. */
+.input-area form.has-rating {
+  flex-wrap: wrap;
+  height: auto;
+  row-gap: 10px;
+}
+
+.rating-form {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.rating-field {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rating-prompt {
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  color: var(--md-on-surface-variant);
+}
+
+.rating-select {
+  height: 40px;
+  padding: 0 10px;
+  background: var(--md-surface-container);
+  color: var(--md-on-surface);
+  border: 1px solid var(--md-outline);
+  border-radius: var(--md-shape-md);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.rating-select:hover {
+  border-color: var(--md-on-surface-variant);
+}
+
+.rating-select:focus {
+  outline: none;
+  border-color: var(--md-primary);
+  box-shadow: 0 0 0 1px var(--md-primary);
+}
+
+@media (max-width: 768px) {
+  /* The research phone (spec #26): the three fields stay on one row at
+     thumb-target height, and the typed fallback drops to a row of its own. */
+  .rating-form {
+    gap: 6px;
+  }
+
+  .rating-select {
+    height: 44px;
+    font-size: 1rem;
+  }
+
+  .input-area form.has-rating input[type="text"] {
+    flex: 1 1 100%;
+  }
+}
