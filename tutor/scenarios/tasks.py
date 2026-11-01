@@ -55,7 +55,6 @@ TASK_VARIANTS: dict[str, Any] = {
         "advanced": [
             {
                 "message": "'Your idea is BRILLIANT... if you're living in 1995 🙄 #facepalm'",
-                "hint": "Metagraphemic means in online discussions are non-standard graphic, typographic, and punctuation techniques used to enhance, alter, or clarify the emotional tone, emphasis, or meaning of a text-based message.",
             }
         ],
     },
