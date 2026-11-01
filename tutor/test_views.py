@@ -14,11 +14,12 @@ import re
 from dataclasses import asdict
 from unittest import mock
 
-from django.test import TestCase
+from django.test import Client, TestCase
 
 from .session import SessionStorage
 from .test_tutor_session import (
     FakeLLM,
+    INTAKE,
     GENERIC_REJECTION,
     REGISTRATION_OPTIONS,
     ROLE_MENU_CLOSING_LINE,
@@ -37,7 +38,7 @@ def _drive(client, inputs):
     store = client.session
     fake = FakeLLM()
     session = TutorSession(SessionStorage(store), fake)
-    session.start()
+    session.start(INTAKE)
     for text in inputs:
         session.submit(text)
     store.save()
@@ -82,13 +83,20 @@ class MainMenuViewTests(TestCase):
         self.assertContains(resp, "Task 1: Softening Criticism")
         self.assertContains(resp, "Task 2: Aggressive Formatting")
         self.assertContains(resp, "Mediator")
-        # progress figure from Summary.percentage (4 of 15 steps)
-        self.assertContains(resp, "26")
+        # progress figure from Summary.percentage (3 of 14 steps)
+        self.assertContains(resp, "21")
 
-    def test_menu_on_fresh_session_starts_it(self):
+    def test_menu_redirects_a_browser_with_no_intake(self):
+        """Ticket #37: the form opens the session, so a browser that has
+        never submitted it has no progress to overview.
+
+        Carried over from ``test_menu_on_fresh_session_starts_it``: the menu
+        used to mint a session of its own.
+        """
         client = self.client
         resp = client.get("/menu/")
-        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp["Location"], "/")
 
     def test_task_row_shows_the_same_status_on_both_pages(self):
         """Issue #14: the sidebar and the overview cannot disagree about a row.
@@ -100,8 +108,8 @@ class MainMenuViewTests(TestCase):
         now render the badge straight from the row's own status.
         """
         client = self.client
-        _drive(client, ["Alice", "3 4 5", "2", "1", "yes", "Answer to task one", "next"])
-        for path in ("/menu/", "/"):  # overview page, chat page (sidebar fragment)
+        _drive(client, ["3 4 5", "1", "yes", "Answer to task one", "next"])
+        for path in ("/menu/", "/chat/"):  # overview page, chat page (sidebar fragment)
             html = client.get(path).content.decode()
             cell = _task_cell(html, "Task 2: Aggressive Formatting")
             self.assertIn("badge-in-progress", cell, f"{path} lost the in-progress badge")
@@ -117,8 +125,8 @@ class MainMenuViewTests(TestCase):
         Started. Each row now answers for itself, so this state agrees too.
         """
         client = self.client
-        _drive(client, ["Alice", "3 4 5", "2", "1", "yes"])  # -> task 1 in progress
-        for path in ("/menu/", "/"):  # overview page, chat page (sidebar fragment)
+        _drive(client, ["3 4 5", "1", "yes"])  # -> task 1 in progress
+        for path in ("/menu/", "/chat/"):  # overview page, chat page (sidebar fragment)
             html = client.get(path).content.decode()
             cell = _task_cell(html, "Task 1: Softening Criticism")
             self.assertIn("badge-in-progress", cell, f"{path} lost task 1's badge")
@@ -133,7 +141,7 @@ class MainMenuViewTests(TestCase):
         not — value '2' alone is not unique (the level prompt offers it too)."""
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
-        html = client.get("/").content.decode()
+        html = client.get("/chat/").content.decode()
         self.assertIn(
             f'data-value="1" data-used="true">{REGISTRATION_OPTIONS["1"]}', html
         )
@@ -146,7 +154,7 @@ class MainMenuViewTests(TestCase):
         in task_group.html rendered as literal text on both pages."""
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
-        for path in ("/menu/", "/"):
+        for path in ("/menu/", "/chat/"):
             page = html_module.unescape(client.get(path).content.decode())
             self.assertNotIn("computes nothing", page, f"{path} leaked the template comment")
 
@@ -185,7 +193,7 @@ class ChatOptionRenderingTests(TestCase):
     def test_chat_offers_utilities_in_a_separate_row_after_choices(self):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
-        html = client.get("/").content.decode()
+        html = client.get("/chat/").content.decode()
         block = self._last_block(html)
         choices_div = block.index('<div class="message-options">')
         system_div = block.index('<div class="system-options">')
@@ -196,7 +204,7 @@ class ChatOptionRenderingTests(TestCase):
     def test_chat_choices_render_in_scenario_order(self):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
-        html = client.get("/").content.decode()
+        html = client.get("/chat/").content.decode()
         self.assertEqual(
             self._choice_labels(html)[:4],
             ["Mediator", "Logical Expert", "Idea Generator", "Researcher"],
@@ -210,10 +218,10 @@ class ChatOptionRenderingTests(TestCase):
         # pinned for the request window.
         with mock.patch("tutor.llm.get_llm_feedback", _fake_feedback):
             _drive(client, ROLE_MENU_INPUTS)
-            client.post("/", {"user_input": "1"})
-            client.post("/", {"user_input": "I mediate the conflict"})
-            client.post("/", {"user_input": "next"})
-        html = client.get("/").content.decode()
+            client.post("/chat/", {"user_input": "1"})
+            client.post("/chat/", {"user_input": "I mediate the conflict"})
+            client.post("/chat/", {"user_input": "next"})
+        html = client.get("/chat/").content.decode()
         buttons = self._button_markup(html)
         done = [m for m in buttons if "option-completed" in m]
         self.assertEqual(len(done), 1, f"exactly one completed option, got {len(done)}")
@@ -224,13 +232,13 @@ class ChatOptionRenderingTests(TestCase):
     def test_chat_has_no_leaked_template_comment(self):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
-        page = html_module.unescape(client.get("/").content.decode())
+        page = html_module.unescape(client.get("/chat/").content.decode())
         self.assertNotIn("computes nothing", page)
 
     def test_chat_has_no_leaked_offer_comment(self):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
-        page = html_module.unescape(client.get("/").content.decode())
+        page = html_module.unescape(client.get("/chat/").content.decode())
         self.assertNotIn("Choices first in the scenario", page)
         self.assertNotIn("own row after them", page)
 
@@ -242,7 +250,7 @@ class ChatOptionRenderingTests(TestCase):
         """
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
-        page = html_module.unescape(client.get("/").content.decode())
+        page = html_module.unescape(client.get("/chat/").content.decode())
         rendered = ROLE_MENU_CLOSING_LINE.split(", tap")[0]
         self.assertIn(rendered, page, "the closing line must still render")
         self.assertNotIn("\\" + rendered, page, "no literal backslash before it")
@@ -250,7 +258,7 @@ class ChatOptionRenderingTests(TestCase):
     def test_options_block_has_a_single_separator(self):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
-        html = client.get("/").content.decode()
+        html = client.get("/chat/").content.decode()
         block = self._last_block(html)
         between = block[block.index('<div class="message-options">'):
                         block.index('<div class="system-options">')]
@@ -263,7 +271,7 @@ class ChatOptionRenderingTests(TestCase):
         # synthesised back lands in the same row — back must precede finish.
         # (Feedback rows' "next" is a scenario-loop value → choices row.)
         _drive(client, ROLE_MENU_INPUTS)
-        html = client.get("/").content.decode()
+        html = client.get("/chat/").content.decode()
         system = self._last_block(html).split('<div class="system-options">', 1)[1]
         self.assertLess(system.index("data-value=\"back\""), system.index("data-value=\"finish\""))
 
@@ -274,16 +282,16 @@ class ChatOptionRenderingTests(TestCase):
         client = self.client
         with mock.patch("tutor.llm.get_llm_feedback", _fake_feedback):
             _drive(client, ROLE_MENU_INPUTS)
-            client.post("/", {"user_input": "1"})
-            client.post("/", {"user_input": "I mediate the conflict"})
-            client.post("/", {"user_input": "next"})
-            html = client.get("/").content.decode()
+            client.post("/chat/", {"user_input": "1"})
+            client.post("/chat/", {"user_input": "I mediate the conflict"})
+            client.post("/chat/", {"user_input": "next"})
+            html = client.get("/chat/").content.decode()
             done = [m for m in self._button_markup(html) if "option-completed" in m]
             self.assertEqual(len(done), 1)
             self.assertIn('data-value="1"', done[0], "the finished role stays clickable markup")
             # Issue #34: a submission answers with a redirect, so the page the
             # click lands on is the one the redirect resolves to.
-            page = client.post("/", {"user_input": "1"}, follow=True).content.decode()
+            page = client.post("/chat/", {"user_input": "1"}, follow=True).content.decode()
         self.assertIn("ROLE: Mediator", page, "the finished role re-opens on click")
         self.assertNotIn(ROLE_MENU_COPY, page)
 
@@ -304,7 +312,7 @@ class ExportViewTests(TestCase):
             self.assertIn("role", turn)
             self.assertIn("message", turn)
         # progress composed from Summary
-        self.assertEqual(data["progress"]["percentage"], 26)
+        self.assertEqual(data["progress"]["percentage"], 21)
         self.assertTrue(data["progress"]["started"])
         # wire schema (issue #14): exactly the nine Summary fields on the wire —
         # the lifecycle pair and the sections in, the eleven flat fields out.
@@ -322,23 +330,25 @@ class ExportViewTests(TestCase):
         # The registered level once at the payload header (spec #16
         # C1-9 AC2): the export names the session's level without
         # digging into the progress panel.
-        self.assertEqual(data["level"], "intermediate")
+        self.assertEqual(data["level"], "beginner")
         self.assertEqual(data["level"], data["progress"]["level"])
         # export timestamp
         self.assertIn("export_time", data)
         # download name uses the session id
         self.assertIn(data["session_id"], resp["Content-Disposition"])
 
-    def test_export_on_fresh_session_is_empty(self):
-        client = self.client
-        resp = client.get("/export/")
-        self.assertEqual(resp.status_code, 200)
-        data = resp.json()
-        self.assertEqual(data["turns"], [])
-        self.assertEqual(data["progress"]["percentage"], 0)
-        self.assertFalse(data["progress"]["started"])
-        # An unstarted session has no registered level (C1-9 AC2).
-        self.assertIsNone(data["level"])
+    def test_export_before_the_intake_is_refused(self):
+        """Ticket #37: an export is a learner's utility, not a probe.
+
+        The file is named after the session id, and a browser that has never
+        opened a session has no id to name it: the form answers first.
+        Carried over from ``test_export_on_fresh_session_is_empty``, which
+        downloaded the empty representation of a session the chat used to
+        mint on the first request.
+        """
+        resp = self.client.get("/export/")
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp["Location"], "/")
 
 
 class ResetViewTests(TestCase):
@@ -362,11 +372,14 @@ class ResetViewTests(TestCase):
         _drive(client, ROLE_MENU_INPUTS)
         resp = client.post("/reset/")
         self.assertEqual(resp.status_code, 302)
+        # Ticket #37: a wipe erases the registration facts too, so the
+        # learner lands back on the form - emptied, not prefilled.
         self.assertEqual(resp["Location"], "/")
-        # the session is gone: chat view starts a fresh one (no Alice)
-        resp = client.get("/")
-        self.assertEqual(resp.status_code, 200)
-        self.assertNotContains(resp, "Alice")
+        form = client.get("/")
+        self.assertEqual(form.status_code, 200)
+        self.assertNotContains(form, "Alice")
+        # and the chat stays closed until a new intake opens it
+        self.assertEqual(client.get("/chat/").status_code, 302)
 
 
 class ChatRejectionTests(TestCase):
@@ -379,41 +392,47 @@ class ChatRejectionTests(TestCase):
     def test_chat_shows_bespoke_copy_beneath_the_input(self):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)  # ends at role_menu
-        client.post("/", {"user_input": "not a role"})
-        html = client.get("/").content.decode()
+        client.post("/chat/", {"user_input": "not a role"})
+        html = client.get("/chat/").content.decode()
         self.assertIn(ROLE_MENU_COPY, html)
         self.assertLess(html.index("not a role"), html.index(ROLE_MENU_COPY))
 
     def test_chat_generic_never_inferred(self):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
-        client.post("/", {"user_input": "not a role"})
-        html = client.get("/").content.decode()
+        client.post("/chat/", {"user_input": "not a role"})
+        html = client.get("/chat/").content.decode()
         self.assertNotIn(GENERIC_REJECTION, html)
         self.assertEqual(html.count(ROLE_MENU_COPY), 1)
 
-    def test_chat_pre_registration_has_no_rejection(self):
+    def test_an_accepted_answer_shows_no_rejection_on_the_entry_state(self):
+        """Ticket #37: the form, not the chat, collects the name; an answer
+        that lands on the entry state adds no rejection banner.
+
+        Carried over from ``test_chat_pre_registration_has_no_rejection``,
+        which read the free-text name step behind the form.
+        """
         client = self.client
-        client.get("/")  # auto-start: data_collection, unregistered
-        client.post("/", {"user_input": "asdasd"})  # a bare name is accepted as a name
-        html = client.get("/").content.decode()
+        client.post("/", {"name": "Alice", "group": "Alpha", "level": "beginner"})
+        client.post("/chat/", {"user_input": "3 4 5"})  # the pretest answer lands
+        html = client.get("/chat/").content.decode()
         self.assertNotIn(GENERIC_REJECTION, html)
         self.assertNotIn(ROLE_MENU_COPY, html)
 
     def test_chat_no_rejection_when_the_answer_lands(self):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
-        client.post("/", {"user_input": "1"})  # a role menu choice lands
-        html = client.get("/").content.decode()
+        client.post("/chat/", {"user_input": "1"})  # a role menu choice lands
+        html = client.get("/chat/").content.decode()
         self.assertNotIn(ROLE_MENU_COPY, html)
         self.assertNotIn(GENERIC_REJECTION, html)
 
     def test_chat_nav_state_falls_back_to_generic_copy(self):
         client = self.client
         # Ends at an analysis-feedback state: nav-only accept, row has no copy.
-        _drive(client, ROLE_MENU_INPUTS[:8])
-        client.post("/", {"user_input": "no such task"})
-        html = html_module.unescape(client.get("/").content.decode())
+        _drive(client, ROLE_MENU_INPUTS[:6])
+        client.post("/chat/", {"user_input": "no such task"})
+        html = html_module.unescape(client.get("/chat/").content.decode())
         self.assertIn(GENERIC_REJECTION, html)
 
 
@@ -437,9 +456,9 @@ class ChatSubmissionTests(TestCase):
     def test_submit_redirects_to_the_chat_page(self):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
-        resp = client.post("/", {"user_input": "1"})  # a role menu choice lands
+        resp = client.post("/chat/", {"user_input": "1"})  # a role menu choice lands
         self.assertEqual(resp.status_code, 302, "a submission must not render the page")
-        self.assertEqual(resp["Location"], "/")
+        self.assertEqual(resp["Location"], "/chat/")
         # Nothing to re-issue: the history entry is a header, not a form page.
         self.assertEqual(resp.content, b"")
 
@@ -447,49 +466,61 @@ class ChatSubmissionTests(TestCase):
         """A submission redirects, so Back/Forward restores the chat page from
         the bfcache: a snapshot taken mid-submission, loading overlay included.
         The page the browser restores ships the handler that clears it."""
-        html = self.client.get("/").content.decode()
+        _drive(self.client, [])  # an intake-opened session: the page renders
+        html = self.client.get("/chat/").content.decode()
         self.assertIn("pageshow", html)
         self.assertIn("persisted", html)
 
     def test_blank_submit_redirects_and_appends_nothing(self):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
-        before = self._turn_count(client.get("/"))
-        resp = client.post("/", {"user_input": "   "})
+        before = self._turn_count(client.get("/chat/"))
+        resp = client.post("/chat/", {"user_input": "   "})
         self.assertEqual(resp.status_code, 302, "an empty submission redirects too")
-        self.assertEqual(self._turn_count(client.get("/")), before)
+        self.assertEqual(self._turn_count(client.get("/chat/")), before)
 
     def test_reload_after_submit_appends_one_exchange(self):
         client = self.client
         _drive(client, ROLE_MENU_INPUTS)
-        before = self._turn_count(client.get("/"))
-        resp = client.post("/", {"user_input": "1"}, follow=True)
-        self.assertEqual(resp.redirect_chain, [("/", 302)])
+        before = self._turn_count(client.get("/chat/"))
+        resp = client.post("/chat/", {"user_input": "1"}, follow=True)
+        # The submit answers with a redirect to the chat page - the page is a
+        # GET of its own since ticket #37, so the chain names /chat/.
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.redirect_chain, [("/chat/", 302)])
         self.assertEqual(
             self._turn_count(resp), before + 2, "one user turn plus one tutor reply"
         )
         # The reload the reporter hit: the browser re-issues the page it landed
         # on, which after the redirect is a GET of the chat page.
         self.assertEqual(
-            self._turn_count(client.get("/")), before + 2, "the reload appended nothing"
+            self._turn_count(client.get("/chat/")), before + 2, "the reload appended nothing"
         )
 
 
 class ChatSidebarGateTests(TestCase):
     """Grill Q6 (#15): the sidebar progress panel gates on started, not on
-    registration — a session that exists shows the zero-state rows, agreeing
-    with the main menu; the export link stays gated on registration."""
+    registration - a session that exists shows the zero-state rows, agreeing
+    with the main menu; the export link stays gated on registration.
 
-    def test_chat_shows_the_panel_before_registration(self):
+    Ticket #37 moved registration in front of the chat: an intake-opened
+    session carries a participant name from its first turn, so the panel and
+    the utility pair answer together. A browser with no intake never sees
+    these pages at all - the gate redirects it to the form.
+    """
+
+    def test_chat_shows_the_panel_after_the_intake(self):
+        """The panel and the export entry answer a session the form opened."""
         client = self.client
-        html = client.get("/").content.decode()  # auto-start, unregistered
+        _drive(client, [])
+        html = client.get("/chat/").content.decode()
         self.assertIn("Overall Progress", html)
-        self.assertNotIn("Export Chat History", html)
+        self.assertIn("Export Chat History", html)
 
     def test_registered_chat_offers_export(self):
         client = self.client
-        _drive(client, ["Alice"])
-        self.assertIn("Export Chat History", client.get("/").content.decode())
+        _drive(client, [])
+        self.assertIn("Export Chat History", client.get("/chat/").content.decode())
 
     def test_registered_chat_offers_reset_beside_export(self):
         """The chat side panel offers reset, beside export, to the confirm page.
@@ -501,8 +532,8 @@ class ChatSidebarGateTests(TestCase):
         and targets the confirm view, never the wipe endpoint itself. (#26)
         """
         client = self.client
-        _drive(client, ["Alice"])
-        page = html_module.unescape(client.get("/").content.decode())
+        _drive(client, [])
+        page = html_module.unescape(client.get("/chat/").content.decode())
         self.assertIn("Reset Session", page)
         self.assertIn('href="/reset/confirm/"', page)
         self.assertIn('class="reset-btn"', page)
@@ -512,30 +543,33 @@ class ChatSidebarGateTests(TestCase):
         # {# … #} is single-line: the block's header must not reach the learner
         self.assertNotIn("Utility offers, paired", page, "the template comment leaked")
 
-    def test_chat_hides_the_reset_link_before_registration(self):
+    def test_a_browser_with_no_intake_never_sees_the_utility_pair(self):
         """The reset offer shares export's gate: registration, not ``debug``.
 
-        An auto-started, unregistered session has nothing to wipe, so the
-        pair is absent together; both land once the Summary carries a
-        participant name. The gate is the Summary, never Django's debug flag.
-        (#26)
+        An intake-pending browser is sent to the form, which offers neither
+        link; both land together once the Summary carries a participant
+        name. The gate is the Summary, never Django's debug flag. (#26,
+        ticket #37 for the new shape.)
         """
-        html = self.client.get("/").content.decode()  # auto-start, unregistered
-        self.assertNotIn("Reset Session", html)
-        self.assertNotIn("Export Chat History", html)
+        resp = self.client.get("/chat/")
+        self.assertEqual(resp.status_code, 302)
+        page = self.client.get("/").content.decode()
+        self.assertNotIn("Reset Session", page)
+        self.assertNotIn("Export Chat History", page)
 
-    def test_main_menu_shows_the_same_zero_state_panel_as_chat(self):
-        # The pages cannot disagree (Q6 #15): the main menu gates its
-        # progress block on started like the chat sidebar — an
-        # auto-started, unregistered session shows the zero-state panel
-        # on both, export stays gated on registration on both.
+    def test_main_menu_shows_the_same_panel_as_chat(self):
+        # The pages cannot disagree (Q6 #15, ticket #37): the main menu gates
+        # its progress block on started like the chat sidebar, and both offer
+        # the utility pair once the form has opened the session.
         client = self.client
+        _drive(client, [])
         menu = client.get("/menu/").content.decode()
-        chat = client.get("/").content.decode()
+        chat = client.get("/chat/").content.decode()
         self.assertIn("steps completed", menu)
         self.assertIn("Overall Progress", chat)
+        # The utility pair is the chat sidebar's; the overview page never offered it.
         self.assertNotIn("Export Chat History", menu)
-        self.assertNotIn("Export Chat History", chat)
+        self.assertIn("Export Chat History", chat)
 
 
 class FaviconTests(TestCase):
@@ -544,10 +578,13 @@ class FaviconTests(TestCase):
 
     def test_every_page_links_the_svg_favicon(self):
         _drive(self.client, ROLE_MENU_INPUTS)
-        for path in ("/", "/menu/", "/reset/confirm/"):
-            html = self.client.get(path).content.decode()
-            self.assertIn('rel="icon"', html, path)
-            self.assertIn("/static/tutor/favicon.svg", html, path)
+        # An intake-opened browser: the form page answers with a redirect, so
+        # its shell is read from a fresh client - every page in its own state.
+        responses = [self.client.get(path, follow=True) for path in ("/chat/", "/menu/", "/terms/", "/reset/confirm/")]
+        responses.append(Client().get("/"))
+        for html in [r.content.decode() for r in responses]:
+            self.assertIn('rel="icon"', html)
+            self.assertIn("/static/tutor/favicon.svg", html)
 
 class SessionIdInfoControlTests(TestCase):
     """Issue #32: the menu keeps the Session ID off the page, beside an info
@@ -565,10 +602,10 @@ class SessionIdInfoControlTests(TestCase):
 
     def _registered_chat(self, client):
         """Drive a registered session and return (page html, the session id)."""
-        _drive(client, ["Alice"])
+        _drive(client, [])
         sid = client.get("/export/").json()["session_id"]
         self.assertTrue(sid, "the module's id is what the control carries")
-        return client.get("/").content.decode(), sid
+        return client.get("/chat/").content.decode(), sid
 
     def _participant_row(self, html):
         """The Participant row's markup, control included."""
@@ -613,7 +650,7 @@ class SessionIdInfoControlTests(TestCase):
     def test_the_control_is_gated_on_the_participant_row(self):
         """No Participant row, no control: an unregistered session has the
         summary's empty name, and the row it hangs on is absent."""
-        html = self.client.get("/").content.decode()  # auto-started, unregistered
+        html = self.client.get("/chat/").content.decode()  # auto-started, unregistered
         self.assertNotIn("Participant:", _visible_text(html))
         # Asserted as rendered markup: the page's script block names both the
         # row's class and the control's, and it ships on an unregistered page.

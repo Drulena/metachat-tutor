@@ -1,0 +1,62 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Start a Session - MetaChat Tutor>
+<link rel="stylesheet" href="{% static 'tutor/style.css' %}">
+<link rel="icon" type="image/svg+xml" href="{% static 'tutor/favicon.svg' %}">
+</head>
+<body class="intake-page">
+  <main class="intake-card">
+    <h1 class="intake-heading">🎓 MetaChat Tutor</h1>
+    <p class="intake-intro">
+      Three questions before the chat opens: your name, your group, your level.
+      The pretest is the first question in the chat itself.
+    </p>
+
+    <form method="post" action="{% url 'intake' %}" class="intake-form" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <ul class="intake-errors">
+          {% for error in form.non_field_errors %}<li class="intake-error">{{ error }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+
+      <div class="intake-field">
+        <label class="intake-label" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+        {{ form.name }}
+        {% for error in form.name.errors %}<p class="intake-error">{{ error }}</p>{% endfor %}
+        <p class="intake-help">{{ form.name.help_text }}</p>
+      </div>
+
+      <div class="intake-field">
+        <label class="intake-label" for="{{ form.group.id_for_label }}">{{ form.group.label }}</label>
+        {{ form.group }}
+        <datalist id="known-groups">
+          {% for group in groups %}<option value="{{ group }}"></option>{% endfor %}
+        </datalist>
+        {% for error in form.group.errors %}<p class="intake-error">{{ error }}</p>{% endfor %}
+        <p class="intake-help">{{ form.group.help_text }}</p>
+      </div>
+
+      <fieldset class="intake-levels">
+        <legend class="intake-label">{{ form.level.label }}</legend>
+        {% for choice in form.level %}
+          <label class="intake-level-option">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>
+        {% endfor %}
+        {% for error in form.level.errors %}<p class="intake-error">{{ error }}</p>{% endfor %}
+        <p class="intake-help">{{ form.level.help_text }}</p>
+      </fieldset>
+
+      <p class="intake-consent">
+        The chat, your answers and your scores are stored for research.
+        <a class="intake-consent-link" href="{% url 'terms' %}">What we collect and why</a>.
+      </p>
+
+      <button type="submit" class="intake-submit">Start the session</button>
+    </form>
+  </main>
+</body>
+</html>

@@ -673,3 +673,195 @@ html, body {
     margin-right: 0;
   }
 }
+
+/* ---------------------------------------------------------- intake form (#37) */
+
+/* Standalone page: the intake is the app's front door, so it centers a
+   single card and scrolls when a cohort list makes it tall. */
+.intake-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: auto;
+}
+
+.intake-card {
+  background: var(--md-surface-container-lowest);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-shape-lg);
+  box-shadow: var(--md-elevation-1);
+  max-width: 460px;
+  width: 100%;
+  padding: 28px;
+}
+
+.intake-heading { font-size: 1.4rem; margin-bottom: 8px; }
+
+.intake-intro {
+  color: var(--md-on-surface-variant);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.intake-field { margin-bottom: 18px; }
+
+.intake-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.intake-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 1rem;
+  color: var(--md-on-surface);
+  background: var(--md-surface-container-low);
+  border: 1px solid var(--md-outline);
+  border-radius: var(--md-shape-sm);
+}
+
+.intake-input:focus {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 1px;
+  border-color: var(--md-primary);
+}
+
+.intake-help {
+  color: var(--md-on-surface-variant);
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.intake-levels {
+  border: none;
+  margin: 0 0 18px;
+}
+
+.intake-levels .intake-label { margin-bottom: 8px; }
+
+/* Learner choice: filled tonal pills, the shape every choice control uses. */
+.intake-level-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  margin: 0 8px 8px 0;
+  border-radius: var(--md-shape-full);
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-outline-variant);
+  color: var(--md-on-surface-variant);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.intake-radio { accent-color: var(--md-primary); }
+
+.intake-level-option:has(.intake-radio:checked) {
+  background: var(--md-primary-container);
+  border-color: var(--md-primary);
+  color: var(--md-on-primary-container);
+  font-weight: 500;
+}
+
+/* A refusal is the error container: the same treatment as the rejection
+   note in chat, so a refused submit and a rejected answer read alike. */
+.intake-errors {
+  list-style: none;
+  background: var(--md-error-container);
+  color: var(--md-on-error-container);
+  border-radius: var(--md-shape-sm);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+}
+
+.intake-error {
+  color: var(--md-on-error-container);
+  background: var(--md-error-container);
+  border-radius: var(--md-shape-sm);
+  font-size: 0.8rem;
+  margin-top: 6px;
+  padding: 4px 8px;
+}
+
+.intake-consent {
+  color: var(--md-on-surface-variant);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.intake-consent-link { color: var(--md-primary); }
+
+/* The learner choice that opens the session: filled tonal button. */
+.intake-submit {
+  width: 100%;
+  padding: 12px 20px;
+  border: none;
+  border-radius: var(--md-shape-full);
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.intake-submit:hover { box-shadow: var(--md-elevation-1); }
+
+/* ------------------------------------------------------- terms page (#37) */
+
+.terms-page {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+  overflow: auto;
+}
+
+.terms-card {
+  background: var(--md-surface-container-lowest);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-shape-lg);
+  box-shadow: var(--md-elevation-1);
+  max-width: 620px;
+  width: 100%;
+  padding: 28px;
+}
+
+.terms-heading { font-size: 1.3rem; margin-bottom: 10px; }
+
+.terms-intro {
+  color: var(--md-on-surface-variant);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+
+.terms-section {
+  background: var(--md-surface-container-low);
+  border-radius: var(--md-shape-md);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.terms-subheading { font-size: 1rem; margin-bottom: 6px; }
+
+.terms-section p {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--md-on-surface-variant);
+}
+
+.terms-back {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 10px 18px;
+  border-radius: var(--md-shape-full);
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+}
