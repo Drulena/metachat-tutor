@@ -334,8 +334,9 @@ class BrowserPaintTests(StaticLiveServerTestCase):
         a row per prompt under the message that asks, every 40px target inside
         the 420px viewport with nothing cut off, and the third tap IS the Send -
         the picks compose into the string the gate has always taken and the page
-        moves on with no rejection note (ticket #48, AC2 and AC3; the mobile
-        check ticket #40 left unrun for want of a browser here).
+        moves on with no rejection note. Afterwards the rows stay as a record of
+        what was rated and only the buttons are gone (ticket #48, AC2 and AC3;
+        the mobile check ticket #40 left unrun for want of a browser here).
         """
 
         def scenario(page):
@@ -367,10 +368,21 @@ class BrowserPaintTests(StaticLiveServerTestCase):
                     # The third tap submits; nothing before it may.
                     self.assertEqual(page.locator(".scale-row").count(), len(RATING_PICKS))
             page.wait_for_load_state("load")
+            # The gate stopped asking: the rows remain, the buttons do not.
             self.assertEqual(
-                page.locator(".scale-form").count(),
+                page.locator(".scale-form_answered").count(),
+                1,
+                "the answered gate's rows did not stay on the page",
+            )
+            self.assertEqual(page.locator(".scale-row").count(), len(RATING_PICKS))
+            self.assertEqual(
+                page.locator(".scale-chip").count(),
                 0,
-                "the gate is still asking after a full selection",
+                "the answered gate still offers rating buttons",
+            )
+            self.assertIn(
+                " ".join(RATING_PICKS),
+                page.locator(".message.user").last.inner_text(),
             )
             self.assertEqual(page.locator(".rejection-note").count(), 0)
             self.assertPainted(page, "the gate answered", TITLES["chat"], min_text=200)

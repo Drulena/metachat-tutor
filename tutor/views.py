@@ -184,9 +184,11 @@ def chat_view(request: HttpRequest):
     assistant turn; the template renders exactly one option list per turn.
     A rejected input is surfaced by the module too — the unanswered user
     turn carries its ``rejection`` copy and the template renders it. The
-    answer form follows the same rule: the module names the prompts a state
-    offers as 1-5 dropdowns (``scales()``) and the template renders one per
-    prompt beside the typed input (ticket #40).
+    answer form follows the same rule: the module names the task lines a
+    state rates (``scales_for()``) and the template renders one row per line
+    under the message that asks; an answered gate keeps the rows and loses
+    the buttons, because its answer is printed in the transcript (tickets
+    #40 and #48).
 
     Method shapes the response: a POST is a submission and is answered with a
     redirect back to this page (POST-Redirect-GET, issue #34), so the page a
@@ -213,13 +215,23 @@ def chat_view(request: HttpRequest):
 
     summary = session.progress()
     turns = session.turns()
-    # The gate's form belongs under the message that asks — the newest
-    # assistant turn. After a refused answer the newest turn is the learner's
-    # own, and the form the gate refused stays where the question is
-    # (ticket #48).
-    scale_anchor = max(
-        (index for index, turn in enumerate(turns) if turn.role == "assistant"),
-        default=-1,
+    # The gate's form belongs under the message that asks. That message is
+    # the newest assistant turn naming 1-5 prompts; after a refused answer the
+    # learner's own turn is last and the form the gate refused stays where the
+    # question is (ticket #48).
+    scale_anchor = -1
+    scales: list[dict] = []
+    for index, turn in enumerate(turns):
+        if turn.role == "assistant":
+            offered = session.scales_for(turn.state)
+            if offered:
+                scale_anchor, scales = index, offered
+    # An answered gate keeps its rows and loses its buttons: the learner's
+    # answer is printed in the transcript, so the page only shows what was
+    # rated (ticket #48, reporter's read of the first chip form).
+    scales_answered = scale_anchor >= 0 and any(
+        turn.role == "user" and turn.rejection is None
+        for turn in turns[scale_anchor + 1:]
     )
 
     return render(
@@ -229,12 +241,15 @@ def chat_view(request: HttpRequest):
             "turns": turns,
             "summary": summary,
             "is_end": summary.finished,
-            # The state's answer form is the module's to name, not the
-            # view's to decide: an empty list leaves the typed input alone.
-            "scales": session.scales(),
+            # The gate's answer form is the module's to name, not the view's
+            # to decide: an empty list leaves the typed input alone.
+            "scales": scales,
             # Which turn carries that form: an index, so the template never
             # searches for the newest message of a kind.
             "scale_anchor": scale_anchor,
+            # Whether that gate is already answered: the template drops the
+            # buttons and keeps the lines they rated.
+            "scales_answered": scales_answered,
         },
     )
 

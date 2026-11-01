@@ -510,6 +510,8 @@ class AssessmentFormTests(TestCase):
         self.assertIn('data-score="5"', html)
         # The typed answer stays: the composer is on the page beside the form.
         self.assertIn('name="user_input"', html)
+        # The gate is live, so the controls are there to be tapped.
+        self.assertNotIn("scale-form_answered", html)
 
     def test_the_question_is_printed_once(self):
         """The learner reads every task line exactly once: the line lives in the
@@ -552,8 +554,29 @@ class AssessmentFormTests(TestCase):
             ".scale-chip",
             ".scale-chip.picked",
             ".scale-anchors",
+            ".scale-form_answered",
         ):
             self.assertIn(selector + " {", css, selector)
+
+    def test_the_answered_gate_keeps_its_lines_and_drops_its_buttons(self):
+        """A gate that has been answered reads as a record, not a question: the
+        rows and their task lines stay under the message that asked, the 1-5
+        buttons and the scale anchors are gone, and the learner's own answer is
+        what the page shows next (ticket #48, the reporter's read: only the
+        buttons should disappear, since the result is printed in the message)."""
+        _drive(self.client, [" ".join(SELECTOR_PICKS)])
+        html = self.client.get("/chat/").content.decode()
+        self.assertIn('class="scale-form scale-form_answered"', html)
+        self.assertEqual(html.count('class="scale-row"'), len(ASSESSMENT_SCALES))
+        self.assertNotIn('class="scale-chip"', html)
+        self.assertNotIn('class="scale-anchors"', html)
+        for scale in ASSESSMENT_SCALES:
+            self.assertIn(
+                '<span class="scale-prompt">'
+                + html_module.escape(scale["prompt"])
+                + "</span>",
+                html,
+            )
 
     def test_a_full_selection_lands_the_gate(self):
         """The three picks joined by spaces are the string the gate reads:
@@ -594,13 +617,14 @@ class AssessmentFormTests(TestCase):
         )
 
     def test_a_state_that_takes_a_typed_answer_offers_no_chips(self):
-        """The chips are the gate's, not the app's: one step past the pretest
-        the composer is the only answer field on the page, and the answered
-        gate leaves no live control behind it in the transcript."""
+        """The chips are the gate's, not the app's: one step past the pretest the
+        composer is the only answer field on the page. The answered gate leaves
+        its task lines behind as a record, without a single control."""
         _drive(self.client, ["3 4 5"])
         html = self.client.get("/chat/").content.decode()
-        self.assertNotIn('id="scale-form"', html)
+        self.assertIn('class="scale-form scale-form_answered"', html)
         self.assertNotIn('class="scale-chip"', html)
+        self.assertNotIn('class="scale-anchors"', html)
 
     def test_the_posttest_page_offers_the_same_form(self):
         """One instrument at both ends (spec #29): the walk to the posttest

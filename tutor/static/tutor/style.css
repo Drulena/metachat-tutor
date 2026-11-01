@@ -876,8 +876,10 @@ html, body {
    empty dropdown advertised nothing). The task line itself prints in the row
    (ticket #48): question and numbers share one block, and the gate message does
    not repeat the line, so it is read exactly once. Unpicked chips are quiet
-   tonal, the picked one is the filled control. All colours are the :root tonal
-   tokens. */
+   tonal, the picked one is the filled control. An answered gate keeps the
+   letters and the lines and drops the controls — the answer itself is printed
+   in the transcript below, so the row reads as a record, not a question
+   (scale-form_answered). All colours are the :root tonal tokens. */
 .scale-form {
   display: flex;
   flex-direction: column;
@@ -958,6 +960,21 @@ html, body {
   font-size: 0.75rem;
   letter-spacing: 0.3px;
   color: var(--md-on-surface-variant);
+}
+
+.scale-form_answered {
+  /* The gate is answered: no controls, so the rows sit closer together. */
+  gap: 6px;
+}
+
+.scale-form_answered .scale-letter,
+.scale-form_answered .scale-prompt {
+  /* Read as history, not as a question waiting for a tap. */
+  color: var(--md-on-surface-variant);
+}
+
+.scale-form_answered .scale-letter {
+  background: var(--md-surface-container);
 }
 
 @media (max-width: 768px) {
