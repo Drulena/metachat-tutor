@@ -3,6 +3,91 @@
 Append-only, one session per section, newest first. Sessions run `/retro` at
 close; the findings feed the standards docs and the next session's start.
 
+## 2026-11-01 — Spec #28 build: intake form + write-through ledger (#36–#39)
+
+Shipped on `feat/spec-28-intake-ledger` (9 commits from `1d63c9c`, **unpushed**):
+UUID v7 ids (`tutor/ids.py`) and the greenfield `Group` / `SessionRecord` /
+`Assessment` schema; the intake form as the entry state (registration out of the
+chat, `/` form, `/chat/` chat, `/terms/` consent); write-through mirroring with
+`Assessment` rows and reset chaining; `data_collection` as the terminal screen with
+`finished_at` stamped once. Suite 207 → 257 tests OK. Spec #28 and #36–#39 closed.
+
+### What worked
+
+- **Red-first tests caught false premises in my own compressed plans.** A folded
+  plan asserted “the registry is already green” while `tutor/test_tutor_session.py:143`
+  still pinned `start` and 15 steps; a test expectation miscounted the entry list by
+  the welcome turn. Verify repo state before trusting a summary. Confidence: high.
+- **One writer module kept the ledger off the hot path.** `tutor/ledger.py` is the
+  only place that writes rows; `views._mirror_to_ledger` appends the chat’s own
+  entry dicts, so “byte-shape identical to storage” is true by construction, and a
+  missing row is a `tutor.ledger` warning, never a learner-visible failure.
+  Confidence: high.
+- **Conditional UPDATE pins the lifecycle.**
+  `filter(finished_at__isnull=True).update(finished_at=timezone.now())` gives
+  “stamped exactly once, never cleared” and is race-safe without a read-modify-write
+  (the row write for the chat append stays `save(update_fields=[...])`). Confidence: high.
+- **The terminal screen needed almost no new code.** Routing already answers any input
+  when a row declares `next: None`; the work was one validator rule (`TERMINAL_BASE`),
+  the row copy, and deleting the `end` state, its scenario and its registry exception.
+  Confidence: high.
+
+### Friction
+
+- **Subagents did zero work on this harness.** Both delegated agents (codebase
+  exploration, the #37 implementer) finished with raw tool calls as their closing
+  message and left the tree untouched. Every ticket was implemented in-session.
+  Confidence: high.
+- **Only `run_code` is callable directly** here; read/write/edit/deck/todo calls emitted
+  as their own tool blocks render as text and execute nothing. Confidence: high.
+- **JS template literals break on RST backticks.** A docstring containing
+  `` ``state`` `` closed the literal early (“not a function” / stray Python syntax
+  errors). Working pattern: build file content from arrays of single-quoted strings
+  joined with `"\n"`; write real emoji, not `\uXXXX` pairs, into Python source (lone
+  surrogates → `UnicodeEncodeError`). Confidence: high.
+- **Two self-inflicted file corruptions:** slicing by an index computed on a *modified*
+  string left debris in `tutor/models.py`; a `read(limit=48)` result used as the whole
+  file truncated `tutor/test_write_through.py` (recovered with `git checkout --`).
+  Confidence: high.
+- **`client.session` is a property that mints a new SessionStore on every access.** A
+  test helper that stranded the chat silently lost the write; the Django recipe is to
+  write and `save()` on ONE object. Now documented in `tutor/testing.py`. Confidence: high.
+- **Git ergonomics:** an early commit swept the whole index (fixed with
+  `git reset --soft HEAD~1 && git restore --staged`); `git stash` is unusable (same
+  `sh.exe` confinement as the hook), so an intermediate commit is verified in a
+  detached worktree inside the workspace with the repo-root venv by absolute path.
+  Confidence: high.
+- **Two intermediate commits are red by design** (`81e67a6` seam+URL move; `103e067`/
+  `8e1ad17` tests+stamp before the flow) because a state rename + URL move is one
+  atomic change for the view tests. HEAD is green; the fact is recorded on #37/#39
+  rather than hidden. Confidence: high.
+
+### System updates
+
+- `tutor/testing.py`: shared browser scaffolding (`open_intake`, `strand`, `state_of`,
+  `entries`) with the session-save recipe in its docstring.
+- `tutor/ledger.py` (open / append / record_assessment / fill_reflection / mark_finished)
+  and `tutor/ids.py` (`uuid7`).
+- Docs: GLOSSARY step count fifteen → fourteen (the #37 residue); ADR-0002 got a dated
+  amendment (42 rows, every scenario state rowed); the ADR-0006 2026-11-01 amendment is
+  cited from `ENTRY_BASE` / `TERMINAL_BASE` docstrings.
+- The `--no-verify` + message-file commit workflow reconfirmed for this sandbox.
+
+### Next time
+
+- Push `feat/spec-28-intake-ledger` (9 commits) from the owner’s shell, then open the
+  PR; from the harness a push needs a sandbox escalation.
+- #35 (admin over the ledger) needs a superuser: the project has no `auth` in
+  `INSTALLED_APPS`, so create one from the shell first. #40 (selector rows + Assessment
+  score export), #29 (pretest/posttest as selector forms), #41 (bfcache restores a stale
+  chat — re-test there now that reset lands on the intake form).
+- Stale copy left untouched: `_GENERIC_REJECTION` still tells learners “In data
+  collection, type ‘name <your name>’” and lists `restart`/`export`/`help` commands the
+  module does not route. Worth one focused pass with the owner.
+- The transition fixture cannot complete all nine roles (the invariant ties
+  `current_role` to the single touched role), so `data_collection`'s fixture stays
+  single-role even though the screen means “done”.
+
 ## 2026-10-26 — C5+C3 implement kickoff: C5 retirement, C3 surfacing, two review rounds (issues #14–#15)
 
 Shipped on `django`: C5 completed (zero-state `progress()` with
