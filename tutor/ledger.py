@@ -1,8 +1,9 @@
-"""The only place that writes the session ledger (ADR-0007).
+"""The ledger seam: writes from the chat, one read for the export (ADR-0007).
 
 The ledger is a research artefact: the intake form opens a row, every
 submission appends to it, and no page reads it - the Summary stays the sole
-presentation source (decision 1). Every function here is therefore tolerant
+presentation source (decision 1). The single read is the export, which hands
+the gate answers to the uploaded artefact (decision 6). Every function here is therefore tolerant
 of a missing row: a learner never loses a chat to a database hiccup, and the
 miss is logged for the maintainer to see.
 """
@@ -133,4 +134,28 @@ def fill_reflection(session_id: str, text: str) -> None:
         return
     row.reflection = text
     row.save(update_fields=["reflection", "updated_at"])
+
+
+def assessment_rows(session_id: str) -> list[dict]:
+    """The gate answers a session left behind, oldest first (decision 6).
+
+    The export's one read of the ledger: the uploaded artefact carries the
+    answers, so an analysis needs no database to re-read them. A session the
+    ledger never heard of has no answers to hand over - an empty list, the
+    tolerance the writers keep, and no log line: nothing was lost to find.
+    """
+    row = SessionRecord.objects.filter(session_id=session_id).first()
+    if row is None:
+        return []
+    return [
+        {
+            "kind": answer.kind,
+            "raw_answer": answer.raw_answer,
+            "scores": list(answer.scores),
+            "created_at": answer.created_at.isoformat(),
+        }
+        for answer in Assessment.objects.filter(session=row).order_by(
+            "created_at", "id"
+        )
+    ]
 

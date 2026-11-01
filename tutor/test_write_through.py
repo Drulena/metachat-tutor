@@ -1,14 +1,17 @@
 """The ledger mirrors every submission; the pages never read it (ticket #38).
 
 ADR-0007 decisions 1, 2 and 7: one row per session, opened by the intake form,
-written through on every submission, chains through a reset. The chat keeps
+written through on every submission, chains through a reset. The one read of the
+row is the export's (decision 6), tested at the foot of this module. The chat keeps
 answering the pages from its own storage, so a ledger that is missing, stale
 or deleted never reaches the learner.
 """
 
 from django.test import Client, TestCase
 
+from .ledger import assessment_rows
 from .models import Assessment, SessionRecord
+from .test_tutor_session import SELECTOR_PICKS, SELECTOR_PICKS_SCORES
 from .testing import (
     INTAKE,
     OTHER_INTAKE,
@@ -108,7 +111,8 @@ class LedgerIsWriteOnlyTests(TestCase):
     """The ledger is a research artefact: the pages answer from the Summary.
 
     ADR-0007 decision 1. A missing row never reaches the learner - not on a
-    page, not on a submission.
+    page, not on a submission. The export reads the gate answers (decision 6);
+    the pages that answer a learner never read the row at all.
     """
 
     def setUp(self):
@@ -132,6 +136,43 @@ class LedgerIsWriteOnlyTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(_state_of(self.client), "after_registration")
         self.assertTrue(any("ledger row" in line for line in logs.output))
+
+
+class AssessmentReaderTests(TestCase):
+    """The export's one read: the gate answers, as the artefact carries them.
+
+    ADR-0007 decision 6. The rows are written at gate acceptance (ticket #38);
+    the reader hands them to the export in the shape the uploaded file uses.
+    """
+
+    def setUp(self):
+        self.client = Client()
+
+    def test_the_gate_answers_read_back_in_the_order_they_landed(self):
+        """Both ends of one instrument, oldest first, each with its raw string
+        and the ints the gate parsed - the export's self-contained record.
+        """
+        _open(self.client)
+        self.client.post("/chat/", {"user_input": " ".join(SELECTOR_PICKS)})
+        _strand(self.client, "posttest")
+        self.client.post("/chat/", {"user_input": " ".join(SELECTOR_PICKS)})
+        answers = assessment_rows(_session_id(self.client))
+        self.assertEqual([answer["kind"] for answer in answers], ["pretest", "posttest"])
+        self.assertEqual(
+            [answer["raw_answer"] for answer in answers],
+            [" ".join(SELECTOR_PICKS)] * 2,
+        )
+        self.assertEqual(answers[0]["scores"], SELECTOR_PICKS_SCORES)
+        self.assertEqual(
+            sorted(answers[0]),
+            ["created_at", "kind", "raw_answer", "scores"],
+        )
+
+    def test_a_session_the_ledger_never_heard_of_has_no_answers(self):
+        """The reader keeps the writers' tolerance: a made-up id answers with
+        an empty list, no raise and no warning - nothing was lost to find.
+        """
+        self.assertEqual(assessment_rows("01999999-9999-7999-8000-000000000000"), [])
 
 
 class ResetChainTests(TestCase):

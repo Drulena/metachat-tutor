@@ -67,6 +67,11 @@ WALK_TO_END = (
     "4 4 4",  # -> data collection, the terminal screen
 )
 
+#: A pick per prompt for the assessment gates' rating form (ticket #40): the
+#: three dropdowns compose into this string joined with spaces, the answer the
+#: gate has always taken.
+RATING_PICKS = ("2", "4", "5")
+
 #: The phone width the research participants use (spec #26).
 VIEWPORT = {"width": 420, "height": 760}
 
@@ -320,5 +325,64 @@ class BrowserPaintTests(StaticLiveServerTestCase):
                 "the last turn offers a way out",
             )
             self.assertPainted(page, "terminal", TITLES["chat"], min_text=200)
+
+        self.drive(scenario)
+
+
+    def test_the_rating_form_answers_on_the_research_phone(self):
+        """The gates' dropdowns fit the phone the research uses and answer the
+        gate: three fields inside the 420px viewport with nothing cut off, the
+        picks composed into the string the gate has always taken, and the page
+        moved on with no rejection note (ticket #40, AC1 and AC5).
+        """
+
+        def scenario(page):
+            self.open_intake(page)
+            self.assertPainted(page, "pretest rating form", TITLES["chat"], min_text=200)
+            fields = page.locator(".rating-select")
+            self.assertEqual(fields.count(), len(RATING_PICKS))
+            width = VIEWPORT["width"]
+            for index in range(fields.count()):
+                box = fields.nth(index).bounding_box()
+                self.assertGreaterEqual(box["height"], 40, f"field {index}: height")
+                self.assertGreaterEqual(box["x"], 0, f"field {index}: off the left edge")
+                self.assertLessEqual(
+                    box["x"] + box["width"],
+                    width,
+                    f"field {index}: cut off at the right edge",
+                )
+            self.assertLessEqual(
+                page.evaluate("() => document.documentElement.scrollWidth"),
+                width,
+                "the rating row overflows the phone's width",
+            )
+            for index, pick in enumerate(RATING_PICKS):
+                fields.nth(index).select_option(pick)
+            page.click("#main-form button" + attribute("type", "submit"))
+            page.wait_for_load_state("load")
+            self.assertEqual(
+                page.locator(".rating-select").count(),
+                0,
+                "the gate is still asking after a full selection",
+            )
+            self.assertEqual(page.locator(".rejection-note").count(), 0)
+
+        self.drive(scenario)
+
+    def test_a_selection_left_short_shows_the_gate_s_own_copy(self):
+        """A learner who picks two of three is answered by the gate's own
+        copy — the copy a half-typed answer gets — and the fields stay, so the
+        missing pick is the one thing left to do (ticket #40, AC1).
+        """
+
+        def scenario(page):
+            self.open_intake(page)
+            fields = page.locator(".rating-select")
+            fields.nth(0).select_option(RATING_PICKS[0])
+            fields.nth(1).select_option(RATING_PICKS[1])
+            page.click("#main-form button" + attribute("type", "submit"))
+            page.wait_for_load_state("load")
+            self.assertIn("pretest task", page.locator(".rejection-note").inner_text())
+            self.assertEqual(page.locator(".rating-select").count(), len(RATING_PICKS))
 
         self.drive(scenario)

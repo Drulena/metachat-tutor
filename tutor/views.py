@@ -8,6 +8,7 @@ from django.shortcuts import redirect, render
 from .forms import IntakeForm
 from .ledger import (
     append_entries,
+    assessment_rows,
     fill_reflection,
     mark_finished,
     open_session,
@@ -279,9 +280,11 @@ def export_view(request: HttpRequest):
 
     No raw session keys are read: the payload is built from
     ``TutorSession.turns()``, ``TutorSession.progress()``, and the Summary's
-    session id. The intake gate keeps the rule "an export belongs to a
-    named participant": a browser that never registered has no session id
-    to name a file after, so it is sent to the form.
+    session id, plus the gate answers read through
+    :func:`tutor.ledger.assessment_rows` (ADR-0007 decision 6). The intake
+    gate keeps the rule "an export belongs to a named participant": a browser
+    that never registered has no session id to name a file after, so it is
+    sent to the form.
     """
     if _intake_pending(request):
         return redirect("intake")
@@ -296,6 +299,10 @@ def export_view(request: HttpRequest):
         "level": summary.level,
         "turns": [asdict(turn) for turn in session.turns()],
         "progress": asdict(summary),
+        # The gate answers ride along (ADR-0007 decision 6): the exported
+        # artefact is self-contained, so re-reading a pretest needs no
+        # database - a session with no answers exports an empty list.
+        "assessments": assessment_rows(summary.session_id),
         "export_time": datetime.now().isoformat(),
     }
     response = JsonResponse(

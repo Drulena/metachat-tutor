@@ -28,6 +28,7 @@ from .test_tutor_session import (
     ROLE_MENU_COPY,
     ROLE_MENU_INPUTS,
     SELECTOR_PICKS,
+    SELECTOR_PICKS_SCORES,
     WALK_TO_POSTTEST,
 )
 from .tutor_session import TutorSession
@@ -353,6 +354,31 @@ class ExportViewTests(TestCase):
         resp = self.client.get("/export/")
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp["Location"], "/")
+
+    def test_the_export_carries_the_gate_answers(self):
+        """ADR-0007 decision 6: the artefact a learner uploads is self-
+        contained. The pretest answer rides along with the raw string and the
+        ints the gate parsed, so an analysis needs no database."""
+        client = self.client
+        client.post("/", {"name": "Alice", "group": "Alpha", "level": "beginner"})
+        client.post("/chat/", {"user_input": " ".join(SELECTOR_PICKS)})
+        data = client.get("/export/").json()
+        self.assertEqual(
+            [answer["kind"] for answer in data["assessments"]],
+            ["pretest"],
+        )
+        self.assertEqual(
+            data["assessments"][0]["raw_answer"],
+            " ".join(SELECTOR_PICKS),
+        )
+        self.assertEqual(data["assessments"][0]["scores"], SELECTOR_PICKS_SCORES)
+
+    def test_the_assessments_key_is_there_before_the_first_gate(self):
+        """The payload shape never depends on how far the learner got: a
+        session with no gate answered exports an empty list, not a missing
+        key."""
+        _drive(self.client, [])
+        self.assertEqual(self.client.get("/export/").json()["assessments"], [])
 
 
 class ResetViewTests(TestCase):
