@@ -14,11 +14,11 @@ Canonical domain vocabulary for MetaChat Tutor. Use these terms in issues, code,
 
 - **base state** — One of the 32 distinct machine positions once the level axis is factored out of the names: the 26 single-form states and the 6 analysis bases whose triplets the registry parameterizes. The state string is exactly the base state. _Avoid: "stem", "bare state"._
 
-- **level axis** — The three proficiency levels (`beginner` / `intermediate` / `advanced`) as a parameter the machine carries beside the state, keyed in the **row registry**. Set exactly once at level assessment and immutable for the session (ADR-0006); the escape from a wrong pick is reset. _Avoid: "difficulty suffix", "level suffix"._
+- **level axis** — The three proficiency levels (`beginner` / `intermediate` / `advanced`) as a parameter the machine carries beside the state, keyed in the **row registry**. Set exactly once at the **intake form** and immutable for the session (ADR-0006 as amended 2026-11-01: the intake submission is the writer; the chat level-assessment state is retired); the escape from a wrong pick is reset. _Avoid: "difficulty suffix", "level suffix"._
 
 - **row registry** — The transition table keyed by (base state, level): 32 row modules expanded to the 44 (state, level) graph nodes. `row_for(state, level)` is the seam through which the module resolves a row; graph validation runs on the expanded table (44 pairs reachable through 32 rows). _Avoid: "transition dict"._
 
-- **point of no return** — The registration state that follows the level pick: its `back` edge is `None`. The only exit from a wrong level pick is reset — never back-navigation. _Avoid: "level lock"._
+- **point of no return** — The **intake form**'s submission, which fixes the level axis: chat opens from it with no back edge to before it. The only exit from a wrong level pick is reset — never back-navigation. _Avoid: "level lock"._
 
 - **transition table** — The flat data table (`tutor/transitions`) and single source of state-transition mechanics: one row per non-terminal (base state, level) pair of the **row registry** — 44 rows from 32 modules — recording the accepted input, the target state, the declarative effects (item / user-data updates), the navigation options, the progress item and phase, the rejection copy for dropped inputs, and whether the state is retryable after an LLM failure. The session module routes purely by table lookup via `row_for`; a scenario's state entries carry only presentation data (`message`, `options`, `validation`).
 
@@ -30,9 +30,19 @@ Canonical domain vocabulary for MetaChat Tutor. Use these terms in issues, code,
 
 - **task** — A unit of learner work a **section row** shows: the two analysis tasks and the nine roles — eleven rows, a deliberate subset of the fifteen **steps**. _Avoid: "step" for a row, "task" for the pre/post-test._
 
-- **lifecycle pair (started / finished)** — `started`: the conversation exists — the session has begun (the chat auto-starts it, before the learner registers). `finished`: the conversation has reached its terminal state. They answer lifecycle questions only — completion is the job of counts and rows, never of `finished`. Registration is carried by the **Summary**'s participant name: set once the learner has given it. Pages gate on `started` (the progress panel shows from the **zero-state Summary**) and on `finished` (the conversation is over).
+- **lifecycle pair (started / finished)** — `started`: the conversation exists — the **intake form**'s submission begins it. `finished`: the conversation has reached its terminal state — the data-collection screen, which offers no back and no further exit (the `end` state is retired, ADR-0007). They answer lifecycle questions only — completion is the job of counts and rows, never of `finished`. Registration is carried by the **Summary**'s participant name: set once the learner has given it. Pages gate on `started` (the progress panel shows from the **zero-state Summary**) and on `finished` (the conversation is over).
 
 - **completion model** — The module's single source of truth for progress: a per-item status (`not_started` / `in_progress` / `completed`) across the scenario's tasks and assessment points. Every progress figure, **section row**, used-option mark, and finished-option mark is derived from it; there is no parallel completion list.
+
+- **intake form** — The start-page form that registers a participant: name, group, and level axis in one submission. The submission is the session's beginning: it sets the **level axis** (exactly once, immutable) and opens chat at its first state — chat itself no longer registers anyone. The **point of no return** is this submission. _Avoid: "registration chat", "signup", "start-page wizard"._
+
+- **group** — A learner cohort a participant declares at the **intake form**. A canonical entity: reused case-insensitively, created on a miss, displayed with the first-entered spelling. The research filter dimension over session ledgers. _Avoid: "class", "cohort" (as a code name), "team"._
+
+- **assessment** — A scored test event in a session: the pretest and the posttest today, further kinds as the model grows. Carries the raw answer and the per-item scores; a child record of a **session ledger**, never a column pair on the row. Distinct from the **step** that tracks it in the **completion model**: the step is progress, the assessment is data. _Avoid: "test scores", "pretest_scores" (as a concept)._
+
+- **session ledger** — The persistent record of one session: its identity, participant, group, level, the appended **Turn** log, **assessment** records, reflection, and lifecycle timestamps. Written through on every submission; it is the research artefact. The **Summary** stays the presentation answer to the status question; the ledger is never consulted by pages. _Avoid: "export file" (the download is a projection of it), "chat table"._
+
+- **abandoned session** — A **session ledger** whose lifecycle never reached **finished** — from a walk-away, a cookie expiry, or a reset. Surfaced by admin filters and deleted by choice; never reinterpreted as research data about failure. _Avoid: "lost participant" (the cohort-time term from ADR-0006's trade), "dead session"._
 
 ## Research-domain terms
 
