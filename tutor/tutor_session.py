@@ -223,18 +223,20 @@ class TutorSession:
             for index, entry in enumerate(history)
         ]
 
-    def scales(self) -> list[str]:
-        """The prompts the current state offers as one 1-5 dropdown each.
+    def scales(self) -> list[dict]:
+        """The prompts the current state offers as one 1-5 chip row each.
 
         The assessment gates ship this list in their scenario entry
-        (``scenarios/pretest.py``, ``scenarios/posttest.py``): the page builds
-        one dropdown per prompt and submits the picks joined by spaces — the
-        string the gate's ``accept`` regex and :func:`_parse_scores` already
-        read, so a form answer is the same answer as a typed one (ticket #40,
-        ADR-0007 decision 6). An empty list means the state takes a typed
-        line, which is what the page offers then. The page reads this instead
-        of asking which state the session is on (ADR-0002: presentation is
-        built from the module, never from a branch on the state).
+        (``scenarios/pretest.py``, ``scenarios/posttest.py``), one dict per
+        prompt with a ``letter`` and the quoted ``prompt`` itself. The page
+        renders one row of five chips per prompt, under the message that asks,
+        and sends the picks joined by spaces — the string the gate's ``accept``
+        regex and :func:`_parse_scores` already read, so a form answer is the
+        same answer as a typed one (tickets #40 and #48, ADR-0007 decision 6).
+        An empty list means the state takes a typed line, which is what the
+        page offers then. The page reads this instead of asking which state the
+        session is on (ADR-0002: presentation is built from the module, never
+        from a branch on the state).
         """
         state = self._require_state()
         entry = self._scenario_entry(state, state.current_state)

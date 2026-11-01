@@ -63,14 +63,19 @@ WALK_TO_POSTTEST = (
     "A long reflection",  # -> posttest
 )
 
-#: The prompts the two assessment gates offer as one 1-5 dropdown each
-#: (scenarios/pretest.py, scenarios/posttest.py), in submission order. Shared
-#: with :mod:`tutor.test_views` and :mod:`tutor.test_write_through`: every
-#: pinning of these prompts lives here, once (coding-standards).
-ASSESSMENT_SCALES = ["A", "B", "C"]
+#: The prompts the two assessment gates offer as one 1-5 chip row each
+#: (scenarios/pretest.py, scenarios/posttest.py), in submission order: the
+#: letter and the quoted prompt the page shows beside the chips. Shared with
+#: :mod:`tutor.test_views` and :mod:`tutor.test_write_through`: every pinning
+#: of these prompts lives here, once (coding-standards).
+ASSESSMENT_SCALES = [
+    {"letter": "A", "prompt": "'Your idea is wrong. Fix it.'"},
+    {"letter": "B", "prompt": "'I see your point, but have you considered... 🤔'"},
+    {"letter": "C", "prompt": "'THIS IS TERRIBLE!!!'"},
+]
 
-#: One pick per prompt: what the dropdowns carry when the learner taps Send,
-#: as the string they submit and the scores the gate parses (ticket #40).
+#: One pick per prompt: what the chips carry when the three compose into the
+#: submission, as the string they send and the scores the gate parses.
 SELECTOR_PICKS = ["2", "4", "5"]
 SELECTOR_PICKS_SCORES = [2, 4, 5]
 
@@ -1102,17 +1107,30 @@ class TutorSessionTests(SimpleTestCase):
         session.submit("4")
         self.assertEqual(self.state_of(storage).current_state, "pretest")
 
-    # ---------------------------------------------------------- selector form
+    # ----------------------------------------------------------- rating chips
 
-    def test_the_pretest_gate_offers_a_dropdown_per_score(self):
-        """Ticket #40: the gate arrives as a form, not a typed line. The module
-        names the prompts in submission order; the page builds one 1-5 dropdown
-        per prompt and submits the picks as the string the gate already accepts
+    def test_the_pretest_gate_offers_a_chip_row_per_prompt(self):
+        """Ticket #40, shaped by #48: the gate arrives as a form, not a typed
+        line. The module names the prompts in submission order, with the prompt
+        text itself, so the page can put one row of 1-5 chips under the line it
+        rates and send the picks as the string the gate already accepts
         (ADR-0007 decision 6)."""
         session, _, _ = self.make_session()
         self.assertEqual(session.scales(), ASSESSMENT_SCALES)
 
-    def test_the_posttest_gate_offers_the_same_dropdowns(self):
+    def test_every_prompt_is_quoted_from_the_message_it_rates(self):
+        """The control sits under its own question, so a prompt that drifts
+        from the message would point at a line that is not there: each quoted
+        prompt is a piece of the gate message, byte for byte (#48)."""
+        for inputs, expected in [((), "pretest"), (WALK_TO_POSTTEST, "posttest")]:
+            session, storage, _ = self.make_session()
+            self.drive(session, *inputs)
+            self.assertEqual(self.state_of(storage).current_state, expected)
+            message = session.turns()[-1].message
+            for scale in session.scales():
+                self.assertIn(scale["prompt"], message)
+
+    def test_the_posttest_gate_offers_the_same_rows(self):
         """One instrument at both ends (spec #29): the same prompts in the same
         order, so the two forms answer the same way."""
         session, storage, _ = self.make_session()
@@ -1120,15 +1138,15 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(self.state_of(storage).current_state, "posttest")
         self.assertEqual(session.scales(), ASSESSMENT_SCALES)
 
-    def test_a_state_that_takes_a_typed_answer_offers_no_dropdowns(self):
+    def test_a_state_that_takes_a_typed_answer_offers_no_chips(self):
         """The empty list is the page's cue for the typed form: the chat is
-        back to free text once the gate is answered, and the selector is gone."""
+        back to free text once the gate is answered, and the chips are gone."""
         session, storage, _ = self.make_session()
         self.drive(session, "3 4 5")
         self.assertEqual(self.state_of(storage).current_state, "after_registration")
         self.assertEqual(session.scales(), [])
 
-    def test_the_dropdown_form_lands_the_scores_the_gate_reads(self):
+    def test_the_chip_form_lands_the_scores_the_gate_reads(self):
         """The three picks joined by spaces are the string the regex matches:
         the same three ints a typed answer leaves in user_data, so a form
         answer is indistinguishable from a typed one (AC1)."""
@@ -1138,7 +1156,7 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(state.current_state, "after_registration")
         self.assertEqual(state.user_data["pretest_scores"], SELECTOR_PICKS_SCORES)
 
-    def test_a_partial_dropdown_submission_is_rejected_as_usual(self):
+    def test_a_partial_chip_submission_is_rejected_as_usual(self):
         """A form left with an empty pick submits a short string: the gate
         refuses it and its own copy answers, exactly as a typed half-answer
         does (AC1), and the state stays put."""
