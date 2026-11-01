@@ -9,42 +9,15 @@ or deleted never reaches the learner.
 from django.test import Client, TestCase
 
 from .models import Assessment, SessionRecord
-from .session import SessionStorage
-
-
-INTAKE = {"name": "Alice", "group": "Alpha", "level": "beginner"}
-OTHER_INTAKE = {"name": "Bella", "group": "Beta crew", "level": "advanced"}
-
-
-def _open(client, payload=INTAKE):
-    """Submit the intake form, landing the chat page and its ledger row."""
-    response = client.post("/", payload)
-    assert response.status_code == 302
-    return SessionRecord.objects.get(session_id=_session_id(client))
-
-
-def _session_id(client) -> str:
-    """The id the chat minted, read from the browser copy of the session."""
-    return SessionStorage(client.session).load().session_id
-
-
-def _entries(client):
-    """The chat history the browser copy holds, entry dicts and all."""
-    return SessionStorage(client.session).load().chat_history
-
-
-def _strand(client, state: str):
-    """Move the chat to ``state`` without walking the graph to it.
-
-    Saving the browser session object is what the middleware does at the end
-    of every response; without that write the next request reads the old state
-    back, and the answer lands on the state the chat was really on.
-    """
-    store = client.session
-    record = SessionStorage(store).load()
-    record.current_state = state
-    SessionStorage(store).save(record)
-    store.save()  # the object written, not a fresh one: the property mints a new store
+from .testing import (
+    INTAKE,
+    OTHER_INTAKE,
+    entries as _entries,
+    open_intake as _open,
+    session_id as _session_id,
+    state_of as _state_of,
+    strand as _strand,
+)
 
 
 class WriteThroughTests(TestCase):
@@ -157,7 +130,7 @@ class LedgerIsWriteOnlyTests(TestCase):
         with self.assertLogs("tutor.ledger", level="WARNING") as logs:
             response = self.client.post("/chat/", {"user_input": "3 4 5"})
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(SessionStorage(self.client.session).load().current_state, "after_registration")
+        self.assertEqual(_state_of(self.client), "after_registration")
         self.assertTrue(any("ledger row" in line for line in logs.output))
 
 
