@@ -1,3 +1,9 @@
+# Line endings: store and check out LF everywhere. Without this rule a
+# checkout that writes CRLF (a Windows editor, or core.autocrlf) makes every
+# file diff against its LF blob, and the whole tree reads as modified with no
+# content change in it.
+* text=auto eol=lf
+
 # Hooks are shell scripts run by git: a CRLF shebang would break them.
 scripts/hooks/* text eol=lf
 scripts/install-git-hooks.sh text eol=lf
