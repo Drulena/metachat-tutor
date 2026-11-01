@@ -34,6 +34,7 @@ visual disability is a color decision, functional disability is a routing
 decision, and the two stay separate. A new component picks its colors from
 the tokens; a new token joins `:root`, never a literal in a rule.
 
+## Shared test constants
 
 Module strings pinned by tests — the generic rejection copy
 (`GENERIC_REJECTION`), the role-menu copy (`ROLE_MENU_COPY`), the drive
@@ -59,6 +60,11 @@ file breaks that rebuild silently — the deployed database carries no signal
 that the file under it changed. `0001_initial` was squashed once, at
 greenfield, and stays as written; the app's history only grows forward.
 `tutor/test_models.py` pins that the history starts at the initial migration.
+
+`scripts/hooks/pre-commit` enforces the rule: a commit that stages a change,
+deletion or rename of a migration already in `HEAD` is refused, and the
+refusal names the files and the reason. New migration files pass. A fresh
+clone enables the hooks with `sh scripts/install-git-hooks.sh`.
 
 ## LLM output contract
 

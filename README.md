@@ -17,6 +17,10 @@ regenerate it with the command written in its own header, never edit it by hand.
 
 Open `http://127.0.0.1:8000` in a browser.
 
+The repository's git hooks live in `scripts/hooks/`; install them once per
+clone with `sh scripts/install-git-hooks.sh` (Git Bash or WSL on Windows). The
+pre-commit hook refuses commits that edit migrations already committed.
+
 ## Structure
 
 Django project `tutor_project/` with a single app `tutor/`:
