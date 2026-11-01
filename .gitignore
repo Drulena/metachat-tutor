@@ -3,6 +3,7 @@
 
 # DSH harness workspace state (automation records, IM archive)
 .hive
+.acl-recovery/
 
 # Agent scratch space (repro scripts, commit-msg bodies, split tools)
 .scratch/
