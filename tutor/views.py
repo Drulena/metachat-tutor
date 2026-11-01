@@ -6,17 +6,69 @@ from django.http import HttpRequest, JsonResponse
 from django.shortcuts import redirect, render
 
 from .forms import IntakeForm
-from .ledger import open_session
+from .ledger import (
+    append_entries,
+    fill_reflection,
+    open_session,
+    record_assessment,
+)
 from .models import Group
 from .session import Intake, SessionStorage
 from .tutor_session import TutorSession
 
 logger = logging.getLogger(__name__)
 
+# The id of the row a reset abandons, kept in the browser session under a key
+# the chat module does not own: the wipe erases the chat's own keys, and the
+# chain has to survive it (ADR-0007 decision 7). The next intake links it.
+PREVIOUS_SESSION_KEY = "previous_session_id"
+
+# The chat states whose accepted answer is a selector assessment, paired with
+# the state key that holds the scores the gate parsed (ADR-0007 decision 6).
+GATE_SCORE_KEYS = {"pretest": "pretest_scores", "posttest": "posttest_scores"}
+
 
 def _session_for(request: HttpRequest) -> TutorSession:
     """Build a TutorSession over the browser's Django session."""
     return TutorSession(SessionStorage(request.session))
+
+
+def _chat_entries(request: HttpRequest) -> list[dict]:
+    """The dialogue log the browser copy holds, entry dicts and all."""
+    state = SessionStorage(request.session).load()
+    return [] if state is None else list(state.chat_history)
+
+
+def _mirror_to_ledger(request: HttpRequest, entries_before: int) -> None:
+    """Mirror the exchange the chat just produced onto its ledger row.
+
+    The chat's own entry dicts are appended verbatim, so the row ends up
+    holding exactly what the browser is shown, in submit order (ADR-0007
+    decision 2). The entry carrying the learner's answer names the state it
+    was answered in: an accepted gate answer is recorded beside the row as a
+    child (decision 6), and an accepted reflection fills the row's own field
+    (decision 1). A dropped input carries the `rejected` flag, and a
+    navigation command appends no answer entry at all - neither writes a gate.
+    """
+    state = SessionStorage(request.session).load()
+    if state is None:
+        return
+    delta = state.chat_history[entries_before:]
+    if not delta:
+        return
+    session_id = state.session_id
+    append_entries(session_id, delta)
+    answered = next(
+        (entry for entry in reversed(delta) if entry.get("role") == "user"), None
+    )
+    if answered is None or answered.get("rejected"):
+        return
+    state_name = answered.get("state")
+    if state_name in GATE_SCORE_KEYS:
+        scores = (state.user_data or {}).get(GATE_SCORE_KEYS[state_name])
+        record_assessment(session_id, state_name, answered.get("content", ""), scores or [])
+    elif state_name == "reflection":
+        fill_reflection(session_id, answered.get("content", ""))
 
 
 def _intake_pending(request: HttpRequest) -> bool:
@@ -65,7 +117,17 @@ def intake_view(request: HttpRequest):
             session.start(intake)
             session_id = session.progress().session_id
             try:
-                open_session(intake, session_id)
+                open_session(
+                    intake,
+                    session_id,
+                    # The welcome turn the chat opened on, so the row's
+                    # dialogue log is complete from its first write.
+                    entries=_chat_entries(request),
+                    # A reset before this intake names the session it
+                    # abandoned; an intake that replaces nothing chains to
+                    # nothing (ADR-0007 decision 7).
+                    previous_session_id=request.session.pop(PREVIOUS_SESSION_KEY, None),
+                )
             except Exception:  # pragma: no cover - infrastructure hiccup
                 logger.exception(
                     "Ledger row missing for session %s", session_id
@@ -119,7 +181,12 @@ def chat_view(request: HttpRequest):
     if request.method == "POST":
         text = request.POST.get("user_input", "").strip()
         if text:
+            # The ledger mirrors what the chat does, on every submission
+            # (ADR-0007 decision 1) - the pages keep answering from the
+            # Summary, and a ledger hiccup never reaches the learner.
+            entries_before = len(_chat_entries(request))
             session.submit(text)
+            _mirror_to_ledger(request, entries_before)
         # Every submission answers with a redirect, blank text included; the
         # docstring says why (issue #34).
         return redirect("chat")
@@ -154,12 +221,19 @@ def reset_view(request: HttpRequest):
     """Reset the session. POST-only to protect against CSRF-triggered wipes.
 
     Lands on the intake form, not the chat: a wipe erases the registration
-    facts too, so the learner re-supplies them (ticket #37).
+    facts too, so the learner re-supplies them (ticket #37). The row the wipe
+    abandons keeps its record and is named by the next intake's row - chains
+    are reconstructible, and an abandoned session is one whose `finished_at`
+    stayed null (ADR-0007 decision 7, ticket #38).
     """
     if request.method != "POST":
         return redirect("reset_confirm")
 
     session = _session_for(request)
+    abandoned = session.progress().session_id
+    if abandoned:
+        # Bookkeeping the chat's own wipe does not touch: the chain link.
+        request.session[PREVIOUS_SESSION_KEY] = abandoned
     try:
         session.reset()
     except Exception:
