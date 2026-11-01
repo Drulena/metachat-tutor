@@ -5,6 +5,61 @@ first, appended under this header; section shape from
 `docs/templates/retro-section.md`. One line per bullet, longer only when the
 cause needs explaining; test results in prose, not a log.
 
+## 2026-11-01 — placeholder-leak triage (#46) (agent)
+
+### Session
+
+- Triaged the learner report "user1 and user2 real text is not printed" into issue
+  #46 and fixed it: `role_researcher`'s template asked for `{user1}`/`{user2}`
+  keys its variant never supplies, so the Discussion line reached the page as
+  literal tokens. The same sweep found three siblings: `role_judge`'s variant
+  carries a `quote` its template never shows (silent drop), the pretest had
+  drifted off the canonical assessment trio ('Your suggestion is wrong'/'THIS IS
+  AWFUL' vs the posttest/variant/anchor 'Your idea is wrong'/'THIS IS TERRIBLE',
+  breaking the same-messages contract and silently disabling the anchor sweep),
+  and `analysis_task_2.advanced` carries a `hint` the level documents it never
+  renders. Commits `d66c798` (test) `8ae6dd3` `109ea31` `34c5fd2` `872d16b` on
+  `django`; `manage.py test tutor` → Ran 268 tests, OK. Not pushed.
+
+### What worked
+
+- A data-walk test as the sweep: `ScenarioPlaceholderIntegrityTests`
+  (`tutor/test_transitions.py`) asserts template placeholders == variant keys
+  (exact, per role and per analysis level), sweeps the randomized messages for
+  leftover `{tokens}`, and pins the pretest literal anchors the randomize pass
+  replaces by. One green check guards the whole silent-substitution class.
+- The pretest drift was adjudicated by archaeology, not opinion: `git grep` on
+  the initial commit 5319164 showed the canonical trio and that pretest/posttest
+  were identical there — the posttest's "rate the same messages" wording settled
+  which side to realign (the pretest).
+
+### Where I got stuck
+
+- The edit-tool escaping ladder: a `\n` in a scenario source string is two
+  characters in the file, and grep/inspect display differ on how many backslashes
+  to show. Guessing the level cost two failed edits; the reliable move is to pick
+  an `old_string` segment with no backslashes at all ('Your idea is wrong. Fix
+  it.').
+- `git commit` under the workspace sandbox dies in cygwin
+  (`couldn't create signal pipe, Win32 error 5`) — the commit needs
+  `danger-full-access` (git spawns `sh.exe` from outside the workspace).
+
+### Tool gaps
+
+- `uv run` cannot initialize its cache under the sandbox (`Failed to initialize
+  cache at C:\Users\ALern\AppData\Local\uv\cache … Access is denied`);
+  `.venv/Scripts/python.exe manage.py test …` runs the suite directly.
+- The `commit-msg` hook demands an `Issue: #N` footer and a subject ≤ 72 chars;
+  work flows from the issue, not commit-then-reference.
+
+### Repo gaps
+
+- The substitution in `tutor/scenarios/randomize.py` is a silent
+  `str.replace` loop in both passes (variant keys, pretest anchors): any
+  mismatch is invisible by design; the new test is the only check.
+- `ROLE_STATE_KEYS` is exported by `tutor.scenarios` but not re-exported by
+  `tutor/data.py`, unlike its sibling data names.
+
 ## 2026-11-01 — #32 Session ID behind an info button (agent)
 
 ### Session
