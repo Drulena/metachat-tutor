@@ -44,6 +44,36 @@ ROLE_MENU_INPUTS = [
     "continue",         # -> role_menu
 ]
 
+#: The chat inputs from the pretest answer to the posttest gate: the same route
+#: as :data:`tutor.test_browser.WALK_TO_END`, stopping at the gate. Shared with
+#: :mod:`tutor.test_views`, which posts it through the browser.
+WALK_TO_POSTTEST = (
+    "3 4 5",  # pretest -> after_registration
+    "1",  # -> analysis_intro
+    "yes",  # -> analysis_task_1
+    "Answer to task one",  # -> analysis_feedback_1
+    "next",  # -> analysis_task_2
+    "Answer to task two",  # -> analysis_feedback_2
+    "next",  # -> roleplay_intro
+    "continue",  # -> role_menu
+    "1",  # -> the mediator role
+    "I mediate the conflict",  # -> roleplay_feedback
+    "next",  # -> role_menu, mediator completed
+    "finish",  # -> reflection
+    "A long reflection",  # -> posttest
+)
+
+#: The prompts the two assessment gates offer as one 1-5 dropdown each
+#: (scenarios/pretest.py, scenarios/posttest.py), in submission order. Shared
+#: with :mod:`tutor.test_views` and :mod:`tutor.test_write_through`: every
+#: pinning of these prompts lives here, once (coding-standards).
+ASSESSMENT_SCALES = ["A", "B", "C"]
+
+#: One pick per prompt: what the dropdowns carry when the learner taps Send,
+#: as the string they submit and the scores the gate parses (ticket #40).
+SELECTOR_PICKS = ["2", "4", "5"]
+SELECTOR_PICKS_SCORES = [2, 4, 5]
+
 #: The intake facts a test session opens with: what the form submits
 #: (ticket #37). Shared, so the view tests drive the same participant.
 INTAKE = Intake(name="Alice", group="Alpha", level="beginner")
@@ -306,7 +336,11 @@ class TutorSessionTests(SimpleTestCase):
             session.submit("hi")
         with self.assertRaises(RuntimeError):
             session.turns()
-        # progress() is exempt: it answers the zero-state instead of raising.
+        with self.assertRaises(RuntimeError):
+            session.scales()
+        # The page reads scales() beside turns(), so it joins the same
+        # precondition (ticket #40). progress() is exempt: it answers the
+        # zero-state instead of raising.
 
     def test_progress_on_untouched_session_is_zero_state(self):
         """An untouched session answers: nothing started, nothing finished."""
@@ -1067,6 +1101,53 @@ class TutorSessionTests(SimpleTestCase):
         session, storage, _ = self.make_session()
         session.submit("4")
         self.assertEqual(self.state_of(storage).current_state, "pretest")
+
+    # ---------------------------------------------------------- selector form
+
+    def test_the_pretest_gate_offers_a_dropdown_per_score(self):
+        """Ticket #40: the gate arrives as a form, not a typed line. The module
+        names the prompts in submission order; the page builds one 1-5 dropdown
+        per prompt and submits the picks as the string the gate already accepts
+        (ADR-0007 decision 6)."""
+        session, _, _ = self.make_session()
+        self.assertEqual(session.scales(), ASSESSMENT_SCALES)
+
+    def test_the_posttest_gate_offers_the_same_dropdowns(self):
+        """One instrument at both ends (spec #29): the same prompts in the same
+        order, so the two forms answer the same way."""
+        session, storage, _ = self.make_session()
+        self.drive(session, *WALK_TO_POSTTEST)
+        self.assertEqual(self.state_of(storage).current_state, "posttest")
+        self.assertEqual(session.scales(), ASSESSMENT_SCALES)
+
+    def test_a_state_that_takes_a_typed_answer_offers_no_dropdowns(self):
+        """The empty list is the page's cue for the typed form: the chat is
+        back to free text once the gate is answered, and the selector is gone."""
+        session, storage, _ = self.make_session()
+        self.drive(session, "3 4 5")
+        self.assertEqual(self.state_of(storage).current_state, "after_registration")
+        self.assertEqual(session.scales(), [])
+
+    def test_the_dropdown_form_lands_the_scores_the_gate_reads(self):
+        """The three picks joined by spaces are the string the regex matches:
+        the same three ints a typed answer leaves in user_data, so a form
+        answer is indistinguishable from a typed one (AC1)."""
+        session, storage, _ = self.make_session()
+        session.submit(" ".join(SELECTOR_PICKS))
+        state = self.state_of(storage)
+        self.assertEqual(state.current_state, "after_registration")
+        self.assertEqual(state.user_data["pretest_scores"], SELECTOR_PICKS_SCORES)
+
+    def test_a_partial_dropdown_submission_is_rejected_as_usual(self):
+        """A form left with an empty pick submits a short string: the gate
+        refuses it and its own copy answers, exactly as a typed half-answer
+        does (AC1), and the state stays put."""
+        session, storage, _ = self.make_session()
+        session.submit(" ".join(SELECTOR_PICKS[:2]))
+        self.assertEqual(self.state_of(storage).current_state, "pretest")
+        turn = session.turns()[-1]
+        self.assertEqual(turn.role, "user")
+        self.assertIn("pretest task", session.turns()[-1].rejection)
 
     def test_analysis_intro_ignores_anything_but_yes(self):
         session, storage, _ = self.make_session()

@@ -8,6 +8,10 @@ for the assembled ``SCENARIO`` dict and
 STATE = {
     # The greeting moved here from the retired "start" state: the intake
     # form (ticket #37) supplies the name, so the chat opens greeted.
-        "message": "Nice to meet you, {user_name}!\n\n**📋 PRE-TEST: Diagnostic Assessment**\n\nBefore we begin the training, please rate these three messages on a scale from 1 (destructive) to 5 (constructive):\n\nA▪️*'Your idea is wrong. Fix it.'*\n\nB▪️*'I see your point, but have you considered... 🤔'*\n\nC▪️*'THIS IS TERRIBLE!!!'*\n\n⬇️**Type three numbers separated by spaces (e.g., '1 5 2') and tap Enter:**",
+        "message": "Nice to meet you, {user_name}!\n\n**📋 PRE-TEST: Diagnostic Assessment**\n\nBefore we begin the training, please rate these three messages on a scale from 1 (destructive) to 5 (constructive):\n\nA▪️*'Your idea is wrong. Fix it.'*\n\nB▪️*'I see your point, but have you considered... 🤔'*\n\nC▪️*'THIS IS TERRIBLE!!!'*\n\n⬇️**Choose a rating for A, B and C from the dropdowns, then tap Send.**",
     "validation": "^[1-5] [1-5] [1-5]$",
+    # The prompts the gate offers as one 1-5 dropdown each, in the order they
+    # submit (ticket #40). The page sends the picks as the string the validation
+    # regex above and the row's 'accept' pattern already read (ADR-0007 d6).
+    "scales": ["A", "B", "C"],
 }
