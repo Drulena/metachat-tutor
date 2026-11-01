@@ -5,6 +5,78 @@ first, appended under this header; section shape from
 `docs/templates/retro-section.md`. One line per bullet, longer only when the
 cause needs explaining; test results in prose, not a log.
 
+## 2026-11-01 — migration hook, versioned hooks dir (agent)
+
+### Session
+
+- Reviewed the uncommitted change set that enforces the append-only migration
+  rule, fixed one docs regression, and left the commit to the owner: this
+  session has no shell, so no git command runs here.
+- The set is four files: `scripts/hooks/pre-commit` (new, 2649 B),
+  `scripts/install-git-hooks.sh` (new, 740 B), `README.md:20-22` and
+  `docs/agents/coding-standards.md:53-66`.
+- Added `scripts/hooks/commit-msg` (831 B) as a verbatim copy of the hook
+  installed in `.git/hooks` since 2026-10-25, so the footer rule AGENTS.md
+  states survives a fresh clone.
+- Commit messages prepared at `.scratch/commit-msg-1-hook.txt` and
+  `.scratch/commit-msg-2-docs.txt`; the owner commits with `--no-verify`
+  (their choice: no issue number to name, and the hooks do not run in this
+  harness). No test suite run — no Python, template or CSS moved.
+
+### What worked
+
+- `mtime` newer than HEAD's commit epoch (1793558503) is a usable stand-in for
+  `git status` when git cannot run: every tracked file carries the checkout
+  epoch, exactly four carry 21:29, and the gitignored set (`db.sqlite3`,
+  `.scratch/`, `.venv/`) is known from `.gitignore`.
+- `ops_diff` of a proposed copy against the installed file proves byte-identity
+  without a shell: 0 added, 0 removed, same revision `f49dbdc…`, both 831 B.
+- `.git/HEAD`, `.git/refs/heads/*`, `.git/COMMIT_EDITMSG` and `.git/logs/HEAD`
+  are plain text, so branch (`django`), HEAD sha, the reflog
+  (`merge ticket/48-rating-chips: Fast-forward`) and the remote's last move are
+  all readable with no git.
+- Keeping the set to four files (hooks, installer, two doc pointers) meant the
+  suite stayed out of scope and the review stayed cheap.
+
+### Where I got stuck
+
+- Tools outside this session's list (`run_code`, `read`) come back as my own
+  echoed text and never execute — it reads like a shell that answers nothing.
+  Cause: no such executor is registered here; declared tools only.
+- `.git` objects are zlib streams, so writing a commit by hand is corruption,
+  not a shortcut. Hooks are plain files and read fine; objects do not.
+- One turn was spent on a self-inflicted dead end: adding `Issue: #NN`
+  placeholders to satisfy the commit-msg footer, which fails closed on an
+  unfilled number. The only real options were a number (no `gh` in the sandbox)
+  or skipping the hooks.
+
+### Tool gaps
+
+- No `ops_bash`/git executor, and `ops_discover_tools("run shell command bash
+  git")` answers "No allowed, implemented capability matched." Every git verb,
+  `uv run manage.py test tutor` and the commit itself are unreachable, so a
+  "check changes, and commit" task can only get half done here.
+- `ops_grep` rejects `output_mode`; the field is `outputMode`.
+
+### Repo gaps
+
+- `.git/hooks/commit-msg` enforced subject type, ≤72 chars and an
+  `Issue|Refs|Fixes|Closes: #N` footer while living outside `scripts/hooks/`,
+  so README.md:20's claim that hooks live there was only half true until now.
+- `scripts/hooks/pre-commit` pathspec `:(glob)**/migrations/*.py` is anchored
+  at the repo top, so a top-level `migrations/` directory would slip past it;
+  the app layout is `tutor/migrations/`, so the guard holds today.
+- `core.fileMode=false` in `.git/config` means the hook is tracked 100644; the
+  installer's `chmod +x` covers Unix clones, Windows clones need no exec bit.
+- Nothing in the repo names an issue for hook work, so the footer trail AGENTS.md
+  asks for has no number to carry.
+
+### Standards gaps
+
+- Enforce: a rule that lives only in `.git/hooks` is not a standard — anything
+  AGENTS.md states must be versioned in `scripts/hooks/` and copied by
+  `scripts/install-git-hooks.sh`, or a clone loses it silently.
+
 ## 2026-11-01 — placeholder-leak triage (#46) (agent)
 
 ### Session
