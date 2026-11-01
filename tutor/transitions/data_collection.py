@@ -8,15 +8,24 @@ Part of the pure-data transition table (ticket #8); see
 BASE = "data_collection"
 
 ROW = {
-    "next": "end",
-    "back": "after_registration",  # BASE: resolved with the session level (C1-8)
-    "nav": {"exit": "Exit"},
+    # The terminal screen (ticket #39, ADR-0007 decision 4). The machine
+    # stops here: no next, no back edge, no nav map. Routing therefore
+    # answers every input on the spot with this row's own copy - the
+    # learner cannot leave, and the retired ``end`` state has nothing left
+    # to hand the session on to. ``phase`` is the banner key the panel
+    # reads as finished, spelled by the row now that no state name does.
+    "next": None,
+    "back": None,
+    "nav": {},
     "retryable": False,
     "item": None,
-    "phase": "data_collection",
-    "accept": ["exit"],
+    "phase": "finished",
+    "accept": None,
     "effects": [],
-    "rejected": "Tell me your name: type 'name <your name>', then pick a level, or type 'back'.",
+    "rejected": (
+        "The session is complete - there is nothing left to answer. "
+        "Export your chat history from the sidebar."
+    ),
     "fixture": {
         "user_data": {
             "user_name": "Test Learner",

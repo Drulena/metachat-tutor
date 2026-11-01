@@ -99,6 +99,12 @@ AXIS_BASES = (
 #: carries the point of no return, and owns the ``back: None`` rule.
 ENTRY_BASE = "pretest"
 
+#: The base state a session ends on (ADR-0007 decision 4, ticket #39): the
+#: terminal screen declares ``next: None``, ``back: None`` and an empty nav
+#: map, owns the far side of the ``back: None`` rule, and is the moment the
+#: ledger stamps ``finished_at``.
+TERMINAL_BASE = "data_collection"
+
 
 def _retired_spelling(name: str) -> tuple[str, str | None]:
     """Split a name spelling the level as a suffix (the retired shape).
@@ -182,19 +188,20 @@ def validate_transitions(
         table = ROW_REGISTRY
     violations: list[str] = []
     states = set(SCENARIO["states"])
-    non_terminal = states - {"end"}
+    # Every scenario state carries a row: the retired end state left no
+    # terminal exception behind (ticket #39).
     pairs = set(table)
     axis_bases = {base for base, level in pairs if level is not None}
 
     bases_with_rows = {base for base, _ in pairs}
-    for base in sorted(non_terminal - bases_with_rows):
+    for base in sorted(states - bases_with_rows):
         violations.append(f"missing row for state {base!r}")
     for base in sorted(bases_with_rows - states):
         violations.append(f"row for unknown state {base!r}")
 
     for pair in sorted(pairs, key=_pair_sort):
         base = pair[0]
-        if base not in non_terminal:
+        if base not in states:
             continue
         row = table[pair]
         for field in ROW_FIELDS:
@@ -212,7 +219,7 @@ def validate_transitions(
                 )
 
         back = row.get("back")
-        if base == ENTRY_BASE:
+        if base in (ENTRY_BASE, TERMINAL_BASE):
             if back is not None:
                 violations.append(f"{pair}: back must be None")
         elif back is None:
@@ -223,7 +230,7 @@ def validate_transitions(
             if base != "after_registration":
                 violations.append(
                     f"{pair}: back target None is allowed only at the entry "
-                    "state and the registration axis"
+                    "state, the terminal screen and the registration axis"
                 )
         elif back not in states:
             violations.append(
@@ -294,7 +301,8 @@ def _graph_checks(
     prefix. Three checks run over the whole pair set:
 
     - graph closure: every next/back target resolves to a pair that
-      has a row (``("end", None)`` is the terminal exception);
+      has a row - every scenario state is rowed now the terminal state
+      has been retired (ticket #39);
     - reachability: every pair is reachable from :data:`ENTRY_BASE`
       (the chat's first state, ticket #37) along next/back edges;
     - level coverage: a base carrying any axis row must carry every
@@ -302,12 +310,10 @@ def _graph_checks(
       row module missing an axis level is rejected.
     """
     violations: list[str] = []
-    terminal = ("end", None)
-
     for pair in sorted(pairs, key=_pair_sort):
         for target in _row_targets(table[pair]):
             for node in _resolve_target(target, pair[1], pairs, axis_bases):
-                if node not in pairs and node != terminal:
+                if node not in pairs:
                     violations.append(
                         f"graph: {pair!r}: target {target!r} resolves to "
                         f"pair {node!r} with no row"

@@ -329,7 +329,8 @@ class TutorSessionTests(SimpleTestCase):
     def drive_to_role_menu(self, session: TutorSession) -> TutorSession:
         return self.drive(session, *ROLE_MENU_INPUTS)
 
-    def test_full_single_role_path_reaches_end(self):
+    def test_full_single_role_path_reaches_the_terminal_screen(self):
+        """The walk ends on the terminal screen, and the panel knows it."""
         session, storage, _ = self.make_session()
         self.drive_to_role_menu(session)
         self.drive(
@@ -339,10 +340,9 @@ class TutorSessionTests(SimpleTestCase):
             "next",             # -> role_menu (mediator completed)
             "finish",           # -> reflection
             "A long reflection",  # -> posttest
-            "4 4 4",            # -> data_collection
-            "exit",             # -> end
+            "4 4 4",            # -> data_collection, the terminal screen
         )
-        self.assertEqual(self.state_of(storage).current_state, "end")
+        self.assertEqual(self.state_of(storage).current_state, "data_collection")
 
         summary = session.progress()
         self.assertEqual(summary.percentage, 42)  # 6 of 14 items
@@ -351,12 +351,13 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(statuses["analysis_task_1"], "completed")
         self.assertEqual(statuses["analysis_task_2"], "completed")
         self.assertEqual(statuses["role_mediator"], "completed")
-        # the final turn is the user's "exit" — no assistant turn at "end"
+        # The terminal screen answers with its own copy: the last turn is the
+        # assistant's completion message, recorded on the state it landed on,
+        # and it offers no way out (ticket #39).
         last = session.turns()[-1]
-        self.assertEqual(last.role, "user")
-        # the user turn records the state it was submitted in
+        self.assertEqual(last.role, "assistant")
         self.assertEqual(last.state, "data_collection")
-        self.assertIsNone(last.options)
+        self.assertFalse(last.options)
 
     def test_all_registered_levels_traverse_the_graph_through_submit(self):
         """#17 anchor: each registered level walks the graph end to end.
@@ -388,8 +389,7 @@ class TutorSessionTests(SimpleTestCase):
             "next",                 # -> role_menu (mediator completed)
             "finish",               # -> reflection
             "A long reflection",    # -> posttest
-            "4 4 4",                # -> data_collection
-            "exit",                 # -> end
+            "4 4 4",                # -> data_collection, the terminal screen
         ]
         for level in LEVELS:
             inputs = ROLE_MENU_INPUTS + tail
@@ -408,7 +408,6 @@ class TutorSessionTests(SimpleTestCase):
                 "reflection",
                 "posttest",
                 "data_collection",
-                "end",
             ]
             self.assertEqual(len(inputs), len(expected))
             with self.subTest(level=level):
@@ -523,22 +522,21 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(offers(current)["1"][1], "choice")
 
     def test_advance_option_matches_current_state(self):
+        # Every state in the table offers the option that advances it. The
+        # terminal screen is not in the table: it offers no way out, and its
+        # own test says so (ticket #39).
         paths = {
             "analysis_intro": ["3 4 5", "1"],
             "analysis_feedback_1": ["3 4 5", "1", "yes", "Answer one"],
             "roleplay_intro": ["3 4 5", "1", "yes", "A1", "next", "A2", "next"],
             "roleplay_feedback_mediator": ["3 4 5", "1", "yes", "A1", "next", "A2",
                                           "next", "continue", "1", "I mediate"],
-            "data_collection": ["3 4 5", "1", "yes", "A1", "next", "A2", "next",
-                                "continue", "1", "I mediate", "next", "finish",
-                                "Reflections", "4 4 4"],
         }
         keys = {
             "analysis_intro": "yes",
             "analysis_feedback_1": "next",
             "roleplay_intro": "continue",
             "roleplay_feedback_mediator": "next",
-            "data_collection": "exit",
         }
         for target, path in paths.items():
             with self.subTest(target=target):
@@ -732,20 +730,26 @@ class TutorSessionTests(SimpleTestCase):
         stranded.submit("gibberish")
         self.assertIsNone(stranded.turns()[-1].rejection)
 
-    def test_end_state_pairs_no_rejection_copy(self):
-        """After the completion the UI offers no composer, and the structural
-        AC holds: at ``end`` a stray input carries no banner copy at all."""
+    def test_the_terminal_screen_answers_every_input_itself(self):
+        """The last screen routes nowhere: a stray input is answered with the
+        row’s own copy and the state stays put (ticket #39)."""
         session, storage, _ = self.make_session()
         self.drive_to_role_menu(session)
         self.drive(
             session,
             "1", "I mediate the conflict", "next",
-            "finish", "A long reflection", "4 4 4", "exit",
+            "finish", "A long reflection", "4 4 4",
         )
-        self.assertEqual(self.state_of(storage).current_state, "end")
-        session.submit("gibberish")
-        self.assertEqual(session.turns()[-1].role, "user")
-        self.assertIsNone(session.turns()[-1].rejection)
+        self.assertEqual(self.state_of(storage).current_state, "data_collection")
+        for text in ("exit", "back", "gibberish"):
+            with self.subTest(input=text):
+                session.submit(text)
+                self.assertEqual(
+                    self.state_of(storage).current_state, "data_collection"
+                )
+                last = session.turns()[-1]
+                self.assertEqual(last.role, "user")
+                self.assertIn("complete", last.rejection)
 
     def test_submit_returns_the_paired_turn(self):
         """The Turn ``submit()`` hands back is the same object ``turns()``
@@ -874,12 +878,13 @@ class TutorSessionTests(SimpleTestCase):
                     "finish": "Finish roles",
                 },
             ),
-            # data_collection: the scenario's exit label matches the nav label.
+            # data_collection: the terminal screen offers nothing at all -
+            # no nav map, no back edge, no exit (ticket #39).
             "data_collection": (
                 ["3 4 5", "1", "yes", "Answer one", "next",
                  "Answer two", "next", "continue", "1", "I mediate", "next",
                  "finish", "A long reflection", "4 4 4"],
-                {"back": "⬅️ Back", "exit": "Exit"},
+                {},
             ),
         }
         for state, (path, expected) in matrix.items():
@@ -943,15 +948,19 @@ class TutorSessionTests(SimpleTestCase):
             },
         )
 
-    def test_cutover_end_turn_has_no_options(self):
-        session, _, _ = self.make_session()
+    def test_cutover_terminal_turn_has_no_options(self):
+        """The completion turn is the last one the machine produces: it offers
+        no choice, no nav and no retry, because the walk has nowhere to go
+        (ticket #39 retires the exit that used to follow it)."""
+        session, storage, _ = self.make_session()
         self.drive(session, "3 4 5", "1", "yes", "Answer one", "next",
                    "Answer two", "next", "continue", "1", "I mediate", "next",
-                   "finish", "A long reflection", "4 4 4", "exit")
+                   "finish", "A long reflection", "4 4 4")
+        self.assertEqual(self.state_of(storage).current_state, "data_collection")
         last = session.turns()[-1]
-        self.assertEqual(last.role, "user")
-        self.assertEqual(last.message, "exit")
-        self.assertIsNone(last.options)
+        self.assertEqual(last.role, "assistant")
+        self.assertEqual(last.state, "data_collection")
+        self.assertFalse(last.options)
 
     # ------------------------------------------------------------ LLM wiring
 

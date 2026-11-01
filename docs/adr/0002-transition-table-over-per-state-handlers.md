@@ -23,8 +23,16 @@ router. Consequences:
 ## Decision
 
 State transitions are a flat data table — `tutor/transitions` — with **one row
-per non-terminal scenario state** (44 rows; the terminal `end` has none). Each
-row records:
+per non-terminal scenario state** (44 rows at acceptance; the terminal `end`
+had none).
+
+**Amendment 2026-11-01** (ADR-0006 amendment, ADR-0007 decision 4):
+registration moved to the **intake form**, and `data_collection` became the
+terminal screen. The `start` and `level_assessment` rows and the `end` state
+are retired, so the table is now **42 rows with every scenario state rowed**
+— the terminal row declaring `next: None`, `back: None` and an empty `nav`
+map, which is what makes routing answer its inputs on the spot. Each row
+records:
 
 - **`accept`** — the input the state accepts: a regex for free-text states, or
   the set of option commands for button states.

@@ -37,6 +37,7 @@ from .transitions import (
     ITEM_STATUSES,
     ROW_FIELDS,
     ROW_REGISTRY,
+    TERMINAL_BASE,
     USER_DATA_KEYS,
     USER_DATA_SOURCES,
     analysis_task_1,
@@ -56,12 +57,14 @@ from .tutor_session import (
     _parse_scores,
 )
 
-NON_TERMINAL_STATES = set(SCENARIO["states"]) - {"end"}
+# Every scenario state carries a row now that the terminal screen is one of
+# them and the retired end state has left the table (ticket #39).
+ROWED_STATES = set(SCENARIO["states"])
 
 
 def _single_form_pairs():
     """The ``(state, None)`` registry keys — every base outside the axis."""
-    return {(base, None) for base in NON_TERMINAL_STATES} - {
+    return {(base, None) for base in ROWED_STATES} - {
         (base, None) for base in AXIS_BASES
     }
 
@@ -73,14 +76,15 @@ def _axis_pairs():
 
 
 class TransitionTableShapeTests(SimpleTestCase):
-    def test_rows_cover_every_non_terminal_scenario_state(self):
-        # Coverage over the SCENARIO: every non-terminal base state has
-        # rows — an axis base exactly one pair per level, every other
-        # base exactly its single-form pair (spec #16 C1-9).
+    def test_rows_cover_every_scenario_state(self):
+        # Coverage over the SCENARIO: every base state has rows — an axis
+        # base exactly one pair per level, every other base exactly its
+        # single-form pair (spec #16 C1-9; the terminal screen joined the
+        # table when the end state was retired, ticket #39).
         by_base: dict[str, int] = {}
         for base, _level in ROW_REGISTRY:
             by_base[base] = by_base.get(base, 0) + 1
-        self.assertEqual(set(by_base), NON_TERMINAL_STATES)
+        self.assertEqual(set(by_base), ROWED_STATES)
         for base, count in by_base.items():
             with self.subTest(base=base):
                 want = 3 if base in AXIS_BASES else 1
@@ -129,17 +133,19 @@ class TransitionTableShapeTests(SimpleTestCase):
                 elif next_ is not None:
                     self.assertIn(next_, states)
 
-    def test_back_target_is_none_only_at_the_entry_state_and_registration(self):
-        # Spec #16 C1-9: back targets name scenario states by base. The
-        # registration axis joins the entry state (``pretest``, ticket #37)
-        # in declaring None — the point of no return (spec #16 C1-8,
-        # ADR-0006 decision 2 with its 2026-11-01 amendment).
+    def test_back_target_is_none_at_the_two_ends_and_the_registration_axis(self):
+        # Spec #16 C1-9: back targets name scenario states by base. Three
+        # bases declare None: the entry state (``pretest``, ticket #37) and
+        # the registration axis — the point of no return (spec #16 C1-8,
+        # ADR-0006 decision 2 with its 2026-11-01 amendment) — and the
+        # terminal screen at the far end of the flow (ticket #39, ADR-0007
+        # decision 4).
         states = set(SCENARIO["states"])
         for pair, row in ROW_REGISTRY.items():
             base, _level = pair
             back = row["back"]
             with self.subTest(pair=pair):
-                if base == "pretest" or base == "after_registration":
+                if base in ("pretest", "after_registration", TERMINAL_BASE):
                     self.assertIsNone(back)
                 else:
                     self.assertIn(back, states)
@@ -524,6 +530,16 @@ class LegacyParityTests(SimpleTestCase):
 
     def test_accepted_inputs_route_to_table_targets(self):
         for (name, _level), row in ROW_REGISTRY.items():
+            if row["next"] is None:
+                # The terminal screen (ticket #39): the row declares no
+                # target, so there is nothing to route to - routing has to
+                # answer the input on the spot instead.
+                with self.subTest(state=name, value="anything"):
+                    state = self._make_state(name, row)
+                    next_state, accepted = self._session()._route(state, "anything")
+                    self.assertFalse(accepted, "the terminal screen routed away")
+                    self.assertIsNone(next_state)
+                continue
             for value in self._accepted_inputs(row):
                 with self.subTest(state=name, value=value):
                     state = self._make_state(name, row)
@@ -590,10 +606,11 @@ class LegacyParityTests(SimpleTestCase):
     def test_back_targets_match_legacy_go_back_except_the_point_of_no_return(self):
         for (name, _level), row in ROW_REGISTRY.items():
             with self.subTest(state=name):
-                if name == "pretest" or name == "after_registration":
-                    # Point of no return (spec #16 C1-8 with ticket #37):
-                    # no back edge, so _go_back treats the typed command
-                    # as rejected input and the state stays put.
+                if name in ("pretest", "after_registration", TERMINAL_BASE):
+                    # The states with no back edge: the point of no return
+                    # (spec #16 C1-8 with ticket #37) and the terminal screen
+                    # (ticket #39). _go_back treats the typed command as
+                    # rejected input and the state stays put.
                     self.assertIsNone(row["back"])
                     state = self._make_state(name, row)
                     self._session()._go_back(state)

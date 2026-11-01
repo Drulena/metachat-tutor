@@ -26,9 +26,9 @@ Canonical domain vocabulary for MetaChat Tutor. Use these terms in issues, code,
 
 - **section row** — The progress line for one **task**: its key, label and **completion status**. Rows are grouped into sections (Analysis Tasks, Communication Roles); a section states how many of its rows are completed. Pages render rows as given — the status is decided once, in the module. _Avoid: "task cell", "progress bar item"._
 
-- **step** — One of the fifteen ledger items the **completion model** tracks, including the scaffolding points (pre/post-test, level, modes, reflection) that never appear as task lines. The percentage denominator counts steps. _Avoid: "task" (a task is what a row shows)._
+- **step** — One of the fourteen ledger items the **completion model** tracks, including the scaffolding points (pre/post-test, modes, reflection) that never appear as task lines. The percentage denominator counts steps. _Avoid: "task" (a task is what a row shows)._
 
-- **task** — A unit of learner work a **section row** shows: the two analysis tasks and the nine roles — eleven rows, a deliberate subset of the fifteen **steps**. _Avoid: "step" for a row, "task" for the pre/post-test._
+- **task** — A unit of learner work a **section row** shows: the two analysis tasks and the nine roles — eleven rows, a deliberate subset of the fourteen **steps**. _Avoid: "step" for a row, "task" for the pre/post-test._
 
 - **lifecycle pair (started / finished)** — `started`: the conversation exists — the **intake form**'s submission begins it. `finished`: the conversation has reached its terminal state — the data-collection screen, which offers no back and no further exit (the `end` state is retired, ADR-0007). They answer lifecycle questions only — completion is the job of counts and rows, never of `finished`. Registration is carried by the **Summary**'s participant name: set once the learner has given it. Pages gate on `started` (the progress panel shows from the **zero-state Summary**) and on `finished` (the conversation is over).
 

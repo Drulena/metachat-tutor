@@ -41,7 +41,6 @@ from . import (
     reflection,
     posttest,
     data_collection,
-    end
 )
 from .common import (
     BOT_NAME,
@@ -107,6 +106,5 @@ SCENARIO: dict[str, Any] = {
         "reflection": reflection.STATE,
         "posttest": posttest.STATE,
         "data_collection": data_collection.STATE,
-        "end": end.STATE,
     },
 }

@@ -80,9 +80,11 @@ _TASK_SIBLING_BY_FEEDBACK: dict[str, str] = {
 def _row_has_back(row: dict) -> bool:
     """Returns whether the row declares a journey back.
 
-    ``start`` and the registration axis — the point of no return
-    (ADR-0006 decision 2, spec #16 C1-8) — declare none: a typed
-    ``back`` there is rejected input and no back offer appears.
+    The states that declare no back target — the entry state and the
+    registration axis, the point of no return (ADR-0006 decision 2, spec
+    #16 C1-8, amended 2026-11-01), and the terminal screen at the far end
+    of the flow (ADR-0007 decision 4, ticket #39) — answer a typed ``back``
+    as rejected input, and offer no back button.
     """
     return row.get("back") is not None
 
@@ -124,13 +126,12 @@ def _phase_of(current: str, level: Optional[str] = None) -> str:
 
     Resolved through the row_for seam: a state spells its base name
     (spec #16 C1-9) and the session's registered level completes the
-    pair. The terminal ``end`` state has no row (the registry covers
-    the non-terminal states only), so it falls back to ``"finished"``.
+    pair. The phase is spelled by the row, the terminal screen included -
+    the retired end state left no special case behind (ticket #39), so a
+    state with no row has no phase and makes no lifecycle claim.
     """
     row = row_for(current, level)
-    if row is not None:
-        return row["phase"]
-    return "finished" if current == "end" else ""
+    return row["phase"] if row is not None else ""
 
 
 class TutorSession:
@@ -181,8 +182,10 @@ class TutorSession:
             self._append_user_turn(state, text, rejected=not accepted)
             if accepted and new_state is not None:
                 state.current_state = new_state
-                if new_state != "end":
-                    self._append_assistant_turn(state)
+                # Every accepted input is answered by the state it lands on,
+                # the terminal screen included: it replies once, then has
+                # nothing left to route (ticket #39).
+                self._append_assistant_turn(state)
 
         self._storage.save(state)
         current = state.chat_history[-1]
@@ -397,9 +400,9 @@ class TutorSession:
         current = state.current_state
         back = (row_for(current, state.user_data.get("level")) or {}).get("back")
         if back is None:
-            # ``start`` has no back target: a typed ``back`` there is an
+            # A state with no back target answers a typed ``back`` as an
             # unrecognized input — flagged, so the turn carries the row's
-            # rejection copy (d5).
+            # rejection copy (d5, and ticket #39 for the terminal screen).
             self._append_user_turn(state, "back", rejected=True)
             return
         # The typed ``back`` answers the current offer — mark it (synthesised
