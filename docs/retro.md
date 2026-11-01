@@ -10,11 +10,12 @@ cause needs explaining; test results in prose, not a log.
 ### Session
 
 - Reviewed the uncommitted change set that enforces the append-only migration
-  rule, fixed one docs regression, and left the commit to the owner: this
-  session has no shell, so no git command runs here.
+  rule, fixed one docs regression, and ran the commits once the owner said
+  run: this session's bash works, confined to the workspace sandbox.
 - The set is four files: `scripts/hooks/pre-commit` (new, 2649 B),
   `scripts/install-git-hooks.sh` (new, 740 B), `README.md:20-22` and
-  `docs/agents/coding-standards.md:53-66`.
+  `docs/agents/coding-standards.md:53-66`. `.gitattributes` joined the set,
+  pinning the hook scripts to LF, and it landed as three commits on `django`.
 - Added `scripts/hooks/commit-msg` (831 B) as a verbatim copy of the hook
   installed in `.git/hooks` since 2026-10-25, so the footer rule AGENTS.md
   states survives a fresh clone.
@@ -52,10 +53,12 @@ cause needs explaining; test results in prose, not a log.
 
 ### Tool gaps
 
-- No `ops_bash`/git executor, and `ops_discover_tools("run shell command bash
-  git")` answers "No allowed, implemented capability matched." Every git verb,
-  `uv run manage.py test tutor` and the commit itself are unreachable, so a
-  "check changes, and commit" task can only get half done here.
+- `ops_bash` is the executor, and it runs confined to the workspace: `uv run`
+  dies on the uv cache under AppData, so the suite runs as
+  `.venv/Scripts/python.exe manage.py test tutor`; Playwright's browser spawn
+  is refused, taking the five `tutor/test_browser.py` tests with it (they
+  error in the sandbox, skip under wider access); `/tmp` is not writable, so
+  scratch files belong under `.scratch/`.
 - `ops_grep` rejects `output_mode`; the field is `outputMode`.
 
 ### Repo gaps
