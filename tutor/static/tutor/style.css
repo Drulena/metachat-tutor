@@ -910,9 +910,17 @@ html, body {
 }
 
 .scale-prompt {
-  /* The line the learner rates, quoted from the scenario (scales()). */
+  /* The line the learner rates, from the scenario (scales()). Its styling is
+     authored in the scenario as markdown - the bullet, the italics around the
+     quote - and the template renders it through the same filter a message uses,
+     so nothing here touches the text. The filter wraps the line in a paragraph;
+     this row is a flex line, so the paragraph margin goes. */
   flex: 1 1 120px;
   color: var(--md-on-surface);
+}
+
+.scale-prompt p {
+  margin: 0;
 }
 
 .scale-chips {

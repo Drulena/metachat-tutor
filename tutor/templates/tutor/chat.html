@@ -32,8 +32,10 @@
               {% comment %}
                 The gate's answer form, under the message that asks (ticket #48):
                 one row per task line the module names (scales()) - the letter,
-                the line itself, and five 1-5 chips in the filled tonal idiom of
-                the option buttons. The line left the gate message for this row,
+                the line as the scenario authors it (the markdown bullet, the
+                italics around the quote, rendered by the same filter a message
+                uses) and five 1-5 chips in the filled tonal idiom of the option
+                buttons. The line left the gate message for this row,
                 so the learner reads a question exactly once, next to the numbers
                 that answer it. A refused answer leaves the rows in place; an
                 answered gate keeps the lines and drops the buttons, because its
@@ -49,7 +51,9 @@
                 {% for scale in scales %}
                   <div class="scale-row" data-letter="{{ scale.letter }}">
                     <span class="scale-letter">{{ scale.letter }}</span>
-                    <span class="scale-prompt">{{ scale.prompt }}</span>
+                    {# The line is the scenario's own markdown: the same filter #}
+                    {# a message uses, so its styling is the data's, not a sheet's. #}
+                    <div class="scale-prompt">{{ scale.prompt|markdown }}</div>
                     {% if not scales_answered %}
                       <span class="scale-chips">
                         {% for score in "12345" %}

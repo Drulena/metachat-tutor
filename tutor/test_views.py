@@ -475,7 +475,9 @@ class AssessmentFormTests(TestCase):
     """The gates' answer form: one row of 1-5 chips per prompt (#40, shaped by #48).
 
     The page asks the module which form the state takes (``scales()``) and
-    renders one row per prompt under the message that asks. The prompts, a pick
+    renders one row per prompt under the message that asks, printing the line
+    as the scenario authors it - the markdown bullet, the italics around the
+    quote - through the same filter as a message. The prompts, a pick
     per prompt and the route to the posttest are shared from
     :mod:`tutor.test_tutor_session`. The submitted string is the picks joined by
     spaces, which is what the browser composes from the chips - the gate, its
@@ -484,6 +486,25 @@ class AssessmentFormTests(TestCase):
 
     def setUp(self):
         self.client = Client()
+
+    @staticmethod
+    def _rendered_line(scale):
+        """The markup a row shows for one task line.
+
+        The scenario authors the line as markdown (the bullet, the italics
+        around the quote) and the template renders it through the same filter
+        as a message, so the quote arrives in italics and no stylesheet sits
+        in the styling path. Django escapes the apostrophes the lines quote
+        with, and the markdown filter wraps the line in a paragraph.
+        """
+        bullet, quote, _ = scale["prompt"].split("*")
+        return (
+            '<div class="scale-prompt"><p>'
+            + bullet
+            + "<em>"
+            + html_module.escape(quote)
+            + "</em></p></div>"
+        )
 
     def test_the_pretest_page_offers_a_chip_row_per_task_line(self):
         """The gate arrives as a form: one row per task line, five 1-5 chips
@@ -498,12 +519,8 @@ class AssessmentFormTests(TestCase):
         for scale in ASSESSMENT_SCALES:
             self.assertIn(f'data-letter="{scale["letter"]}"', html)
             # Django escapes the apostrophes the task lines quote with.
-            self.assertIn(
-                '<span class="scale-prompt">'
-                + html_module.escape(scale["prompt"])
-                + "</span>",
-                html,
-            )
+            # The row renders the line as authored: the quote in italics.
+            self.assertIn(self._rendered_line(scale), html)
             self.assertIn(f'aria-label="Rate {scale["letter"]} 3 out of 5"', html)
             self.assertIn(f'aria-label="Rate {scale["letter"]} 5 out of 5"', html)
         self.assertIn('data-score="1"', html)
@@ -521,10 +538,14 @@ class AssessmentFormTests(TestCase):
         _drive(self.client, [])
         html = self.client.get("/chat/").content.decode()
         # Tags stripped and entities restored, so what is counted is what the
-        # learner's eyes get, in whatever markup the message arrives in.
-        visible = html_module.unescape(re.sub(r"<[^>]+>", " ", html))
+        # learner's eyes get, in whatever markup the line arrives in. The
+        # markdown the scenario authors with is markup, not text on the page.
+        # Tags go, no space in their place: a task line arrives as inline
+        # markup inside its row, and a space would split the bullet from it.
+        visible = html_module.unescape(re.sub(r"<[^>]+>", "", html))
         for scale in ASSESSMENT_SCALES:
-            self.assertEqual(visible.count(scale["prompt"]), 1, scale["prompt"])
+            plain = scale["prompt"].replace("*", "")
+            self.assertEqual(visible.count(plain), 1, plain)
 
     def test_the_rows_sit_under_the_message_that_asks(self):
         """Placement is the complaint this ticket answers (#48): the rows come
@@ -550,6 +571,7 @@ class AssessmentFormTests(TestCase):
             ".scale-row",
             ".scale-letter",
             ".scale-prompt",
+            ".scale-prompt p",
             ".scale-chips",
             ".scale-chip",
             ".scale-chip.picked",
@@ -557,6 +579,12 @@ class AssessmentFormTests(TestCase):
             ".scale-form_answered",
         ):
             self.assertIn(selector + " {", css, selector)
+        # The styling of a task line belongs to the scenario, authored there as
+        # markdown: the sheet must not italicise the line itself, or the emphasis
+        # drifts from a variant that writes its own. The reporter asked for the
+        # styling as it was set - in markdown, not in CSS.
+        block = css.split("\n.scale-prompt {", 1)[1].split("}", 1)[0]
+        self.assertNotIn("font-style", block)
 
     def test_the_answered_gate_keeps_its_lines_and_drops_its_buttons(self):
         """A gate that has been answered reads as a record, not a question: the
@@ -571,12 +599,8 @@ class AssessmentFormTests(TestCase):
         self.assertNotIn('class="scale-chip"', html)
         self.assertNotIn('class="scale-anchors"', html)
         for scale in ASSESSMENT_SCALES:
-            self.assertIn(
-                '<span class="scale-prompt">'
-                + html_module.escape(scale["prompt"])
-                + "</span>",
-                html,
-            )
+            # The row renders the line as authored: the quote in italics.
+            self.assertIn(self._rendered_line(scale), html)
 
     def test_a_full_selection_lands_the_gate(self):
         """The three picks joined by spaces are the string the gate reads:

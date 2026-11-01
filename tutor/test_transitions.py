@@ -1106,6 +1106,8 @@ class ScenarioPlaceholderIntegrityTests(SimpleTestCase):
         every future variant (the replace hits nothing). Since ticket #48
         the lines are the rating rows' prompts, not message text, and a
         line reaches the learner exactly once - in the row that rates it.
+        The prompt is the line as the scenario authors it, markdown styling
+        and all, so this guard reads the row and pins the styling too.
         """
         trio = (
             "'Your idea is wrong. Fix it.'",
@@ -1120,6 +1122,17 @@ class ScenarioPlaceholderIntegrityTests(SimpleTestCase):
                     self.assertEqual(
                         shown.count(anchor), 1, "a task line must print exactly once"
                     )
+            for scale in entry["scales"]:
+                with self.subTest(state=state, letter=scale["letter"]):
+                    self.assertTrue(
+                        scale["prompt"].startswith("\u25aa\ufe0f"),
+                        "the row keeps the bullet the gate message carried",
+                    )
+                    self.assertEqual(
+                        scale["prompt"].count("*"),
+                        2,
+                        "the line is authored as italic markdown, not styled by CSS",
+                    )
         source = inspect.getsource(randomize_module)
         for anchor in trio:
             with self.subTest(anchor=anchor):
@@ -1133,10 +1146,16 @@ class ScenarioPlaceholderIntegrityTests(SimpleTestCase):
         rating the canonical trio forever while every future variant
         silently dropped out of the form: the rows are the one surface the
         learner sees these lines on.
+        The swap rewrites the words inside the authored line, so a variant
+        keeps the styling that line was written with - the bullet and the
+        italics around the quote - which is what the row renders.
         """
         randomized = randomize_scenario(SCENARIO)["states"]
         variant = TASK_VARIANTS["pretest_messages"][0]
-        expected = [variant["message1"], variant["message2"], variant["message3"]]
+        expected = [
+            "\u25aa\ufe0f*{}*".format(variant[key])
+            for key in ("message1", "message2", "message3")
+        ]
         for state in ("pretest", "posttest"):
             with self.subTest(state=state):
                 self.assertEqual(

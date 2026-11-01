@@ -65,13 +65,15 @@ WALK_TO_POSTTEST = (
 
 #: The prompts the two assessment gates offer as one 1-5 chip row each
 #: (scenarios/pretest.py, scenarios/posttest.py), in submission order: the
-#: letter and the quoted prompt the page shows beside the chips. Shared with
-#: :mod:`tutor.test_views` and :mod:`tutor.test_write_through`: every pinning
-#: of these prompts lives here, once (coding-standards).
+#: letter the row's badge shows, and the task line as the scenario authors it -
+#: the bullet, the italics around the quote, the quote, written as markdown and
+#: rendered by the same filter as a message. Shared with :mod:`tutor.test_views`
+#: and :mod:`tutor.test_write_through`: every pinning lives here, once
+#: (coding-standards).
 ASSESSMENT_SCALES = [
-    {"letter": "A", "prompt": "'Your idea is wrong. Fix it.'"},
-    {"letter": "B", "prompt": "'I see your point, but have you considered... 🤔'"},
-    {"letter": "C", "prompt": "'THIS IS TERRIBLE!!!'"},
+    {"letter": "A", "prompt": "\u25aa\ufe0f*'Your idea is wrong. Fix it.'*"},
+    {"letter": "B", "prompt": "\u25aa\ufe0f*'I see your point, but have you considered... \U0001F914'*"},
+    {"letter": "C", "prompt": "\u25aa\ufe0f*'THIS IS TERRIBLE!!!'*"},
 ]
 
 #: One pick per prompt: what the chips carry when the three compose into the

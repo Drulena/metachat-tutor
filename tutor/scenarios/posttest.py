@@ -10,12 +10,14 @@ STATE = {
     "validation": "^[1-5] [1-5] [1-5]$",
     # The same three task lines the pretest rated, printed inside the rows
     # below the message (ticket #48); the posttest asks for the SAME messages,
-    # so these literals match the pretest's exactly. The picks go out as the
+    # so these literals match the pretest's exactly - markdown and all, the
+    # bullet and the italics the gate message used to carry them with, so the
+    # two gates rate the same lines the same way. The picks go out as the
     # string the validation regex above and the row's "accept" pattern already
     # read (ADR-0007 decision 6).
     "scales": [
-        {"letter": "A", "prompt": "'Your idea is wrong. Fix it.'"},
-        {"letter": "B", "prompt": "'I see your point, but have you considered... 🤔'"},
-        {"letter": "C", "prompt": "'THIS IS TERRIBLE!!!'"},
+        {"letter": "A", "prompt": "▪️*'Your idea is wrong. Fix it.'*"},
+        {"letter": "B", "prompt": "▪️*'I see your point, but have you considered... 🤔'*"},
+        {"letter": "C", "prompt": "▪️*'THIS IS TERRIBLE!!!'*"},
     ],
 }

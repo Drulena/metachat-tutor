@@ -70,8 +70,11 @@ def randomize_scenario(
                 entry["message"] = msg
                 for scale in entry.get("scales", []):
                     for anchor, replacement in swaps:
-                        if scale.get("prompt") == anchor:
-                            scale["prompt"] = replacement
+                        # A prompt is the authored task line: the bullet, the italics
+                        # around the quote, the quote. Swap the words inside it, so a
+                        # variant carries the styling the line was written with.
+                        if anchor in scale.get("prompt", ""):
+                            scale["prompt"] = scale["prompt"].replace(anchor, replacement)
 
     # --- 2. Analysis tasks (all levels) ---
     # The task states are keyed by base name (spec #16 C1-9); the entry
