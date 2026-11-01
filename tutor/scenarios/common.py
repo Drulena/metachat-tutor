@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 BOT_NAME: str = 'MetaChat Tutor'
-WELCOME_MESSAGE: str = '🔬 **WELCOME TO METACHAT TUTOR - RESEARCH EDITION**\n\n⌨️**Type down your name and group (e.g., Stacy V. 101 bsufl):**'
+WELCOME_MESSAGE: str = '🔬 **WELCOME TO METACHAT TUTOR - RESEARCH EDITION**\n\n**The pretest is the first question in the chat.**'
 
 LEVELS: dict[str, str] = {
     "beginner": "Beginner (I rarely participate in online discussions)",

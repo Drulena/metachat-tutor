@@ -1,8 +1,9 @@
 """TutorSession — a deep module over the storage seam (ticket #3).
 
-Owns the full 15-step session lifecycle behind five public methods:
+Owns the full 14-step session lifecycle behind five public methods:
 
-- ``start() -> Turn``       — begin a fresh session, return the welcome turn
+- ``start(intake) -> Turn`` — open the session from the intake form's
+  answer (ticket #37) and return the first chat turn, the pretest
 - ``submit(text) -> Turn``  — advance the machine with user input
 - ``turns() -> list[Turn]`` — the chat history; navigation options are
   assembled on the current assistant turn only
@@ -23,7 +24,6 @@ derived from that single model; the templates branch on nothing.
 from __future__ import annotations
 
 import re
-import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -39,8 +39,10 @@ from .data import (
     randomize_scenario,
 )
 from .llm import get_llm_feedback
+from .ids import uuid7
 from .session import (
     Feedback,
+    Intake,
     ProgressRow,
     ProgressSection,
     State,
@@ -56,13 +58,6 @@ from .transitions import row_for
 #: mode choices. ``data_collection`` is deliberately NOT an item — the old
 #: code listed it as a 16th "step" which could push the percentage past 100.
 ITEM_KEYS: tuple[str, ...] = tuple(STEP_KEYS) + ("mode_analysis", "mode_roleplay")
-
-_LEVEL_BY_VALUE: dict[str, str] = {
-    "1": "beginner",
-    "2": "intermediate",
-    "3": "advanced",
-}
-_LEVEL_BY_NAME: dict[str, str] = {value: key for key, value in _LEVEL_BY_VALUE.items()}
 
 _MAX_INPUT_LENGTH = 5000
 _MAX_NAME_LENGTH = 50
@@ -148,17 +143,20 @@ class TutorSession:
 
     # ------------------------------------------------------------------ API
 
-    def start(self) -> Turn:
-        """Begin a session and return the current turn.
+    def start(self, intake: Intake) -> Turn:
+        """Open a session from the intake form's answer and return its turn.
 
-        Idempotent: if a session already exists (in memory or on disk),
-        its current turn is returned unchanged.
+        The intake registers name and level (ticket #37), so the chat
+        opens on the pretest - the entry state - with the greeting in
+        its copy. Idempotent: if a session already exists (in memory or
+        on disk), its current turn is returned unchanged; a resubmitted
+        form never restarts a running session.
         """
         existing = self._load()
         if existing is not None:
             self._state = existing
             return self._make_turn(existing, existing.chat_history[-1], is_current=True)
-        state = self._new_state()
+        state = self._new_state(intake)
         self._append_assistant_turn(state)
         self._storage.save(state)
         self._state = state
@@ -293,13 +291,19 @@ class TutorSession:
 
     # ------------------------------------------------------------- lifecycle
 
-    def _new_state(self) -> State:
+    def _new_state(self, intake: Intake) -> State:
+        """Build the state the intake form implies.
+
+        The id is UUID v7 (:func:`tutor.ids.uuid7`), so the ledger's
+        unique index orders sessions by creation (#36) while this single
+        place stays the only mint site.
+        """
         return State(
-            session_id=uuid.uuid4().hex,
-            current_state="start",
+            session_id=uuid7(),
+            current_state="pretest",
             user_data={
-                "user_name": None,
-                "level": None,
+                "user_name": _sanitize_name(intake.name),
+                "level": intake.level,
                 "pretest_scores": None,
                 "posttest_scores": None,
                 "current_role": None,
@@ -380,13 +384,8 @@ class TutorSession:
 
     def _resolve_source(self, source: str, text: str) -> object:
         """Resolve an effect source to a concrete user-data value."""
-        if source == "sanitized-name":
-            tokens = text.split()
-            return _sanitize_name(tokens[0] if tokens else text)
         if source == "parsed-scores":
             return _parse_scores(text)
-        if source == "parsed-level":
-            return _LEVEL_BY_VALUE.get(text)
         if source == "mapped-role":
             return ROLE_BY_VALUE.get(text)
         if source.startswith("literal:"):

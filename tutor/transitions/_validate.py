@@ -80,9 +80,7 @@ USER_DATA_KEYS = (
 
 #: The non-literal effect sources (see module docstring).
 USER_DATA_SOURCES = (
-    "sanitized-name",
     "parsed-scores",
-    "parsed-level",
     "mapped-role",
 )
 
@@ -95,6 +93,11 @@ AXIS_BASES = (
     "analysis_feedback_1",
     "analysis_feedback_2",
 )
+
+#: The base state a session opens in (ADR-0006 amendment 2026-11-01): the
+#: intake form is the entry point, so ``pretest`` is the chat's first state,
+#: carries the point of no return, and owns the ``back: None`` rule.
+ENTRY_BASE = "pretest"
 
 
 def _retired_spelling(name: str) -> tuple[str, str | None]:
@@ -209,17 +212,18 @@ def validate_transitions(
                 )
 
         back = row.get("back")
-        if base == "start":
+        if base == ENTRY_BASE:
             if back is not None:
                 violations.append(f"{pair}: back must be None")
         elif back is None:
-            # The registration axis declares ``back: None`` — the point of
-            # no return (spec #16 C1-8, ADR-0006 decision 2); every other
-            # row must name a back target.
+            # The entry state and the registration axis declare ``back:
+            # None`` — the point of no return (spec #16 C1-8, ADR-0006
+            # decision 2 with its 2026-11-01 amendment); every other row
+            # must name a back target.
             if base != "after_registration":
                 violations.append(
-                    f"{pair}: back target None is allowed only at start "
-                    "and the registration axis"
+                    f"{pair}: back target None is allowed only at the entry "
+                    "state and the registration axis"
                 )
         elif back not in states:
             violations.append(
@@ -291,8 +295,8 @@ def _graph_checks(
 
     - graph closure: every next/back target resolves to a pair that
       has a row (``("end", None)`` is the terminal exception);
-    - reachability: every pair is reachable from ``("start", None)``
-      along next/back edges;
+    - reachability: every pair is reachable from :data:`ENTRY_BASE`
+      (the chat's first state, ticket #37) along next/back edges;
     - level coverage: a base carrying any axis row must carry every
       :data:`~tutor.transitions._registry.LEVEL_KEYS` level, so a
       row module missing an axis level is rejected.
@@ -320,10 +324,12 @@ def _graph_checks(
                     f"graph: row module {base!r} misses axis level {level!r}"
                 )
 
-    start = ("start", None)
-    if start in pairs:
-        seen = {start}
-        queue = [start]
+    entry = (ENTRY_BASE, None)
+    if entry not in pairs:
+        violations.append(f"graph: entry pair {entry!r} has no row")
+    else:
+        seen = {entry}
+        queue = [entry]
         while queue:
             node = queue.pop()
             for target in _row_targets(table[node]):
@@ -333,7 +339,7 @@ def _graph_checks(
                         queue.append(pair)
         for pair in sorted(set(pairs) - seen, key=_pair_sort):
             violations.append(
-                f"graph: pair {pair!r} is unreachable from {start!r}"
+                f"graph: pair {pair!r} is unreachable from {entry!r}"
             )
 
     return violations

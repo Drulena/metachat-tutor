@@ -154,7 +154,7 @@ class SummaryValueTypeTest(SimpleTestCase):
         self.assertEqual(summary.sections, [])
         self.assertFalse(summary.started)
         self.assertEqual(summary.percentage, 0)
-        self.assertEqual(summary.total_steps, 15)
+        self.assertEqual(summary.total_steps, 14)
         self.assertEqual(summary.completed_steps_count, 0)
         self.assertFalse(summary.finished)
         self.assertIsNone(summary.level)

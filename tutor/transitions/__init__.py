@@ -29,9 +29,7 @@ under the same algebra (ADR-0006 decision 4).
 """
 
 from . import (
-    start,
     pretest,
-    level_assessment,
     after_registration,
     analysis_intro,
     analysis_task_1,
@@ -94,14 +92,12 @@ __all__ = [
 #: The row storage of record (spec #16 C1-9, ADR-0006): one row per
 #: ``(base state, level)`` pair — 18 analysis/registration rows on
 #: the level axis generated from the six axis modules' level-keyed
-#: maps, plus 26 single-form ``(state, None)`` entries. Suffixed
+#: maps, plus 24 single-form ``(state, None)`` entries. Suffixed
 #: state-name keys are retired: the level is a value in the pair,
 #: never a suffix inside a name. Effects align with the ``next`` map
 #: (checked by :mod:`tutor.transitions._validate`).
 ROW_REGISTRY: dict[tuple[str, str | None], dict] = {
-    (start.BASE, None): start.ROW,
     (pretest.BASE, None): pretest.ROW,
-    (level_assessment.BASE, None): level_assessment.ROW,
     # The registration axis (spec #16 C1-2, ADR-0006; pair-keyed per
     # C1-9): rows and fixtures generated from the level-keyed map by
     # the seam, keyed by pair — the level appears in no state name.

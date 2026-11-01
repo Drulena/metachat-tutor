@@ -16,7 +16,7 @@ from .data import (
     ROLE_STEP_KEYS,
     STEP_KEYS,
 )
-from .session import MemoryStorage, State, Summary
+from .session import Intake, MemoryStorage, State, Summary
 from .transitions import (
     ROW_REGISTRY,
     after_registration,
@@ -27,14 +27,14 @@ from .transitions import (
     analysis_task_2,
     row_for,
 )
-from .tutor_session import TutorSession
+from .tutor_session import _sanitize_name, TutorSession
 
-#: Input sequence that drives a fresh session to the role menu.
-#: Shared with :mod:`tutor.test_views` so the two test modules cannot drift.
+#: Chat inputs that drive a session the intake form already opened to the
+#: role menu (ticket #37: the form carries the registration facts, so the
+#: walkthrough starts at the pretest answer). Shared with
+#: :mod:`tutor.test_views` so the two test modules cannot drift.
 ROLE_MENU_INPUTS = [
-    "Alice",            # start -> pretest
-    "3 4 5",            # pretest -> level_assessment
-    "2",                # level_assessment -> after_registration (base name, C1-2)
+    "3 4 5",            # pretest -> after_registration (base name, C1-2)
     "1",                # -> analysis_intro (base name, C1-3)
     "yes",              # -> analysis_task_1 (base name, C1-4)
     "Answer to task one",   # -> analysis_feedback_1 (base name, C1-5)
@@ -44,9 +44,18 @@ ROLE_MENU_INPUTS = [
     "continue",         # -> role_menu
 ]
 
-#: (level, registration digit) pairs covering the whole level axis
-#: (ADR-0006); mirrors the ``level_assessment`` row's value -> state map.
-LEVEL_DIGITS = [("beginner", "1"), ("intermediate", "2"), ("advanced", "3")]
+#: The intake facts a test session opens with: what the form submits
+#: (ticket #37). Shared, so the view tests drive the same participant.
+INTAKE = Intake(name="Alice", group="Alpha", level="beginner")
+
+
+def intake_for(level: str, name: str = "Alice", group: str = "Alpha") -> Intake:
+    """The intake facts for one point on the level axis (ADR-0006)."""
+    return Intake(name=name, group=group, level=level)
+
+
+#: The level axis as the intake form submits it (ADR-0006).
+LEVELS = ("beginner", "intermediate", "advanced")
 
 
 def row_statuses(summary: Summary) -> dict[str, str]:
@@ -116,12 +125,17 @@ class FakeLLM:
 
 
 class TutorSessionTests(SimpleTestCase):
-    def make_session(self, llm: FakeLLM | None = None, started: bool = True):
+    def make_session(
+        self,
+        llm: FakeLLM | None = None,
+        started: bool = True,
+        intake: Intake = INTAKE,
+    ):
         storage = MemoryStorage()
         llm = llm if llm is not None else FakeLLM()
         session = TutorSession(storage, llm)
         if started:
-            session.start()
+            session.start(intake)
         return session, storage, llm
 
     def drive(self, session: TutorSession, *inputs: str) -> TutorSession:
@@ -136,15 +150,18 @@ class TutorSessionTests(SimpleTestCase):
 
     # ------------------------------------------------------------- starting
 
-    def test_start_creates_fresh_session_and_welcome_turn(self):
+    def test_start_opens_on_the_pretest_with_the_greeting(self):
+        """Ticket #37: the intake registers the learner, so ``start`` mints
+        the id, greets by name and lands on the entry state, the pretest."""
         session, storage, _ = self.make_session()
         turn = session.turns()[-1]
         self.assertEqual(turn.role, "assistant")
-        self.assertEqual(turn.state, "start")
-        self.assertIn("Nice to meet you", turn.message)
+        self.assertEqual(turn.state, "pretest")
+        self.assertIn("Nice to meet you, Alice!", turn.message)
+        self.assertIn("PRE-TEST", turn.message)
 
         state = self.state_of(storage)
-        self.assertEqual(state.current_state, "start")
+        self.assertEqual(state.current_state, "pretest")
         self.assertEqual(len(state.chat_history), 1)
         self.assertTrue(all(v == "not_started" for v in state.user_data["items"].values()))
 
@@ -152,11 +169,13 @@ class TutorSessionTests(SimpleTestCase):
         session, _, _ = self.make_session()
         summary = session.progress()
         self.assertEqual(summary.percentage, 0)
-        self.assertEqual(summary.total_steps, 15)
+        self.assertEqual(summary.total_steps, 14)
         self.assertEqual(summary.completed_steps_count, 0)
         self.assertFalse(summary.finished)
-        self.assertIsNone(summary.level)
-        self.assertIsNone(summary.user_name)
+        # The intake form registered the learner: the identity is on the
+        # books before the first answer (ticket #37).
+        self.assertEqual(summary.level, "beginner")
+        self.assertEqual(summary.user_name, "Alice")
         self.assertTrue(summary.session_id)
         self.assertTrue(summary.started)  # a started session always has an id
         self.assertTrue(summary.started)
@@ -176,7 +195,7 @@ class TutorSessionTests(SimpleTestCase):
         session, _, _ = self.make_session()
         self.drive(
             session,
-            "Alice", "3 4 5", "2", "1", "yes",
+            "3 4 5", "1", "yes",
             "Answer to task one",  # -> analysis_feedback_1 (base name, C1-5): task 1 completed
             "next",                # -> analysis_task_2 (base name, C1-6): task 2 in progress
         )
@@ -206,28 +225,41 @@ class TutorSessionTests(SimpleTestCase):
         a completed count (issue #14, GLOSSARY "completion model").
         """
         session, _, _ = self.make_session()
-        self.drive(session, "Alice", "3 4 5", "2", "1", "yes")
+        self.drive(session, "3 4 5", "1", "yes")
         self.assertEqual(
             [(row.key, row.status) for row in session.progress().sections[0].rows],
             [("analysis_task_1", "in_progress"), ("analysis_task_2", "not_started")],
         )
 
-    def test_first_turn_uses_placeholder_when_name_unavailable(self):
-        session, _, _ = self.make_session()
+    def test_intake_name_is_sanitized_on_the_way_in(self):
+        """Ticket #37: the form answers the name question, and the chat
+        still sanitizes it — markup never reaches the rendered greeting,
+        and the greeting renders no template brace."""
+        session, _, _ = self.make_session(intake=intake_for("beginner", name="<b>Alice</b>"))
         turn = session.turns()[-1]
-        self.assertIn("Nice to meet you, student!", turn.message)
+        self.assertIn("Nice to meet you, Alice!", turn.message)
+        self.assertNotIn("<b>", turn.message)
         self.assertNotIn("{user_name}", turn.message)
 
-    def test_blank_name_renders_placeholder_in_later_turns(self):
-        session, _, _ = self.make_session()
-        self.drive(session, "   ", "3 4 5", "1")  # whitespace-only name -> beginner
+    def test_sanitizer_falls_back_to_the_raw_answer(self):
+        """Who enforces a non-blank name: the form, not the sanitizer. The
+        sanitizer strips markup, caps the length, and keeps the raw answer
+        when stripping leaves nothing - it never invents text and never
+        hands the greeting an empty name."""
+        self.assertEqual(_sanitize_name("<b>Alice</b>"), "Alice")
+        self.assertEqual(len(_sanitize_name("A" * 90)), 50)
+        self.assertEqual(_sanitize_name("<b></b>"), "<b></b>")
+
+    def test_registered_level_renders_in_later_turns(self):
+        session, _, _ = self.make_session(intake=intake_for("beginner", name="   "))
+        self.drive(session, "3 4 5")
         turn = session.turns()[-1]
         self.assertIn("Thank you, student! (Level: Beginner)", turn.message)
         self.assertNotIn("{user_name}", turn.message)
 
-    def test_captured_name_renders_in_later_turns(self):
-        session, _, _ = self.make_session()
-        self.drive(session, "Alice", "3 4 5", "2")
+    def test_captured_name_and_level_render_in_later_turns(self):
+        session, _, _ = self.make_session(intake=intake_for("intermediate"))
+        self.drive(session, "3 4 5")
         turn = session.turns()[-1]
         self.assertIn("Thank you, Alice! (Level: Intermediate)", turn.message)
         self.assertNotIn("{user_name}", turn.message)
@@ -264,9 +296,9 @@ class TutorSessionTests(SimpleTestCase):
         session, storage, _ = self.make_session()
         session.reset()
         self.assertIsNone(storage.load())
-        # and a fresh start works afterwards
-        turn = session.start()
-        self.assertEqual(turn.state, "start")
+        # and a fresh start works afterwards, on the entry state
+        turn = session.start(INTAKE)
+        self.assertEqual(turn.state, "pretest")
 
     def test_submit_requires_a_started_session(self):
         session, _, _ = self.make_session(started=False)
@@ -313,7 +345,7 @@ class TutorSessionTests(SimpleTestCase):
         self.assertEqual(self.state_of(storage).current_state, "end")
 
         summary = session.progress()
-        self.assertEqual(summary.percentage, 46)  # 7 of 15 items
+        self.assertEqual(summary.percentage, 42)  # 6 of 14 items
         self.assertTrue(summary.finished)
         statuses = row_statuses(summary)
         self.assertEqual(statuses["analysis_task_1"], "completed")
@@ -359,11 +391,9 @@ class TutorSessionTests(SimpleTestCase):
             "4 4 4",                # -> data_collection
             "exit",                 # -> end
         ]
-        for level, digit in LEVEL_DIGITS:
-            inputs = ROLE_MENU_INPUTS[:2] + [digit] + ROLE_MENU_INPUTS[3:] + tail
+        for level in LEVELS:
+            inputs = ROLE_MENU_INPUTS + tail
             expected = [
-                "pretest",
-                "level_assessment",
                 "after_registration",  # base name lands (spec #16 C1-2)
                 "analysis_intro",       # base name lands (spec #16 C1-3)
                 "analysis_task_1",        # base name lands (spec #16 C1-4)
@@ -382,7 +412,7 @@ class TutorSessionTests(SimpleTestCase):
             ]
             self.assertEqual(len(inputs), len(expected))
             with self.subTest(level=level):
-                session, storage, _ = self.make_session()
+                session, storage, _ = self.make_session(intake=intake_for(level))
                 for step, (text, reached) in enumerate(zip(inputs, expected), 1):
                     with self.subTest(step=step, input=text):
                         session.submit(text)
@@ -456,7 +486,9 @@ class TutorSessionTests(SimpleTestCase):
         # `finished` is the lifecycle question, not this one — it lives in
         # test_full_single_role_path_reaches_end.
         self.assertEqual(summary.percentage, 100)
-        self.assertEqual(summary.completed_steps_count, 15)
+        # Every step counts: the fifteen-step ladder lost its level-pick
+        # rung to the intake form (ticket #37), the mode choices are not steps.
+        self.assertEqual(summary.completed_steps_count, 14)
         self.assertEqual(set(row_statuses(summary).values()), {"completed"})
 
     # ----------------------------------------------------------- navigation
@@ -492,12 +524,12 @@ class TutorSessionTests(SimpleTestCase):
 
     def test_advance_option_matches_current_state(self):
         paths = {
-            "analysis_intro": ["Alice", "3 4 5", "2", "1"],
-            "analysis_feedback_1": ["Alice", "3 4 5", "2", "1", "yes", "Answer one"],
-            "roleplay_intro": ["Alice", "3 4 5", "2", "1", "yes", "A1", "next", "A2", "next"],
-            "roleplay_feedback_mediator": ["Alice", "3 4 5", "2", "1", "yes", "A1", "next", "A2",
+            "analysis_intro": ["3 4 5", "1"],
+            "analysis_feedback_1": ["3 4 5", "1", "yes", "Answer one"],
+            "roleplay_intro": ["3 4 5", "1", "yes", "A1", "next", "A2", "next"],
+            "roleplay_feedback_mediator": ["3 4 5", "1", "yes", "A1", "next", "A2",
                                           "next", "continue", "1", "I mediate"],
-            "data_collection": ["Alice", "3 4 5", "2", "1", "yes", "A1", "next", "A2", "next",
+            "data_collection": ["3 4 5", "1", "yes", "A1", "next", "A2", "next",
                                 "continue", "1", "I mediate", "next", "finish",
                                 "Reflections", "4 4 4"],
         }
@@ -566,7 +598,7 @@ class TutorSessionTests(SimpleTestCase):
 
     def test_back_from_analysis_task_returns_to_analysis_intro(self):
         session, storage, _ = self.make_session()
-        self.drive(session, "Alice", "3 4 5", "2", "1", "yes")
+        self.drive(session, "3 4 5", "1", "yes")
         self.assertEqual(self.state_of(storage).current_state, "analysis_task_1")
         session.submit("back")
         self.assertEqual(self.state_of(storage).current_state, "analysis_intro")
@@ -577,26 +609,17 @@ class TutorSessionTests(SimpleTestCase):
         session.submit("back")
         self.assertEqual(self.state_of(storage).current_state, "roleplay_intro")
 
-    def test_back_from_pretest_lands_on_the_name_and_group_screen(self):
-        """Ticket #24: back at pretest goes to its TRUE predecessor — the
-        name-and-group data-collection screen (``start``) — not a
-        registration screen of a level the learner never picked (the
-        silent-beginner-path hole closed, ADR-0006)."""
+    def test_back_at_the_entry_state_is_rejected_input(self):
+        """Ticket #37: the intake form sits behind the entry state. The
+        pretest row declares no back target, so a typed "back" is
+        rejected input — the learner keeps the pretest and its answer
+        prompt, and the only escape from a wrong level is reset."""
         session, storage, _ = self.make_session()
-        session.submit("Alice")
-        self.assertEqual(self.state_of(storage).current_state, "pretest")
-        session.submit("back")
-        self.assertEqual(self.state_of(storage).current_state, "start")
-
-    def test_back_from_level_assessment_lands_on_pretest(self):
-        """Ticket #24: the pre-registration chain points at true
-        predecessors — level assessment backs to the pretest, so back
-        never teleports past the point of no return."""
-        session, storage, _ = self.make_session()
-        self.drive(session, "Alice", "3 4 5")
-        self.assertEqual(self.state_of(storage).current_state, "level_assessment")
         session.submit("back")
         self.assertEqual(self.state_of(storage).current_state, "pretest")
+        self.assertEqual(session.turns()[-1].role, "user")
+        # the pretest row's own copy, pointing at the one question left
+        self.assertIn("pretest task", session.turns()[-1].rejection)
 
     def test_back_from_reflection_lands_on_the_registration_base_name(self):
         """Ticket #24: post-registration single-form rows spell the
@@ -604,7 +627,7 @@ class TutorSessionTests(SimpleTestCase):
         the session's level (the landing convention of spec #16 C1-2),
         so back at intermediate lands on the intermediate registration,
         not the beginner one."""
-        session, storage, _ = self.make_session()
+        session, storage, _ = self.make_session(intake=intake_for("intermediate"))
         self.drive_to_role_menu(session)
         self.drive(session, "1", "I mediate", "next", "finish")
         self.assertEqual(self.state_of(storage).current_state, "reflection")
@@ -613,17 +636,21 @@ class TutorSessionTests(SimpleTestCase):
         # the landing resolves with THIS session's level, not a literal
         self.assertIn("(Level: Intermediate)", session.turns()[-1].message)
 
-    def test_back_at_start_is_unrecognized_input(self):
+    def test_back_at_the_entry_state_is_unrecognized_input(self):
+        """Ticket #37: the intake form sits behind the entry state, so the
+        pretest declares ``back: None`` — typed "back" is an unrecognized
+        input: the user turn is recorded, no assistant re-prompt is
+        appended, and the state stays at the pretest.
+
+        Carried over from ``start``, the chat state this one replaced.
+        """
         session, storage, _ = self.make_session()
         turns_before = len(session.turns())
         session.submit("back")
         turns = session.turns()
-        # Accepted delta (ticket #9): typed "back" at start is an
-        # unrecognized input — the user turn is recorded, no assistant
-        # re-prompt is appended, and the state stays at start.
         self.assertEqual(len(turns), turns_before + 1)
         self.assertEqual(turns[-1].role, "user")
-        self.assertEqual(self.state_of(storage).current_state, "start")
+        self.assertEqual(self.state_of(storage).current_state, "pretest")
 
     def test_back_at_registration_is_unrecognized_input(self):
         """Ticket #24 (spec #16, ADR-0006 decision 2): registration is the
@@ -633,7 +660,7 @@ class TutorSessionTests(SimpleTestCase):
         the state stays at registration.
         """
         session, storage, _ = self.make_session()
-        self.drive(session, "Alice", "3 4 5", "2")
+        self.drive(session, "3 4 5")
         self.assertEqual(self.state_of(storage).current_state, "after_registration")
         turns_before = len(session.turns())
         session.submit("back")
@@ -649,7 +676,7 @@ class TutorSessionTests(SimpleTestCase):
         offer a back option the command line rejects — the offer follows
         the row, so registration offers only its two options."""
         session, _, _ = self.make_session()
-        self.drive(session, "Alice", "3 4 5", "2")
+        self.drive(session, "3 4 5")
         self.assertEqual(
             offers(session.turns()[-1]),
             {
@@ -679,7 +706,7 @@ class TutorSessionTests(SimpleTestCase):
     def test_nav_row_rejection_falls_back_to_the_generic_copy(self):
         session, storage, _ = self.make_session()
         # analysis_feedback_2: closed accept (next/back), no bespoke copy
-        self.drive(session, *ROLE_MENU_INPUTS[:8])
+        self.drive(session, *ROLE_MENU_INPUTS[:6])
         session.submit("no such task")
         self.assertEqual(session.turns()[-1].rejection, GENERIC_REJECTION)
 
@@ -690,14 +717,20 @@ class TutorSessionTests(SimpleTestCase):
         for rows that declare ``rejected: None`` — exercised by
         ``test_nav_row_rejection_falls_back_to_the_generic_copy`` (#15).
 
-        ``start`` accepts any input (the welcome answers free text), so a
-        dropped input never occurs there; ``end`` is pinned by
-        ``test_end_state_pairs_no_rejection_copy``.
+        The state is manufactured here: a stored state that names no row
+        (a string from a future version, a hand-written fixture). ``end``
+        is pinned by ``test_end_state_pairs_no_rejection_copy``.
         """
-        session, _, _ = self.make_session()
-        turn = session.submit("gibberish")
-        self.assertIsNotNone(turn)  # accepted: the welcome answers free text
-        self.assertIsNone(session.turns()[-1].rejection)
+        session, storage, _ = self.make_session()
+        self.drive(session, "3 4 5")  # land on a state that does have a row
+        state = self.state_of(storage)
+        state.current_state = "a_state_with_no_row"
+        storage.save(state)
+        # A fresh module over the store: it loads the stranded state, so
+        # the answer finds no row and no copy is offered with it.
+        stranded = TutorSession(storage)
+        stranded.submit("gibberish")
+        self.assertIsNone(stranded.turns()[-1].rejection)
 
     def test_end_state_pairs_no_rejection_copy(self):
         """After the completion the UI offers no composer, and the structural
@@ -787,44 +820,37 @@ class TutorSessionTests(SimpleTestCase):
     def test_cutover_navigation_matrix(self):
         # state -> (drive path from start, expected exact options dict)
         matrix = {
-            "start": (
+            # The entry state (ticket #37): the intake form is behind it,
+            # so the first turn offers no navigation at all.
+            "pretest": (
                 [],
-                {},  # welcome turn: no navigation (nothing to go back to)
-            ),
-            "level_assessment": (
-                ["Alice", "3 4 5"],
-                {
-                    "back": "⬅️ Back",
-                    "1": "Beginner",
-                    "2": "Intermediate",
-                    "3": "Advanced",
-                },
+                {},
             ),
             "after_registration": (  # base name lands (spec #16 C1-2)  # no back offer: point of no return (C1-8)
-                ["Alice", "3 4 5", "2"],
+                ["3 4 5"],
                 {
                     "1": REGISTRATION_OPTIONS["1"],
                     "2": REGISTRATION_OPTIONS["2"],
                 },
             ),
             "analysis_intro": (
-                ["Alice", "3 4 5", "2", "1"],
+                ["3 4 5", "1"],
                 {"back": "Back to menu", "yes": "Yes, proceed"},
             ),
             # Non-nav states: only the always-available back button.
             "analysis_task_1": (  # base name lands (spec #16 C1-4)
-                ["Alice", "3 4 5", "2", "1", "yes"],
+                ["3 4 5", "1", "yes"],
                 {"back": "⬅️ Back"},
             ),
             "role_mediator": (
-                ["Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
+                ["3 4 5", "1", "yes", "Answer one", "next",
                  "Answer two", "next", "continue", "1"],
                 {"back": "⬅️ Back"},
             ),
             # Issue #13: a role-play feedback turn offers the full trio the
             # machine routes — revise re-enters the role, next the role menu.
             "roleplay_feedback_mediator": (
-                ["Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
+                ["3 4 5", "1", "yes", "Answer one", "next",
                  "Answer two", "next", "continue", "1", "I mediate"],
                 {
                     "revise": "✏️ Revise",
@@ -833,12 +859,12 @@ class TutorSessionTests(SimpleTestCase):
                 },
             ),
             "roleplay_intro": (
-                ["Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
+                ["3 4 5", "1", "yes", "Answer one", "next",
                  "Answer two", "next"],
                 {"continue": "View Available Roles", "back": "Back to Main Menu"},
             ),
             "role_menu": (
-                ["Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
+                ["3 4 5", "1", "yes", "Answer one", "next",
                  "Answer two", "next", "continue"],
                 {
                     "back": "Back to Role-Play Intro",
@@ -850,7 +876,7 @@ class TutorSessionTests(SimpleTestCase):
             ),
             # data_collection: the scenario's exit label matches the nav label.
             "data_collection": (
-                ["Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
+                ["3 4 5", "1", "yes", "Answer one", "next",
                  "Answer two", "next", "continue", "1", "I mediate", "next",
                  "finish", "A long reflection", "4 4 4"],
                 {"back": "⬅️ Back", "exit": "Exit"},
@@ -873,7 +899,7 @@ class TutorSessionTests(SimpleTestCase):
 
     def test_cutover_feedback_llm_success_options(self):
         session, _, _ = self.make_session()
-        self.drive(session, "Alice", "3 4 5", "2", "1", "yes", "Answer one")
+        self.drive(session, "3 4 5", "1", "yes", "Answer one")
         current = session.turns()[-1]
         self.assertEqual(
             offers(current),
@@ -884,7 +910,7 @@ class TutorSessionTests(SimpleTestCase):
 
     def test_cutover_feedback_llm_failure_options(self):
         session, _, _ = self.make_session(llm=FakeLLM(fail_times=1))
-        self.drive(session, "Alice", "3 4 5", "2", "1", "yes", "Answer one")
+        self.drive(session, "3 4 5", "1", "yes", "Answer one")
         current = session.turns()[-1]
         # retry replaces the advance option; the scenario's next survives the
         # merge. "retry" is the injected retry offer, "next" a scenario value
@@ -900,7 +926,7 @@ class TutorSessionTests(SimpleTestCase):
 
     def test_cutover_roleplay_feedback_llm_failure_options(self):
         session, _, _ = self.make_session(llm=FakeLLM(fail_times=3))
-        self.drive(session, "Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
+        self.drive(session, "3 4 5", "1", "yes", "Answer one", "next",
                    "Answer two", "next", "continue", "1", "I mediate")
         current = session.turns()[-1]
         # Issue #13: the feedback states now carry scenario options, so the
@@ -919,7 +945,7 @@ class TutorSessionTests(SimpleTestCase):
 
     def test_cutover_end_turn_has_no_options(self):
         session, _, _ = self.make_session()
-        self.drive(session, "Alice", "3 4 5", "2", "1", "yes", "Answer one", "next",
+        self.drive(session, "3 4 5", "1", "yes", "Answer one", "next",
                    "Answer two", "next", "continue", "1", "I mediate", "next",
                    "finish", "A long reflection", "4 4 4", "exit")
         last = session.turns()[-1]
@@ -931,7 +957,7 @@ class TutorSessionTests(SimpleTestCase):
 
     def test_feedback_called_with_feedback_state_context(self):
         llm = FakeLLM()
-        session, _, _ = self.make_session(llm=llm)
+        session, _, _ = self.make_session(llm=llm, intake=intake_for("intermediate"))
         self.drive_to_role_menu(session)
         baseline = len(llm.calls)  # analysis feedback states already called it
         self.drive(session, "1", "I mediate")
@@ -952,11 +978,11 @@ class TutorSessionTests(SimpleTestCase):
         the seam, and the LLM gets this level's task-1 copy — byte for
         byte the entry the session's own scenario carries.
         """
-        for level, digit in LEVEL_DIGITS:
+        for level in LEVELS:
             with self.subTest(level=level):
                 llm = FakeLLM()
-                session, storage, _ = self.make_session(llm=llm)
-                self.drive(session, "Alice", "3 4 5", digit, "1", "yes", "Answer one")
+                session, storage, _ = self.make_session(llm=llm, intake=intake_for(level))
+                self.drive(session, "3 4 5", "1", "yes", "Answer one")
                 state = self.state_of(storage)
                 self.assertEqual(state.current_state, "analysis_feedback_1")
 
@@ -983,12 +1009,12 @@ class TutorSessionTests(SimpleTestCase):
         it. The LLM must get this level's task-2 copy - byte for byte
         the entry the session's own scenario carries.
         """
-        for level, digit in LEVEL_DIGITS:
+        for level in LEVELS:
             with self.subTest(level=level):
                 llm = FakeLLM()
-                session, storage, _ = self.make_session(llm=llm)
+                session, storage, _ = self.make_session(llm=llm, intake=intake_for(level))
                 self.drive(
-                    session, "Alice", "3 4 5", digit, "1", "yes",
+                    session, "3 4 5", "1", "yes",
                     "Answer one", "next", "Answer two",
                 )
                 state = self.state_of(storage)
@@ -1014,27 +1040,28 @@ class TutorSessionTests(SimpleTestCase):
     def test_feedback_not_called_outside_feedback_states(self):
         llm = FakeLLM()
         session, _, _ = self.make_session(llm=llm)
-        self.drive(session, "Alice", "3 4 5", "2", "1")
+        self.drive(session, "3 4 5", "1")
         self.assertEqual(llm.calls, [])
 
     # ---------------------------------------------------------- bad inputs
 
     def test_invalid_pretest_scores_keep_state(self):
         session, storage, _ = self.make_session()
-        session.submit("Alice")
         session.submit("not numbers")
         self.assertEqual(self.state_of(storage).current_state, "pretest")
         self.assertEqual(session.turns()[-1].role, "user")
 
-    def test_invalid_level_choice_keeps_state(self):
+    def test_a_lone_number_is_not_a_pretest_answer(self):
+        """Ticket #37: the intake form took the level pick away, so the
+        entry state has one question — the three-score answer. A lone
+        digit is not an answer and the state stays put."""
         session, storage, _ = self.make_session()
-        self.drive(session, "Alice", "3 4 5")
         session.submit("4")
-        self.assertEqual(self.state_of(storage).current_state, "level_assessment")
+        self.assertEqual(self.state_of(storage).current_state, "pretest")
 
     def test_analysis_intro_ignores_anything_but_yes(self):
         session, storage, _ = self.make_session()
-        self.drive(session, "Alice", "3 4 5", "2", "1")
+        self.drive(session, "3 4 5", "1")
         turns_before = len(session.turns())
         session.submit("no")
         self.assertEqual(self.state_of(storage).current_state, "analysis_intro")
@@ -1052,7 +1079,7 @@ class TutorSessionTests(SimpleTestCase):
 
     def test_rows_track_the_task_the_learner_is_on(self):
         session, storage, _ = self.make_session()
-        self.drive(session, "Alice", "3 4 5", "2", "1", "yes")
+        self.drive(session, "3 4 5", "1", "yes")
         self.assertEqual(
             row_statuses(session.progress())["analysis_task_1"], "in_progress"
         )
@@ -1076,7 +1103,8 @@ class TutorSessionTests(SimpleTestCase):
             for turn in session.turns()
             if turn.role == "assistant"
         }
-        self.assertEqual(used["level_assessment"], "2")
+        # The pretest turn was opened by the intake, never answered
+        # with an option, so it marks nothing (ticket #37).
         # The registration and intro turns are stored under their base
         # names (spec #16 C1-2 and C1-3).
         self.assertEqual(used["after_registration"], "1")
@@ -1087,7 +1115,7 @@ class TutorSessionTests(SimpleTestCase):
 
     def test_user_turns_carry_no_options(self):
         session, _, _ = self.make_session()
-        self.drive(session, "Alice", "3 4 5")
+        self.drive(session, "3 4 5", "1")
         user_turns = [t for t in session.turns() if t.role == "user"]
         self.assertEqual(len(user_turns), 2)
         for turn in user_turns:
@@ -1095,12 +1123,12 @@ class TutorSessionTests(SimpleTestCase):
 
     def test_start_is_idempotent(self):
         session, storage, _ = self.make_session()
-        self.drive(session, "Alice", "3 4 5")
+        self.drive(session, "3 4 5")
 
         before = self.state_of(storage)
         turns_before = session.turns()
 
-        again = session.start()
+        again = session.start(INTAKE)
 
         self.assertEqual(again.state, before.current_state)
         self.assertEqual(
@@ -1122,7 +1150,7 @@ class TutorSessionTests(SimpleTestCase):
 
         reloaded = TutorSession(storage)
         self.assertEqual(row_statuses(reloaded.progress())["role_mediator"], "completed")
-        self.assertEqual(reloaded.progress().percentage, 33)  # 5 of 15 steps
+        self.assertEqual(reloaded.progress().percentage, 28)  # 4 of 14 steps
 
     def test_progress_on_a_pre_ledger_row_stays_zero_state(self):
         # A row saved before the ledger exists (the stranded row of

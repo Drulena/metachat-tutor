@@ -32,6 +32,22 @@ from .llm import get_llm_feedback
 # ---------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class Intake:
+    """What the learner submits on the intake form (ticket #37).
+
+    The three registration facts the chat used to gather by walking
+    three states - name, group, self-assessed level - arrive in one
+    submit before the first turn exists. ``group`` is ledger-only:
+    the state machine's ``user_data`` keys are a closed registry
+    (``transitions/_validate.py``), so the group reaches the research
+    record and never the chat.
+    """
+
+    name: str
+    group: str
+    level: str
+
 @dataclass
 class State:
     """Everything a tutor session persists.
@@ -146,7 +162,7 @@ class Summary:
     started: bool = False
     # Session-wide counts, derived from the row statuses above.
     percentage: int = 0
-    total_steps: int = 15
+    total_steps: int = 14
     completed_steps_count: int = 0
     # The one lifecycle question the views ask (resume, export, reset-confirm).
     finished: bool = False

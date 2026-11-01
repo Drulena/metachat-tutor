@@ -96,7 +96,6 @@ _AXIS_FIXTURE_BASE: Row = {
     },
     "items": {
         "pretest": "completed",
-        "level_assessment": "completed",
         "analysis_task_1": "not_started",
         "analysis_task_2": "not_started",
         "role_mediator": "not_started",

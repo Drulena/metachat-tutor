@@ -16,6 +16,7 @@ from .scenarios.role_menu import STATE as ROLE_MENU_STATE
 from .session import MemoryStorage, TurnOption
 from .test_tutor_session import (
     FakeLLM,
+    INTAKE,
     GENERIC_REJECTION,
     ROLE_MENU_COPY,
     ROLE_MENU_INPUTS,
@@ -28,7 +29,7 @@ KINDS = {"choice", "nav", "retry"}
 def _session(llm=None):
     llm = llm if llm is not None else FakeLLM()
     session = TutorSession(MemoryStorage(), llm)
-    session.start()
+    session.start(INTAKE)
     return session
 
 
@@ -67,7 +68,7 @@ class OptionKindTests(SimpleTestCase):
         self.assertTrue(set(kinds.values()) <= KINDS)
 
     def test_scenario_label_wins_on_clash(self):
-        session = _drive(_session(), *ROLE_MENU_INPUTS[:4])  # analysis_intro
+        session = _drive(_session(), *ROLE_MENU_INPUTS[:2])  # analysis_intro
         yes = [opt for opt in session.turns()[-1].options if opt.value == "yes"]
         self.assertEqual(len(yes), 1, "the nav/scenario clash must yield ONE yes option")
         self.assertEqual(yes[0].label, "Yes, proceed")  # the scenario map wins
@@ -75,7 +76,7 @@ class OptionKindTests(SimpleTestCase):
 
     def test_option_list_has_no_duplicate_values(self):
         for inputs in (
-            ROLE_MENU_INPUTS[:4],
+            ROLE_MENU_INPUTS[:2],
             ROLE_MENU_INPUTS,
             ROLE_MENU_INPUTS + ["1"],
         ):
@@ -84,11 +85,11 @@ class OptionKindTests(SimpleTestCase):
             self.assertEqual(len(values), len(set(values)))
 
     def test_retry_present_only_after_failure(self):
-        session = _drive(_session(), *ROLE_MENU_INPUTS[:4])  # analysis_intro
+        session = _drive(_session(), *ROLE_MENU_INPUTS[:2])  # analysis_intro
         self.assertNotIn("retry", {opt.value for opt in session.turns()[-1].options})
 
         failing = _session(FakeLLM(fail_times=1))
-        _drive(failing, *ROLE_MENU_INPUTS[:5], "An answer")  # task answer -> feedback fails
+        _drive(failing, *ROLE_MENU_INPUTS[:3], "An answer")  # task answer -> feedback fails
         kinds = {opt.value: opt.kind for opt in failing.turns()[-1].options}
         self.assertEqual(kinds.get("retry"), "retry")
 
@@ -111,7 +112,7 @@ class TurnRejectionTests(SimpleTestCase):
 
     def test_nav_row_rejection_falls_back_to_generic(self):
         # analysis_feedback_2: closed accept (next/back), no bespoke copy
-        session = _drive(_session(), *ROLE_MENU_INPUTS[:8])
+        session = _drive(_session(), *ROLE_MENU_INPUTS[:6])
         session.submit("no such task")
         self.assertEqual(session.turns()[-1].rejection, GENERIC_REJECTION)
 
@@ -148,12 +149,13 @@ class HistoryTurnKindTests(SimpleTestCase):
         self.assertIn((advocate, False), marks)
 
 
-class BackAtStartTests(SimpleTestCase):
+class BackAtEntryStateTests(SimpleTestCase):
     """A dropped input is flagged; the turn carries the row's copy (d5)."""
 
-    def test_back_at_start_is_surfaced_as_rejected(self):
-        # start has no back target: routing drops it; the user turn carries
-        # the rejection flag; the start row declares no copy, so generic.
+    def test_back_at_the_entry_state_is_surfaced_as_rejected(self):
+        # Ticket #37: the entry state is the pretest - the intake form sits
+        # behind it, so it declares no back target. Routing drops "back", the
+        # user turn carries the rejection flag, and the row spells its copy.
         session = _session()
         session.submit("back")
-        self.assertEqual(session.turns()[-1].rejection, GENERIC_REJECTION)
+        self.assertIn("pretest task", session.turns()[-1].rejection)

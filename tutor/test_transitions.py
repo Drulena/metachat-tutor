@@ -40,9 +40,9 @@ from .transitions import (
     USER_DATA_KEYS,
     USER_DATA_SOURCES,
     analysis_task_1,
+    pretest,
     role_menu,
     row_for,
-    start,
     validate_transitions,
 )
 from .transitions._registry import LEVEL_KEYS
@@ -52,10 +52,8 @@ from .tutor_session import (
     ITEM_KEYS,
     _BACK_LABEL,
     _GENERIC_REJECTION,
-    _LEVEL_BY_VALUE,
     TutorSession,
     _parse_scores,
-    _sanitize_name,
 )
 
 NON_TERMINAL_STATES = set(SCENARIO["states"]) - {"end"}
@@ -98,19 +96,19 @@ class TransitionTableShapeTests(SimpleTestCase):
 
     def test_validator_detects_a_missing_row(self):
         table = copy.deepcopy(ROW_REGISTRY)
-        del table[("start", None)]
+        del table[("pretest", None)]
         violations = validate_transitions(table)
-        self.assertTrue(any("start" in v for v in violations))
+        self.assertTrue(any("pretest" in v for v in violations))
 
     def test_validator_detects_an_unknown_target(self):
         table = copy.deepcopy(ROW_REGISTRY)
-        table[("start", None)]["next"] = "nowhere"
+        table[("pretest", None)]["next"] = "nowhere"
         violations = validate_transitions(table)
         self.assertTrue(any("nowhere" in v for v in violations))
 
     def test_validator_detects_an_invalid_effect_key(self):
         table = copy.deepcopy(ROW_REGISTRY)
-        table[("start", None)]["effects"] = [
+        table[("pretest", None)]["effects"] = [
             ("set-item", "no_such_item", "completed")
         ]
         violations = validate_transitions(table)
@@ -131,16 +129,17 @@ class TransitionTableShapeTests(SimpleTestCase):
                 elif next_ is not None:
                     self.assertIn(next_, states)
 
-    def test_back_target_is_none_only_at_start_and_registration(self):
-        # Spec #16 C1-9: back targets name scenario states by base.
-        # The registration axis joins ``start`` in declaring None —
-        # the point of no return (spec #16 C1-8, ADR-0006 decision 2).
+    def test_back_target_is_none_only_at_the_entry_state_and_registration(self):
+        # Spec #16 C1-9: back targets name scenario states by base. The
+        # registration axis joins the entry state (``pretest``, ticket #37)
+        # in declaring None — the point of no return (spec #16 C1-8,
+        # ADR-0006 decision 2 with its 2026-11-01 amendment).
         states = set(SCENARIO["states"])
         for pair, row in ROW_REGISTRY.items():
             base, _level = pair
             back = row["back"]
             with self.subTest(pair=pair):
-                if base == "start" or base == "after_registration":
+                if base == "pretest" or base == "after_registration":
                     self.assertIsNone(back)
                 else:
                     self.assertIn(back, states)
@@ -236,11 +235,11 @@ class RowRegistryTests(SimpleTestCase):
         # C1-9: the registry IS the table — pair composition, and the
         # rows are the modules' own row objects (no copy step).
         self.assertEqual(set(ROW_REGISTRY), _single_form_pairs() | _axis_pairs())
-        self.assertEqual(len(ROW_REGISTRY), 44)
+        self.assertEqual(len(ROW_REGISTRY), 42)
         axis_pairs = [pair for pair in ROW_REGISTRY if pair[1] is not None]
         self.assertEqual(len(axis_pairs), 18)  # 6 bases x 3 levels
-        self.assertEqual(len(ROW_REGISTRY) - len(axis_pairs), 26)
-        self.assertIs(ROW_REGISTRY[("start", None)], start.ROW)
+        self.assertEqual(len(ROW_REGISTRY) - len(axis_pairs), 24)
+        self.assertIs(ROW_REGISTRY[("pretest", None)], pretest.ROW)
         self.assertIs(ROW_REGISTRY[("role_menu", None)], role_menu.ROW)
         self.assertIs(
             ROW_REGISTRY[("analysis_task_1", "beginner")],
@@ -315,7 +314,7 @@ class GraphChecksTests(SimpleTestCase):
             }
         self.assertIn(
             "graph: pair ('roleplay_intro', None) "
-            "is unreachable from ('start', None)",
+            "is unreachable from ('pretest', None)",
             validate_transitions(table),
         )
 
@@ -328,14 +327,15 @@ class GraphChecksTests(SimpleTestCase):
         }
         self.assertEqual([t for t in self._all_targets(ROW_REGISTRY) if t in spelled], [])
 
-    def test_no_path_reaches_level_assessment_after_registration(self):
-        """Ticket #24 AC[1]: the point of no return — no next, back, nav,
-        or self edge from any registration level leads back to the level
-        assessment, the pretest, or start; the only escape is reset."""
+    def test_no_path_leads_back_to_the_intake_side_after_registration(self):
+        """Ticket #24 AC[1] with ticket #37: the point of no return. No
+        next, back, nav or self edge from any registration level leads
+        back to the pretest — the intake form sits behind it, and the
+        retired registration states are gone; the only escape is reset."""
         for level in LEVEL_KEYS:
             reached = self._reachable_pairs(("after_registration", level))
-            self.assertNotIn(("level_assessment", None), reached)
             self.assertNotIn(("pretest", None), reached)
+            self.assertNotIn(("level_assessment", None), reached)
             self.assertNotIn(("start", None), reached)
 
     def test_go_back_has_no_prefix_repair(self):
@@ -446,7 +446,9 @@ class FixtureCoherenceTests(SimpleTestCase):
                 if items["pretest"] == "completed":
                     self.assertIsNotNone(ud["user_name"])
                     self.assertIsNotNone(ud["pretest_scores"])
-                if items["level_assessment"] == "completed":
+                # The intake form registers the level (ticket #37), so a
+                # fixture past the entry state carries one.
+                if items["pretest"] == "completed":
                     self.assertIsNotNone(ud["level"])
                 if items["posttest"] == "completed":
                     self.assertIsNotNone(ud["posttest_scores"])
@@ -457,7 +459,7 @@ class FixtureCoherenceTests(SimpleTestCase):
                     self.assertEqual(items["analysis_task_1"], "completed")
                 for mode in ("mode_analysis", "mode_roleplay"):
                     if items[mode] == "completed":
-                        self.assertEqual(items["level_assessment"], "completed")
+                        self.assertEqual(items["pretest"], "completed")
                 for role in ROLE_STEP_KEYS:
                     if items[role] in ("in_progress", "completed"):
                         self.assertEqual(ud["current_role"], role)
@@ -542,13 +544,8 @@ class LegacyParityTests(SimpleTestCase):
                 self.assertIsNone(next_state)
 
     def _resolve_source(self, source, state, value):
-        if source == "sanitized-name":
-            tokens = value.split()
-            return _sanitize_name(tokens[0] if tokens else value)
         if source == "parsed-scores":
             return _parse_scores(value)
-        if source == "parsed-level":
-            return _LEVEL_BY_VALUE[value]
         if source == "mapped-role":
             return ROLE_BY_VALUE[value]
         if source.startswith("literal:"):
@@ -593,10 +590,10 @@ class LegacyParityTests(SimpleTestCase):
     def test_back_targets_match_legacy_go_back_except_the_point_of_no_return(self):
         for (name, _level), row in ROW_REGISTRY.items():
             with self.subTest(state=name):
-                if name == "start" or name == "after_registration":
-                    # Point of no return (spec #16 C1-8): no back edge,
-                    # so _go_back treats the typed command as rejected
-                    # input and the state stays put.
+                if name == "pretest" or name == "after_registration":
+                    # Point of no return (spec #16 C1-8 with ticket #37):
+                    # no back edge, so _go_back treats the typed command
+                    # as rejected input and the state stays put.
                     self.assertIsNone(row["back"])
                     state = self._make_state(name, row)
                     self._session()._go_back(state)

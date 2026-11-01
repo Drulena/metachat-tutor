@@ -11,9 +11,7 @@ import copy
 from typing import Any
 
 from . import (
-    start,
     pretest,
-    level_assessment,
     after_registration,
     analysis_intro,
     analysis_task_1,
@@ -72,9 +70,7 @@ SCENARIO: dict[str, Any] = {
     "bot_name": BOT_NAME,
     "welcome_message": WELCOME_MESSAGE,
     "states": {
-        "start": start.STATE,
         "pretest": pretest.STATE,
-        "level_assessment": level_assessment.STATE,
         # The level axes (spec #16 C1-2..C1-7, ADR-0006): keyed by base
         # state name (spec #16 C1-9) — the entry is the module's
         # level-keyed copy map (detached with deepcopy so the validator's

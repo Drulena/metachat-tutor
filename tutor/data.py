@@ -16,7 +16,6 @@ from .scenarios import (  # noqa: F401
 # Шаги tutorials (assessment steps of the session lifecycle)
 STEP_KEYS = [
     "pretest",
-    "level_assessment",
     "analysis_task_1",
     "analysis_task_2",
     "role_mediator",

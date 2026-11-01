@@ -8,8 +8,10 @@ Part of the pure-data transition table (ticket #8); see
 BASE = "pretest"
 
 ROW = {
-    "next": "level_assessment",
-    "back": "start",  # true predecessor: the name-and-group screen (C1-8)
+    # The intake form registered the level, so the pretest answer hands the
+    # session straight to the axis (ADR-0006 amendment 2026-11-01).
+    "next": "after_registration",
+    "back": None,  # the intake form sits behind the point of no return
     "nav": {},
     "retryable": False,
     "item": "pretest",
@@ -19,11 +21,11 @@ ROW = {
         ("set-user-data", "pretest_scores", "parsed-scores"),
         ("set-item", "pretest", "completed"),
     ],
-    "rejected": "Type your answer to the pretest task, then choose a level to register, or type 'back'.",
+    "rejected": "Type your answer to the pretest task: three numbers from 1 to 5 separated by spaces.",
     "fixture": {
         "user_data": {
             "user_name": "Test Learner",
-            "level": None,
+            "level": "beginner",
             "pretest_scores": None,
             "posttest_scores": None,
             "current_role": None,
@@ -31,7 +33,6 @@ ROW = {
         },
         "items": {
             "pretest": "not_started",
-            "level_assessment": "not_started",
             "analysis_task_1": "not_started",
             "analysis_task_2": "not_started",
             "role_mediator": "not_started",
