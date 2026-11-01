@@ -9,11 +9,13 @@ from .forms import IntakeForm
 from .ledger import (
     append_entries,
     fill_reflection,
+    mark_finished,
     open_session,
     record_assessment,
 )
 from .models import Group
 from .session import Intake, SessionStorage
+from .transitions import TERMINAL_BASE
 from .tutor_session import TutorSession
 
 logger = logging.getLogger(__name__)
@@ -58,6 +60,11 @@ def _mirror_to_ledger(request: HttpRequest, entries_before: int) -> None:
         return
     session_id = state.session_id
     append_entries(session_id, delta)
+    if state.current_state == TERMINAL_BASE:
+        # The session reached its last screen, so the ledger says so too;
+        # the stamp is written once and never moved again (ADR-0007
+        # decision 4, ticket #39).
+        mark_finished(session_id)
     answered = next(
         (entry for entry in reversed(delta) if entry.get("role") == "user"), None
     )

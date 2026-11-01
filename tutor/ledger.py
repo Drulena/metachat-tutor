@@ -13,6 +13,7 @@ import logging
 from typing import Optional, Sequence
 
 from django.db import transaction
+from django.utils import timezone
 
 from .models import Assessment, Group, SessionRecord
 from .session import Intake
@@ -101,6 +102,24 @@ def record_assessment(
     Assessment.objects.create(
         session=row, kind=kind, raw_answer=raw_answer, scores=list(scores)
     )
+
+
+def mark_finished(session_id: str) -> None:
+    """Stamp the row the moment its session reaches the terminal screen.
+
+    A non-null ``finished_at`` is what "finished" means for the admin and
+    for every filter (ADR-0007 decision 4). The stamp is written once and
+    never moved again, so the write is conditional on the field being empty:
+    a row that already carries a stamp is left exactly as it is, whatever
+    traffic follows, and two concurrent arrivals cannot disagree.
+    """
+    if _row(session_id) is None:
+        return
+    stamped = SessionRecord.objects.filter(session_id=session_id).filter(
+        finished_at__isnull=True
+    ).update(finished_at=timezone.now())
+    if stamped:
+        logger.info("Ledger row for session %s stamped finished.", session_id)
 
 
 def fill_reflection(session_id: str, text: str) -> None:
