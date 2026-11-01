@@ -1,0 +1,22 @@
+#!/bin/sh
+# Commit-message footer rule (docs/agents/issue-tracker.md): every commit
+# names the issue it serves, so the trail from code to ticket survives.
+msg_file="$1"
+
+# Conventional subject: type(scope): subject, <=72 chars.
+if ! head -n 1 "$msg_file" | grep -qE '^(feat|fix|refactor|docs|test|chore|perf|build|ci)(\([a-z0-9-]+\))?: .+'; then
+    echo "commit-msg: subject must be Conventional Commits: type(scope): subject" >&2
+    exit 1
+fi
+if [ "$(head -n 1 "$msg_file" | wc -m)" -gt 73 ]; then
+    echo "commit-msg: subject longer than 72 characters" >&2
+    exit 1
+fi
+
+# Footer: an issue ref on its own line (Issue: #15 / Refs: / Fixes: / Closes:).
+if ! grep -qiE '^(Issue|Refs|Fixes|Closes): #[0-9]+' "$msg_file"; then
+    echo "commit-msg: missing footer 'Issue: #N' (Issue|Refs|Fixes|Closes)" >&2
+    exit 1
+fi
+
+exit 0

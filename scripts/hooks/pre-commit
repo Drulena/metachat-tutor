@@ -1,0 +1,77 @@
+#!/bin/sh
+# Append-only migration rule (docs/agents/coding-standards.md): a migration
+# that is already committed is never edited or deleted. Every database that ran
+# the old file rebuilds its schema from it, so a change forks history between
+# environments and the deployed database carries no signal of it.
+#
+# This hook refuses a commit that stages a modification, deletion or type
+# change of a migration file that exists in HEAD. New migration files pass:
+# the history only grows forward.
+#
+# Deliberate history surgery stays possible with `git commit --no-verify`.
+
+set -u
+
+# An unborn HEAD (the initial commit) has no committed migration to rewrite.
+git rev-parse --verify --quiet HEAD >/dev/null 2>&1 || exit 0
+
+# Compare the index to HEAD. --no-renames reports a rename as a delete of the
+# old path, which is exactly the rewrite this guard exists to catch. A delete
+# of a migration dropped from the index (`git rm --cached`) is caught too.
+changed=$(git diff --cached --name-status --no-renames --diff-filter=MDRT \
+    -- ':(glob)**/migrations/*.py')
+
+[ -n "$changed" ] || exit 0
+
+tab=$(printf '\t')
+offenders=
+while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    path=${line#*"$tab"}
+    # __init__.py marks the package; it carries no schema history.
+    case "$path" in
+        */migrations/__init__.py) continue ;;
+    esac
+    offenders="$offenders$line
+"
+done <<EOF
+$changed
+EOF
+
+[ -n "$offenders" ] || exit 0
+
+{
+    printf '%s\n' "pre-commit: migration history is append-only"
+    printf '\n'
+    while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        status=${line%%"$tab"*}
+        path=${line#*"$tab"}
+        case "$status" in
+            M) label=modified ;;
+            D) label=deleted ;;
+            *) label=changed ;;
+        esac
+        printf '  %-8s %s\n' "$label" "$path"
+    done <<EOF
+$offenders
+EOF
+    printf '\n'
+    printf '%s\n' "The change this commit would stage:"
+    git diff --cached --stat --no-renames --diff-filter=MDRT \
+        -- ':(glob)**/migrations/*.py' | sed 's/^/  /'
+    printf '\n'
+    printf '%s\n' \
+        "These files are already committed (they exist in HEAD). Every" \
+        "database that already ran them rebuilds its schema from them, so" \
+        "editing one forks history between environments with no signal in" \
+        "the deployed database."
+    printf '\n'
+    printf '%s\n' "Record the change as a new migration on top instead:"
+    printf '%s\n' "  uv run manage.py makemigrations"
+    printf '\n'
+    printf '%s\n' "If the edit was accidental, restore the committed copy:"
+    printf '%s\n' "  git checkout HEAD -- <path>"
+} >&2
+
+exit 1
