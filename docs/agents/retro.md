@@ -39,6 +39,10 @@ guards, and moved browser checking into Django's runner.
   `chr(34)`/`chr(39)` for quotes inside generated selectors and JS fragments.
 
 ### State
+- The pip `venv/` is deleted from the working tree: `.venv` (built by `uv sync`) is the only
+  environment, and the suite is green without the old directory. `requirements.txt` stays as
+  the pip compatibility export - the owner asked for uv as the package manager, with the pip
+  path kept alive, after their own drop commit was tidied out of the branch history.
 - Suite in uv: `uv run manage.py test tutor` → Ran 267 tests, OK (3 of them
   browser paints, ~12 s with Edge). Commits e627a44, 0915fda, a0a8e25, 69e44da
   on `feat/spec-28-intake-ledger`, not pushed.
