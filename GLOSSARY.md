@@ -46,6 +46,8 @@ Canonical domain vocabulary for MetaChat Tutor. Use these terms in issues, code,
 
 - **abandoned session** — A **session ledger** whose lifecycle never reached **finished** — from a walk-away, a cookie expiry, or a reset. Surfaced by admin filters and deleted by choice; never reinterpreted as research data about failure. _Avoid: "lost participant" (the cohort-time term from ADR-0006's trade), "dead session"._
 
+- **researcher / maintainer** — The two seats at the **session ledger**'s admin desk (ADR-0007 decisions 7 and 9). A **researcher** is a staff account in the `Researcher` group, which carries three view permissions and nothing else: the role reads sessions, gate answers and groups, and writes nothing. A **maintainer** is the deployment's superuser — the only account that deletes, and it deletes the **abandoned sessions** a filter has selected, through the standard confirmation. The desk never mints a row: the **intake form** is the ledger's one writer. _Avoid: "admin user" (both seats are staff), "analyst", "superuser" as the role name._
+
 ## Research-domain terms
 
 - **polylogue** — A computer-mediated, written, multi-party, asynchronous online exchange characterised by a complex structure of participants' connections rather than linear interactions, a high potential for conflict, often anonymous participants, and messages without addressing. The conversation the tutor simulates.
