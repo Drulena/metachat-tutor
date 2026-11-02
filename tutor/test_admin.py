@@ -2,9 +2,9 @@
 
 ADR-0007 decision 9: stock Django admin, kept extensible the Django way. The
 seam is the admin's own HTTP surface - what a researcher or a maintainer types
-and sees - plus the migration that ships the view-only researcher group. Tests
-ask for the admin URLs with the test client and read the painted answer back;
-Django's own admin machinery is not under test here.
+and sees - plus the app config that keeps the view-only researcher group
+stated. Tests ask for the admin URLs with the test client and read the painted
+answer back; Django's own admin machinery is not under test here.
 
 The rows are built through the ORM: the ledger is the model's own data, and
 timestamps are pinned with a query-set ``update`` because ``created_at`` and
@@ -20,17 +20,13 @@ from django.contrib.auth.models import Group as AuthGroup, Permission, User
 from django.core.management import call_command
 from django.test import TestCase
 
+from .admin import EMPTY_CELL
 from .apps import RESEARCHER_GROUP
 from .ids import uuid7
 from .models import Assessment, Group, SessionRecord
 
 # The changelist a researcher opens first: every session ledger row.
 SESSIONS = "/admin/tutor/sessionrecord/"
-
-# The cell an admin list prints where a row has nothing to show: the em dash
-# the stock admin uses for an empty readonly value, pinned so a test can name
-# "no group" without matching the whole page.
-EMPTY_CELL = "—"
 
 # Pinned on purpose as UTC midday: the range filters cut by local calendar day,
 # and a timestamp far from local midnight stays the same day in any zone the
@@ -81,6 +77,24 @@ def staff_user(*, name: str, superuser: bool = False) -> User:
     return User.objects.create_user(
         name, password="tutor-admin", is_staff=True, is_superuser=superuser
     )
+
+
+class PageChecks:
+    """Markup checks that name the rule when they fail.
+
+    An admin page is tens of kilobytes of stock markup, and the default
+    ``assertNotIn``/``assertNotContains`` failure dumps all of it into the run
+    output - the report buries the one line that matters. Every check here
+    carries the reason the page has to answer as it does.
+    """
+
+    def assert_shows(self, html: str, needle: str, why: str) -> None:
+        """Assert the painted page shows ``needle``, and say what it proves."""
+        self.assertIn(needle, html, f"{why}: the page does not show {needle!r}")
+
+    def assert_hides(self, html: str, needle: str, why: str) -> None:
+        """Assert the painted page does not carry ``needle``, and say why not."""
+        self.assertNotIn(needle, html, f"{why}: the page carries {needle!r}")
 
 
 class LedgerListTests(TestCase):
@@ -191,7 +205,7 @@ class LedgerListTests(TestCase):
         self.assertContains(response, EMPTY_CELL)
 
 
-class SortingTests(TestCase):
+class SortingTests(PageChecks, TestCase):
     """Every printed column is a sortable header (the ADR: "I need sorting")."""
 
     def setUp(self) -> None:
@@ -227,7 +241,7 @@ class SortingTests(TestCase):
             ["Stacy", "Bella", "Amelie"],
         )
 
-    def test_sorting_the_group_column_groups_the_cohorts_together(self):
+    def test_sorting_the_group_column_keeps_one_group_together(self):
         """The group column sorts by the group's name, ties broken by start."""
         self.assertEqual(self.order_by("group_line"), ["Amelie", "Stacy", "Bella"])
 
@@ -256,7 +270,9 @@ class SortingTests(TestCase):
             re.S,
         )
         self.assertIsNotNone(header, "the assessment column header is missing")
-        self.assertNotIn("<a", header.group(1))
+        self.assert_hides(
+            header.group(1), "<a", "a derived column has nothing to sort by"
+        )
 
 
 class SearchTests(TestCase):
@@ -286,7 +302,7 @@ class SearchTests(TestCase):
         self.assertEqual(self.search("Blue Tigers"), [])
 
 
-class FilterTests(TestCase):
+class FilterTests(PageChecks, TestCase):
     """The sidebar answers the research cuts: group, level, lifecycle, dates.
 
     Three sessions, one per lifecycle shape and one per cohort, all on pinned
@@ -321,8 +337,8 @@ class FilterTests(TestCase):
         self.assertEqual(response.status_code, 200, params)
         return [row.user_name for row in response.context["cl"].queryset]
 
-    def test_filtering_by_group_leaves_one_cohort(self):
-        """"By Group" is the filter the ticket asks for: one class at a time."""
+    def test_filtering_by_group_leaves_one_group_of_learners(self):
+        """"By Group" is the filter the ticket asks for: one group at a time."""
         self.assertEqual(
             self.names(group__id__exact=str(self.bella.group_id)), ["Bella"]
         )
@@ -433,10 +449,14 @@ class FilterTests(TestCase):
         """Counted filters are off: a hand-typed toggle must not break the page."""
         response = self.client.get(SESSIONS, {"_facets": "1"})
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "Hide counts")
+        self.assert_hides(
+            response.content.decode(),
+            "Hide counts",
+            "counted filters are off, so the toggle cannot be on",
+        )
 
 
-class SessionDetailTests(TestCase):
+class SessionDetailTests(PageChecks, TestCase):
     """The row's own page: the dialogue the ledger kept, and the gate answers.
 
     ADR-0007 decision 9 asks for a read-only detail that renders
@@ -508,7 +528,7 @@ class SessionDetailTests(TestCase):
             "pretest",
             "role_menu",
         ):
-            self.assertIn(phrase, html)
+            self.assert_shows(html, phrase, "the dialogue log is not printed")
         self.assertLess(
             html.index("Rate the three messages"),
             html.index(">banana<"),
@@ -518,24 +538,24 @@ class SessionDetailTests(TestCase):
     def test_the_detail_marks_the_entries_the_routing_dropped(self):
         """A rejected input and a failed answer are the row's own flags, printed."""
         html = self.detail()
-        self.assertIn("rejected", html)
-        self.assertIn("llm_failed", html)
+        self.assert_shows(html, "rejected", "a dropped input says it was dropped")
+        self.assert_shows(html, "llm_failed", "a failed answer says it failed")
 
     def test_the_detail_escapes_what_a_learner_and_the_model_wrote(self):
         """Research data is read, never executed: markup stays markup."""
         html = self.detail()
-        self.assertNotIn("<script>alert(1)</script>", html)
-        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", html)
-        self.assertIn("&lt;b&gt;bold&lt;/b&gt;", html)
+        self.assert_hides(html, "<script>alert(1)</script>", "page text is escaped")
+        self.assert_shows(
+            html, "&lt;script&gt;alert(1)&lt;/script&gt;", "the escape is visible"
+        )
+        self.assert_shows(html, "&lt;b&gt;bold&lt;/b&gt;", "markup in an answer is text")
 
     def test_the_detail_prints_the_gate_answers_beside_the_session(self):
         """The assessments are rows of their own, on the session's page."""
         html = self.detail()
-        self.assertIn("pretest", html)
-        self.assertIn("3 4 5", html)
-        self.assertIn("3·4·5", html)
-        self.assertIn("*Softening criticism*", html)
-        self.assertIn("*Aggressive formatting*", html)
+        for phrase in ("pretest", "3 4 5", "3·4·5", "*Softening criticism*"):
+            self.assert_shows(html, phrase, "the gate answers are not on the row")
+        self.assert_shows(html, "*Aggressive formatting*", "every rated line prints")
 
     def test_the_lifecycle_pair_and_the_id_are_not_inputs(self):
         """The stamps and the id are the chat's writes: the page shows them.
@@ -545,19 +565,25 @@ class SessionDetailTests(TestCase):
         """
         html = self.detail()
         for name in ("session_id", "created_at", "updated_at", "finished_at"):
-            self.assertNotIn(f'name="{name}"', html)
-        self.assertIn("2026-01-12 12:00", html)
+            self.assert_hides(
+                html, f'name="{name}"', f"{name} is the ledger's write, not a form field"
+            )
+        self.assert_shows(html, "2026-01-12 12:00", "the start stamp prints")
 
     def test_the_reflection_text_prints_and_is_not_a_form_field(self):
         """The reflection is the learner's answer: readable here, not editable."""
         html = self.detail()
-        self.assertIn("I softened my criticism.", html)
-        self.assertNotIn('name="reflection"', html)
+        self.assert_shows(html, "I softened my criticism.", "the reflection prints")
+        self.assert_hides(
+            html, 'name="reflection"', "the learner's answer is not a field to edit"
+        )
 
     def test_the_changelist_offers_no_way_to_write_a_session(self):
         """The intake form is the only writer; the desk inspects and cleans up."""
         html = self.client.get(SESSIONS).content.decode()
-        self.assertNotIn(f"{SESSIONS}add/", html)
+        self.assert_hides(
+            html, f"{SESSIONS}add/", "a page of the ledger has no add offer"
+        )
         self.assertEqual(
             self.client.get(f"{SESSIONS}add/").status_code,
             403,
@@ -570,7 +596,7 @@ class SessionDetailTests(TestCase):
         self.assertEqual(response.status_code, 403)
 
 
-class ResearcherRoleTests(TestCase):
+class ResearcherRoleTests(PageChecks, TestCase):
     """The ADR's two seats at the desk: a researcher reads, a maintainer acts.
 
     The researcher group is the ADR's permission split (decision 9), shipped by
@@ -636,10 +662,12 @@ class ResearcherRoleTests(TestCase):
         """View permission renders the row as text: the facts have no controls."""
         self.client.force_login(self.researcher)
         html = self.client.get(f"{SESSIONS}{self.stacy.pk}/change/").content.decode()
-        self.assertIn("Stacy", html)
-        self.assertIn("3 4 5", html)
-        self.assertNotIn('name="user_name"', html)
-        self.assertNotIn('name="_save"', html)
+        self.assert_shows(html, "Stacy", "the researcher reads the participant")
+        self.assert_shows(html, "3 4 5", "the researcher reads the dialogue")
+        self.assert_hides(
+            html, 'name="user_name"', "a view-only seat gets no field to edit"
+        )
+        self.assert_hides(html, 'name="_save"', "a view-only seat gets no save button")
 
     def test_a_researcher_who_posts_a_change_is_refused(self):
         """A POST is refused by the permission, not by a hidden form field."""
@@ -673,8 +701,10 @@ class ResearcherRoleTests(TestCase):
         """The action menu a researcher is offered has no delete in it."""
         self.client.force_login(self.researcher)
         html = self.client.get(SESSIONS).content.decode()
-        self.assertNotIn('value="delete_selected"', html)
-        self.assertNotIn('name="_save"', html)
+        self.assert_hides(
+            html, 'value="delete_selected"', "a view-only seat is offered no delete"
+        )
+        self.assert_hides(html, 'name="_save"', "a view-only seat is offered no save")
 
     def test_the_maintainer_is_offered_the_delete_action(self):
         """The delete-selected action ships with the desk (decision 7)."""
@@ -744,12 +774,121 @@ class ResearcherRoleTests(TestCase):
         self.stacy.refresh_from_db()
         self.assertEqual(self.stacy.user_name, "Stachya")
         self.assertEqual(self.stacy.level, "intermediate")
-        # The start stamp is the row's birth at the intake, so an edit here
-        # leaves it exactly where the intake put it; `updated_at` is the model's
-        # own last-activity stamp, so writing the row moves it, by design.
         self.assertEqual(self.stacy.created_at, started)
-        self.assertGreater(self.stacy.updated_at, activity)
         self.assertIsNone(self.stacy.finished_at)
+
+    def test_a_repair_leaves_the_last_activity_stamp_where_the_chat_put_it(self):
+        """An admin repair is not learner activity.
+
+        ``updated_at`` is the session's last activity (ADR-0007 decision 4),
+        and it is the cut the abandonment cleanup filters by (decision 7). A
+        maintainer fixing a typed name must not move that stamp to today: the
+        row would leave the "abandoned before this date" window and vanish from
+        the very list the cleanup is run from.
+        """
+        self.client.force_login(staff_user(name="maintainer", superuser=True))
+        activity = self.stacy.updated_at
+        self.client.post(
+            f"{SESSIONS}{self.stacy.pk}/change/",
+            {
+                "user_name": "Stachya",
+                "level": "beginner",
+                "group": "",
+                "previous_session": "",
+                "assessments-TOTAL_FORMS": "0",
+                "assessments-INITIAL_FORMS": "0",
+                "assessments-MIN_NUM_FORMS": "0",
+                "assessments-MAX_NUM_FORMS": "1000",
+                "_save": "Save",
+            },
+        )
+        self.stacy.refresh_from_db()
+        self.assertEqual(self.stacy.user_name, "Stachya")
+        self.assertEqual(self.stacy.updated_at, activity)
+        self.assertEqual(
+            [row.pk for row in self.client.get(
+                SESSIONS, {"finished": "abandoned", "updated_at__date__lte": "2026-01-31"}
+            ).context["cl"].queryset],
+            [self.stacy.pk],
+        )
+
+    def test_a_group_name_cannot_be_renamed_from_the_desk(self):
+        """A hand-rename would split one cohort into two rows.
+
+        The group's identity is its casefolded key, and the intake form is the
+        writer that keeps the pair in step (decision 5). Renaming the display
+        name here leaves the key behind, so the next learner who types the new
+        spelling mints a second group of the same name.
+        """
+        self.client.force_login(staff_user(name="maintainer", superuser=True))
+        group_id = self.stacy.group_id
+        response = self.client.post(
+            f"/admin/tutor/group/{group_id}/change/",
+            {"name": "Red Tigers", "sessions-TOTAL_FORMS": "0", "sessions-INITIAL_FORMS": "0",
+             "sessions-MIN_NUM_FORMS": "0", "sessions-MAX_NUM_FORMS": "0"},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(Group.objects.get(pk=group_id).name, "Blue Tigers")
+
+    def test_the_group_detail_prints_its_name_as_text(self):
+        """The desk reads groups; the intake form spells them."""
+        self.client.force_login(staff_user(name="maintainer", superuser=True))
+        html = self.client.get(
+            f"/admin/tutor/group/{self.stacy.group_id}/change/"
+        ).content.decode()
+        self.assert_shows(html, "Blue Tigers", "the group prints its own spelling")
+        self.assert_hides(html, 'name="name"', "a group name is not a field to edit")
+
+    def test_a_group_row_cannot_be_deleted_from_the_desk(self):
+        """Deleting a group nulls it out of every session that named it."""
+        self.client.force_login(staff_user(name="maintainer", superuser=True))
+        response = self.client.post(f"/admin/tutor/group/{self.stacy.group_id}/delete/", {"post": "yes"})
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Group.objects.filter(pk=self.stacy.group_id).exists())
+
+    def test_a_gate_answer_cannot_be_deleted_from_the_desk(self):
+        """A gate answer is the learner's record; cleanup is for abandoned sessions.
+
+        The ADR's delete mandate names abandoned sessions (decision 7), and the
+        inline already refuses to delete an answer - the list cannot offer what
+        the row's own page closes.
+        """
+        answer = Assessment.objects.create(
+            session=self.stacy, kind="pretest", raw_answer="3 4 5", scores=[3, 4, 5]
+        )
+        self.client.force_login(staff_user(name="maintainer", superuser=True))
+        self.assert_hides(
+            self.client.get("/admin/tutor/assessment/").content.decode(),
+            'value="delete_selected"',
+            "the answer list offers no delete the row's own page closes",
+        )
+        response = self.client.post(
+            f"/admin/tutor/assessment/{answer.pk}/delete/", {"post": "yes"}
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Assessment.objects.filter(pk=answer.pk).exists())
+
+    def test_the_gate_answer_list_prints_its_rows_read_only(self):
+        """The corpus view reads answers; it does not edit them."""
+        Assessment.objects.create(
+            session=self.stacy, kind="pretest", raw_answer="3 4 5", scores=[3, 4, 5]
+        )
+        self.client.force_login(staff_user(name="maintainer", superuser=True))
+        html = self.client.get("/admin/tutor/assessment/").content.decode()
+        self.assert_shows(html, "3 4 5", "the corpus view prints the answers")
+        self.assert_hides(
+            html,
+            "/admin/tutor/assessment/add/",
+            "a gate answer is written at acceptance, never typed here",
+        )
+        detail = self.client.get(
+            f"/admin/tutor/assessment/{Assessment.objects.first().pk}/change/"
+        ).content.decode()
+        self.assert_shows(detail, "3 4 5", "the answer prints on its own page")
+        self.assert_hides(
+            detail, 'name="raw_answer"', "the answer a learner gave is not a field"
+        )
+
 
 
 

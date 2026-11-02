@@ -60,6 +60,25 @@ def score_line(scores: Any) -> str:
     return "·".join(str(score) for score in scores)
 
 
+def rated_lines_html(rated: Any):
+    """The task lines an answer rated, printed as the **rating form** printed them.
+
+    The lines live in the answer form and not in the transcript, so the
+    assessment row is the one place the stimulus a learner saw survives
+    (ticket #48). A bare answer - a gate that named no lines - prints a dash.
+    """
+    pairs = [
+        (item.get("letter", ""), item.get("prompt", ""))
+        for item in rated
+        if isinstance(item, dict)
+    ]
+    if not pairs:
+        return EMPTY_CELL
+    return format_html_join(
+        "<br>", "{} {}", ((letter, prompt) for letter, prompt in pairs)
+    )
+
+
 class FinishedFilter(admin.SimpleListFilter):
     """The lifecycle question the ticket opens with: finished, or abandoned.
 
@@ -218,20 +237,9 @@ class AssessmentInline(admin.StackedInline):
         return score_line(obj.scores)
 
     @admin.display(description="Rated lines")
-    def rated_lines(self, obj: Assessment) -> str:
-        """The task lines the answer rated, as the rating form printed them.
-
-        The lines live in the answer form, not in the transcript, so the row is
-        the only place the stimulus a learner saw survives (ticket #48).
-        """
-        pairs = [
-            (item.get("letter", ""), item.get("prompt", ""))
-            for item in obj.rated
-            if isinstance(item, dict)
-        ]
-        if not pairs:
-            return EMPTY_CELL
-        return format_html_join("<br>", "{} {}", ((letter, prompt) for letter, prompt in pairs))
+    def rated_lines(self, obj: Assessment):
+        """The task lines the answer rated, as the rating form printed them."""
+        return rated_lines_html(obj.rated)
 
     def has_add_permission(self, request, obj=None) -> bool:
         """The chat writes a gate answer at acceptance; the desk never does."""
@@ -377,8 +385,31 @@ class SessionRecordAdmin(admin.ModelAdmin):
             )
         )
 
+    def save_model(self, request, obj, form, change) -> None:
+        """Write the repair, and leave the last-activity stamp where the chat put it.
+
+        ``updated_at`` is the session's last activity (ADR-0007 decision 4) and
+        the cut the abandonment cleanup filters by (decision 7), and the model's
+        ``auto_now`` refreshes it on any save. A maintainer fixing a name a
+        learner typed is not learner activity: the write puts back the stamp the
+        row already carried, so an edited row cannot leave the window the
+        cleanup is run from and disappear from research.
+        """
+        stamped = (
+            self.model.objects.filter(pk=obj.pk)
+            .values_list("updated_at", flat=True)
+            .first()
+            if change
+            else None
+        )
+        super().save_model(request, obj, form, change)
+        if stamped is not None:
+            self.model.objects.filter(pk=obj.pk).update(updated_at=stamped)
+            obj.updated_at = stamped
+
     @admin.display(description="Dialogue")
     def dialogue(self, obj: SessionRecord):
+
         """The dialogue log as the ledger kept it: every entry, in submit order.
 
         The learner's words and the model's answer are research data on this
@@ -429,18 +460,20 @@ def _entry_line(entry: dict) -> str:
 class GroupAdmin(admin.ModelAdmin):
     """The cohort dimension: which groups the ledger knows, and how big each is.
 
-    Read-only in the same spirit as the sessions: the intake form is the only
-    writer of groups (the model's casefolded lookup owns it), so a hand-typed
-    group here would mint a cohort no learner ever declared. Deleting one is
-    closed too - the ledger keeps the sessions and their group goes to null,
-    which erases the filter dimension the research is cut by.
+    Read-only in every direction, and the reason is the group's own identity
+    rule. A group is one row because of its casefolded key, and the intake form
+    is the writer that keeps name and key in step (decision 5); renaming the
+    display name here leaves the key behind, and the next learner who types the
+    new spelling mints a second group of the same name. Deleting one is closed
+    for a plainer reason: the ledger keeps the sessions and their group goes to
+    null, which erases the dimension the research is cut by.
     """
 
     list_display = ("name", "session_count")
     search_fields = ("name",)
     ordering = ("name",)
-    readonly_fields = ("lookup_key",)
     fields = ("name", "lookup_key")
+    readonly_fields = ("name", "lookup_key")
 
     @admin.display(description="Sessions")
     def session_count(self, obj: Group) -> int:
@@ -453,6 +486,10 @@ class GroupAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request) -> bool:
         """The intake form creates a group on a miss; the desk does not."""
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        """The intake form spells a group; a hand-edit splits its identity."""
         return False
 
     def has_delete_permission(self, request, obj=None) -> bool:
@@ -498,17 +535,21 @@ class AssessmentAdmin(admin.ModelAdmin):
     @admin.display(description="Rated lines")
     def rated_lines(self, obj: Assessment):
         """The task lines the answer rated, as the rating form printed them."""
-        pairs = [
-            (item.get("letter", ""), item.get("prompt", ""))
-            for item in obj.rated
-            if isinstance(item, dict)
-        ]
-        if not pairs:
-            return EMPTY_CELL
-        return format_html_join(
-            "<br>", "{} {}", ((letter, prompt) for letter, prompt in pairs)
-        )
+        return rated_lines_html(obj.rated)
 
     def has_add_permission(self, request) -> bool:
         """A gate answer is written when the learner's answer is accepted."""
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        """The answer a learner gave is theirs: the desk reads it, never edits it."""
+        return False
+
+    def has_delete_permission(self, request, obj=None) -> bool:
+        """The desk's delete mandate names abandoned sessions, not gate answers.
+
+        The session's own page already refuses to delete an answer from beside
+        the row (the inline's ``can_delete`` is off), so the list cannot offer
+        what the row closes - and a corpus missing its scores is not a cleanup.
+        """
         return False
