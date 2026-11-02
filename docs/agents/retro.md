@@ -3,6 +3,103 @@
 Append-only, one session per section, newest first. Sessions run `/retro` at
 close; the findings feed the standards docs and the next session's start.
 
+## 2026-11-02 — research admin over the ledger (#35)
+
+Shipped on `django`, 4 commits, unpushed: `/admin/` over the session ledger —
+changelist with the ADR's columns, group/level/finished-abandoned filters and a
+from/to window on each of the three stamps, the row's page (dialogue + gate
+answers, escaped), the `Researcher` group (view-only) and the maintainer's
+Delete-selected. 296 → 348 tests, 52 of them in `tutor/test_admin.py`.
+
+### What worked
+
+- **Naming the seam before the loop kept the tests honest.** The admin's own
+  HTTP surface (+ the group's permission set) was confirmed with the owner
+  first; 52 tests, zero unit tests of my own callables, and the two review
+  defects were both found at that surface. Confidence: high.
+- **`post_migrate` over a data migration for the researcher group.** A
+  migration cannot see the `view_*` permissions (Django writes them in its own
+  post-migrate phase), and `AppConfigStub` has no `models_module`, so the
+  `create_permissions` recipe fails against the historical apps. The signal
+  runs where the permissions exist. Pinned by a test that hand-grants
+  `change_sessionrecord`, re-runs `migrate`, and asserts the grant is gone —
+  that is the test that makes the mechanism observable. Confidence: high.
+- **`__date` extracts as the window's query parameters.** `?created_at__date__gte=2026-01-12`
+  needs no timezone arithmetic of my own, is inclusive by local day on SQLite,
+  and the URL reads as the question it answers. Confidence: high.
+- **The two-axis review found three defects behind 46 green tests** (see
+  Friction). Green pins the surface, never the interactions. Confidence: high.
+
+### Friction (the expensive lessons)
+
+- **Three defects the tests did not have a shape for.** (1) `auto_now` + admin
+  save: repairing a learner's name moved `updated_at` to today, so the row left
+  the "abandoned, last activity before X" window — the cleanup list lost the
+  rows the cleanup is for. (2) `Group.name` editable while `lookup_key` was not:
+  a hand-rename left the key behind and the next intake typing the new spelling
+  minted a second group of the same name (decision 5 split). (3) The Assessment
+  list offered `delete_selected` while the session page refused to delete the
+  same answer. All three are one theme: the desk was written as if it had write
+  rights it was never given. Fixed in `af18541`, each with its test. Confidence: high.
+- **Django 5.0.9 is not 5.1.** No `BetweenDateFieldListFilter`, no
+  `admin/filter/date_range.html` (the sidebar range arrived in 5.1), no
+  `readonly_fields = "__all__"`, `ShowFacets` members are `NEVER/ALLOW/ALWAYS`
+  (not `OFF`), `post_migrate` sends `using=` (not `database=`), and a popped
+  QueryDict parameter arrives as a **list** — a custom filter must take
+  `value[-1]` (the stock filters' rule) or the date field gets a list and the
+  changelist 500s. Check the installed source, not the current docs. Confidence: high.
+- **This sandbox has no tz database** (`/usr/share/zoneinfo` absent on musl), so
+  `ZoneInfo("UTC")` raised on the first template that rendered a timestamp.
+  Fixed in the repo: `tzdata==2026.6` pinned as a runtime dependency (Django's
+  own guidance for that host class), lock + `requirements.txt` regenerated.
+  Confidence: high.
+- **uv cannot manage the owner's `.venv` from here** (`failed to remove
+  .venv/Scripts`, a Windows-layout venv). Working pattern: `uv add --no-sync` +
+  `uv lock` to move pyproject/lock, and run tests with a Linux venv at
+  `/tmp/opencode/venv311/bin/python manage.py test tutor`. `.venv/` was not
+  gitignored (only the pre-uv `venv/`), so `add -A` could sweep an environment
+  into a commit — ignored now. Confidence: high.
+- **`test_browser` is red, not green-skip, in this container**: the playwright
+  driver needs `fcntl64`, musl has none (issue #49). Baseline before this work
+  was the same 5 errors, so the suite's signal stayed readable. Confidence: high.
+- **Admin page assertions dump 40 kB** into the report on failure
+  (`assertNotIn`/`assertContains` print the container). Fixed with the
+  `PageChecks.assert_shows/assert_hides` pair, which carries the reason.
+  Confidence: high.
+- Git identity is unset in this container (commits died on
+  `unable to auto-detect email`); set repo-local, not global. The
+  `commit-msg`/`pre-commit` hooks fire fine on Linux — no `--no-verify` needed,
+  unlike the Windows harness the earlier retros describe. Subject cap 72 is
+  `wc -m` on the line, so count the newline. Confidence: high.
+
+### State
+
+- `django` is 4 commits ahead of `origin/django`: `7800794` tzdata + `.venv`
+  ignore, `20cc106` the desk, `e0b2090` README/GLOSSARY, `af18541` the review
+  fixes. Unpushed: pushing needs the owner's shell.
+- New files: `tutor/admin.py`, `tutor/apps.py`,
+  `tutor/templates/tutor/admin/date_range_filter.html`, `tutor/test_admin.py`.
+  Settings gained `admin`/`auth`, `AuthenticationMiddleware` and the auth
+  context processor; `tutor_project/urls.py` mounts `/admin/`.
+- GLOSSARY gained **researcher / maintainer**; README gained the admin section
+  and the `createsuperuser` step (the desk cannot be opened without one).
+- #35 closed. No migration was added, so the append-only rule is untouched.
+
+### Next time
+
+- Give a real researcher account a run in a browser (the desk has no paint test:
+  `test_browser` covers learner pages only, and #49 blocks the driver here).
+- The maintainer can still edit `user_name`, `group`, `level`,
+  `previous_session` — the ADR's "maintainer: full" read as a repair hatch, and
+  the reading is written in the docstrings, the README and the ticket. If the
+  owner wants the desk strictly read-only, that hatch is the one line to close.
+- The range filter renders its own template; Django 5.1's
+  `BetweenDateFieldListFilter` would replace it wholesale on an upgrade — the
+  parameters (`<field>__date__gte`) are the part tests pin, so the swap is local.
+- `tutor/testing.py`'s intake scaffolding is unused by the admin tests; a
+  ledger-row-built-from-a-real-chat admin test would close the last gap between
+  the desk and the write path.
+
 ## 2026-11-01 — browser paints + uv (#44)
 
 Context: the learner reported a blank page with a green suite. The view tests
