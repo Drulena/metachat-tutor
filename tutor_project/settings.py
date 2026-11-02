@@ -32,7 +32,12 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
 
+# The admin (ticket #35) is the research surface over the ledger, so the auth
+# stack joins the app set: admin needs auth, contenttypes, messages, sessions
+# and staticfiles to serve its own pages and static assets.
 INSTALLED_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
@@ -45,6 +50,10 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    # Reads the browser session's user id and puts the user on the request:
+    # the admin's whole permission model hangs off it, so it sits after the
+    # session middleware and before anything that asks who is asking.
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -57,8 +66,13 @@ TEMPLATES = [
         "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
+            # The admin base template reads `user`/`perms` and `messages` off
+            # the context, so the auth and messages processors are required,
+            # not optional (the project's own pages ignore them).
             "context_processors": [
+                "django.template.context_processors.debug",
                 "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
             ],
         },

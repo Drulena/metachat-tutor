@@ -1,0 +1,38 @@
+{% comment %}
+One sidebar filter block: the two ends of a date window (ticket #35).
+
+The markup borrows the stock filter block's shape - `details` with
+`data-filter-title` is what admin/js/filters.js opens and remembers - and adds
+the two date inputs Django 5.0's sidebar has no control for. No classes of its
+own: the stock stylesheet dresses every element here, so there is no rule for
+this template to be missing. The hidden fields are the rest of the query
+string, so applying a window leaves the other cuts standing.
+{% endcomment %}
+<details data-filter-title="{{ title }}" open>
+  <summary>
+    By {{ title }}
+  </summary>
+  <form method="get" action="">
+    {% for key, value in spec.hidden_fields %}
+      <input type="hidden" name="{{ key }}" value="{{ value }}">
+    {% endfor %}
+    <ul>
+      <li>
+        <label>
+          From
+          <input type="date" name="{{ spec.since_param }}" value="{{ spec.since_value }}">
+        </label>
+      </li>
+      <li>
+        <label>
+          To
+          <input type="date" name="{{ spec.until_param }}" value="{{ spec.until_value }}">
+        </label>
+      </li>
+      <li>
+        <button type="submit">Apply</button>
+        <a href="{{ spec.clear_link }}">Clear</a>
+      </li>
+    </ul>
+  </form>
+</details>
