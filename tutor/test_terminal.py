@@ -80,6 +80,15 @@ class TerminalScreenTests(TestCase):
         page = self.client.get("/chat/")
         self.assertContains(page, "complete")
 
+    def test_the_terminal_screen_names_no_submission_service(self):
+        """The ledger keeps the record, so the last screen sends no upload (issue #47)."""
+        self._finish()
+        page = self.client.get("/chat/")
+        self.assertNotContains(page, "Google")
+        self.assertNotContains(page, "forms.gle")
+        self.assertContains(page, "saved to the study record")
+        self.assertContains(page, "nothing to upload")
+
     def test_the_export_reports_the_session_finished(self):
         """The payload says the same thing the ledger does."""
         self._finish()

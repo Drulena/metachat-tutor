@@ -21,7 +21,7 @@ class IntakeForm(forms.Form):
     name = forms.CharField(
         max_length=50,
         label="Your name",
-        help_text="Shown on every screen and in the export file name.",
+        help_text="Shown on every screen.",
         widget=forms.TextInput(
             attrs={"class": "intake-input", "autocomplete": "name", "autofocus": True}
         ),
@@ -29,7 +29,7 @@ class IntakeForm(forms.Form):
     group = forms.CharField(
         max_length=256,
         label="Group",
-        help_text="Your class or cohort, exactly as your tutor writes it.",
+        help_text="Type the number.",
         # The datalist in the template offers the groups already in the
         # ledger: the match is case-insensitive (#36), so a cohort that
         # types a new casing lands on the group it already has.
@@ -41,5 +41,5 @@ class IntakeForm(forms.Form):
         choices=SessionRecord.LEVEL_CHOICES,
         label="Level",
         widget=forms.RadioSelect(attrs={"class": "intake-radio"}),
-        help_text="Your own estimate; the pretest result is reported separately.",
+        help_text="Your own estimate.",
     )

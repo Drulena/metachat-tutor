@@ -24,13 +24,32 @@ class IntakeFormTests(TestCase):
         self.assertContains(response, "Group")
         self.assertContains(response, "Beginner")
 
-    def test_front_page_links_the_data_collection_terms(self):
+    def test_front_page_explains_what_each_fact_is_used_for(self):
+        """The three help texts say the name, group and level's job (issue #47)."""
+        response = self.client.get("/")
+        self.assertContains(response, "Shown on every screen.")
+        self.assertContains(response, "Type the number.")
+        self.assertContains(response, "Your own estimate.")
+        # The export is named after the session id, never the participant: the
+        # help text must not promise a name in the filename (issue #47 Q1).
+        self.assertNotContains(response, "export file name")
+
+    def test_front_page_links_the_disclosure_page(self):
         """Consent is collected by the footer link the form ships with."""
         response = self.client.get("/")
         self.assertContains(response, "/terms/")
         terms = self.client.get("/terms/")
         self.assertEqual(terms.status_code, 200)
-        self.assertContains(terms, "data collection")
+        for heading in (
+            "What is This Chatbot",
+            "Data from the Start Page",
+            "Replies to the Tasks in the Chatbot",
+            "Data Export and Reset Function",
+            "Who Analyzes the Collected Data and Why",
+        ):
+            self.assertContains(terms, heading)
+        self.assertContains(terms, "in BSUFL")
+        self.assertContains(terms, "scores")
 
     def test_submissions_without_the_required_answers_are_refused(self):
         """Blank name, blank group and a missing level never open a chat."""

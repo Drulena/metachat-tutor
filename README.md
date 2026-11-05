@@ -48,7 +48,7 @@ Django project `tutor_project/` with a single app `tutor/`:
 4. **Step 2: Role-Play** — choose from constructive roles (e.g. Mediator, Logical Expert, Idea Generator, Empath)
 5. **Reflection** — brief written reflection
 6. **Post-Test** — rate the same 3 messages again
-7. **Last screen** — download the session JSON and submit it via the Google Form
+7. **Last screen** — the session is already saved to the ledger; download a copy of the session JSON if you want one
 
 ## Research Admin
 
